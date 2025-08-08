@@ -53,7 +53,7 @@ generate migrations and entities with `sea-orm-cli`.
 touch mikupush.tmp.db
 ```
 
-### Create a new entity
+#### Create a new entity
 
 First, we need to create a migration.
 
