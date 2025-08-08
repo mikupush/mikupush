@@ -5,11 +5,8 @@ use reqwest::Client;
 use serde_json::json;
 use std::cmp::min;
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
 use tokio::fs::File;
-use tokio::io::{AsyncRead, ReadBuf};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
