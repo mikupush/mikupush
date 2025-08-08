@@ -18,6 +18,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+mikupush_migration = { path = "../migration" }
+mikupush_entity = { path = "../entity" }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
@@ -32,12 +34,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1.4", features = ["v4", "serde"] }
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11", features = ["json", "multipart"] }
+tokio-stream = "0.1.17"
+tokio-util = { version = "0.7", features = ["full"]}
+async-stream = "0.3.6"
+reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
 chrono = { version = "0.4", features = ["serde"] }
 env_logger = "0.10"
 log = "0.4.27"
 sea-orm = { version = "1.1.0", features = [ "sqlx-sqlite", "runtime-async-std-rustls", "macros" ] }
-mikupush_migration = { path = "../migration" }
-mikupush_entity = { path = "../entity" }
 rand = "0.8.5"
 mimetype-detector = "0.1.1"
+futures-core = "0.3.31"

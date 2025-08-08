@@ -4460,10 +4460,12 @@ dependencies = [
  "system-configuration 0.5.1",
  "tokio",
  "tokio-native-tls",
+ "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
  "winreg 0.50.0",
 ]
@@ -5854,8 +5856,10 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 name = "tauri"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "chrono",
  "env_logger",
+ "futures-core",
  "log",
  "mikupush_entity",
  "mikupush_migration",
@@ -5877,6 +5881,8 @@ dependencies = [
  "tauri-plugin-sql",
  "tauri-plugin-window-state",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
  "uuid",
 ]
 
@@ -6540,8 +6546,12 @@ checksum = "14307c986784f72ef81c89db7d9e28d6ac26d16213b109ea501696195e6e3ce5"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.15.5",
  "pin-project-lite",
+ "slab",
  "tokio",
 ]
 
