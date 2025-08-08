@@ -1,0 +1,35 @@
+.speed,
+.retry {
+  color: var(--foreground-color);
+}
+
+.cancel,
+.error {
+  color: red;
+}
+
+.speed,
+.error,
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.progress {
+  margin-right: 1em;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
+}

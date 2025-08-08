@@ -1,0 +1,78 @@
+@font-face {
+  font-family: 'Fredoka';
+  src: url('assets/fonts/fredoka.ttf') format('truetype');
+  font-weight: normal;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('assets/fonts/fredoka_light.ttf') format('truetype');
+  font-weight: 300;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('assets/fonts/fredoka_bold.ttf') format('truetype');
+  font-weight: bold;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('assets/fonts/fredoka_medium.ttf') format('truetype');
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('assets/fonts/fredoka_semibold.ttf') format('truetype');
+  font-weight: 600;
+}
+
+:root {
+  --primary-color: #057073;
+  --on-primary-color: #FFFFFF;
+  --secondary-color: #9AD5D5;
+  --background-color: #FFFFFF;
+  --foreground-color: #000000;
+  --secondary-background-color: #EAEAEB;
+
+  /* Material Web Components colors */
+  --md-sys-color-surface: var(--background-color);
+  --md-sys-color-on-surface: var(--foreground-color);
+  --md-sys-color-primary: var(--primary-color);
+  --md-sys-color-on-primary: var(--on-primary-color);
+  --md-sys-color-secondary: var(--secondary-color);
+  --md-sys-color-on-secondary: var(--background-color);
+  --md-sys-color-primary-container: var(--primary-color);
+  --md-sys-color-on-primary-container: var(--on-primary-color);
+  --md-sys-color-secondary-container: var(--secondary-color);
+  --md-sys-color-on-secondary-container: var(--foreground-color);
+  --md-sys-color-surface-container-highest: var(--secondary-background-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #38B0B6;
+    --on-primary-color: #1C1B1F;
+    --secondary-color: #020516;
+    --background-color: #1C1B1F;
+    --foreground-color: #FFFFFF;
+    --secondary-background-color: #000000;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--foreground-color);
+}

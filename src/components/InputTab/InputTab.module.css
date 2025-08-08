@@ -1,0 +1,30 @@
+.area {
+  border-radius: 2em;
+  border-style: dashed;
+  border-width: 0.3em;
+  border-color: var(--foreground-color);
+  flex-grow: 1;
+  margin: 2em;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.area:hover,
+.active {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.area md-icon {
+  --md-icon-size: 8em;
+  width: 100%;
+  height: auto;
+}
+
+.area p {
+  text-align: center;
+}
