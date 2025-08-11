@@ -52,51 +52,47 @@ mod tests {
     use crate::models::Upload;
     use crate::repository::UploadRepository;
 
-    #[test]
-    fn upload_repository_find_all_should_return_all() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let db = runtime.block_on(setup_test_database_connection());
+    #[tokio::test]
+    async fn upload_repository_find_all_should_return_all() {
+        let db = setup_test_database_connection().await;
         let repository = UploadRepository::new(db.clone());
-        let expected: Vec<Upload> = runtime.block_on(insert_many_test_uploads(&db, 10));
+        let expected: Vec<Upload> = insert_many_test_uploads(&db, 10).await;
 
-        let actual: Vec<Upload> = runtime.block_on(repository.find_all()).unwrap();
+        let actual: Vec<Upload> = repository.find_all().await.unwrap();
 
         assert_eq!(expected.len(), actual.len());
     }
 
-    #[test]
-    fn upload_repository_find_by_id_should_find_existing() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let db = runtime.block_on(setup_test_database_connection());
+    #[tokio::test]
+    async fn upload_repository_find_by_id_should_find_existing() {
+        let db = setup_test_database_connection().await;
         let repository = UploadRepository::new(db.clone());
-        let expected: Upload = runtime.block_on(insert_test_upload(&db));
+        let expected: Upload = insert_test_upload(&db).await;
 
-        let actual: Option<Upload> = runtime.block_on(repository.find_by_id(expected.id)).unwrap();
+        let actual: Option<Upload> = repository.find_by_id(expected.id).await.unwrap();
 
         assert_eq!(true, actual.is_some());
         assert_eq!(expected, actual.unwrap());
     }
 
-    #[test]
-    fn upload_repository_find_by_id_should_not_find_not_existing() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let db = runtime.block_on(setup_test_database_connection());
+    #[tokio::test]
+    async fn upload_repository_find_by_id_should_not_find_not_existing() {
+        let db = setup_test_database_connection().await;
         let repository = UploadRepository::new(db.clone());
 
-        let actual: Option<Upload> = runtime.block_on(repository.find_by_id(Uuid::new_v4())).unwrap();
+        let actual: Option<Upload> = repository.find_by_id(Uuid::new_v4()).await.unwrap();
 
         assert_eq!(true, actual.is_none());
     }
 
-    #[test]
-    fn upload_repository_save_should_insert_new_model() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let db = runtime.block_on(setup_test_database_connection());
+    #[tokio::test]
+    async fn upload_repository_save_should_insert_new_model() {
+        let db = setup_test_database_connection().await;
         let repository = UploadRepository::new(db.clone());
         let upload = Upload::test();
 
-        runtime.block_on(repository.save(upload.clone())).unwrap();
-        let existing = runtime.block_on(upload::Entity::find_by_id(upload.id).one(&db)).unwrap();
+        repository.save(upload.clone()).await.unwrap();
+        let existing = upload::Entity::find_by_id(upload.id).one(&db).await.unwrap();
 
         assert_eq!(true, existing.is_some());
         assert_eq!(upload, existing.unwrap().into());
@@ -105,7 +101,10 @@ mod tests {
     async fn insert_test_upload(db: &DatabaseConnection) -> Upload {
         let model: upload::Model = Upload::test().into();
         let active_model: upload::ActiveModel = model.clone().into();
-        active_model.insert(db).await.unwrap().into()
+        let result = active_model.insert(db).await;
+        println!("insert test upload result: {:?}", result);
+
+        result.unwrap().into()
     }
 
     async fn insert_many_test_uploads(db: &DatabaseConnection, count: i8) -> Vec<Upload> {

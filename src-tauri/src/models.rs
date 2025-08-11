@@ -86,7 +86,7 @@ impl From<upload::Model> for Upload {
         Self {
             id: model.id,
             name: model.name,
-            size: model.size,
+            size: model.size as u64,
             mime_type: model.mime_type,
             path: model.path,
             url: model.url,
@@ -101,7 +101,7 @@ impl From<Upload> for upload::Model {
         Self {
             id: model.id,
             name: model.name,
-            size: model.size,
+            size: model.size as i64,
             mime_type: model.mime_type,
             path: model.path,
             url: model.url,
