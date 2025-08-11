@@ -1,5 +1,5 @@
 use crate::models::Upload;
-use crate::Result;
+use crate::GenericResult;
 use mikupush_entity::upload;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
 use uuid::Uuid;
@@ -13,7 +13,7 @@ impl UploadRepository {
         Self { db }
     }
 
-    pub async fn find_all(&self) -> Result<Vec<Upload>> {
+    pub async fn find_all(&self) -> GenericResult<Vec<Upload>> {
         let entities = upload::Entity::find().all(&self.db).await?;
 
         let models: Vec<Upload> = entities.iter()
@@ -23,12 +23,12 @@ impl UploadRepository {
         Ok(models)
     }
 
-    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Upload>> {
+    pub async fn find_by_id(&self, id: Uuid) -> GenericResult<Option<Upload>> {
         let entity = upload::Entity::find_by_id(id).one(&self.db).await?;
         Ok(entity.map(|entity| entity.clone().into()))
     }
 
-    pub async fn save(&self, upload: Upload) -> Result<()> {
+    pub async fn save(&self, upload: Upload) -> GenericResult<()> {
         let model: upload::Model = upload.clone().into();
         let existing = upload::Entity::find_by_id(upload.id).one(&self.db).await?;
         let active_model: upload::ActiveModel = model.into();

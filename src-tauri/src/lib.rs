@@ -1,6 +1,6 @@
+mod commands;
 mod database;
 mod models;
-mod commands;
 mod repository;
 mod server_client;
 
@@ -12,11 +12,15 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Manager, Wry};
 use tokio::runtime::Runtime;
 
+pub struct AppState {
+
+}
+
 pub struct AppContext {
     db_connection: Mutex<DatabaseConnection>,
 }
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type GenericResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 // Initialize all plugins and set up the application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,13 +42,11 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-
         // Set up the application state
         .manage(AppContext {
             db_connection: Mutex::default(),
         })
         .setup(|app| setup_app(app))
-
         // Register command handlers
         .invoke_handler(tauri::generate_handler![
             // File system commands
@@ -58,12 +60,11 @@ pub fn run() {
             commands::find_all_uploads,
             commands::copy_upload_link
         ])
-        
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
-fn setup_app(app: &mut App) -> Result<()> {
+fn setup_app(app: &mut App) -> GenericResult<()> {
     let tokio_runtime = Runtime::new().unwrap();
     let db = tokio_runtime.block_on(setup_app_database_connection(app));
 
@@ -87,24 +88,16 @@ fn setup_tray_menu(app: &App) -> Menu<Wry> {
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>).unwrap();
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).unwrap();
 
-    Menu::with_items(
-        app,
-        &[
-            &show_item,
-            &quit_item
-        ],
-    ).unwrap()
+    Menu::with_items(app, &[&show_item, &quit_item]).unwrap()
 }
 
 fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
     match event.id.as_ref() {
-        "quit" => {
-            app.exit(0)
-        },
+        "quit" => app.exit(0),
         "show" => {
             let window = app.get_webview_window("main").unwrap();
             window.show().unwrap()
-        },
+        }
         &_ => {}
     }
 }

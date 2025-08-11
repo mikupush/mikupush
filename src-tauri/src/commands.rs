@@ -1,5 +1,4 @@
 use crate::models::{Upload, UploadRequest, UploadStatus};
-use crate::AppState;
 use log::debug;
 use reqwest::multipart::{Form, Part};
 use std::fs::File;
@@ -9,6 +8,7 @@ use tauri::{AppHandle, Emitter, Listener, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tokio::sync::mpsc;
 use uuid::Uuid;
+use crate::AppState;
 
 #[tauri::command]
 pub async fn resolve_file_path(path: String) -> Result<String, String> {
@@ -43,7 +43,7 @@ pub async fn enqueue_upload(
             }
         }
     });
-    
+
     Ok(request)
 }
 
@@ -54,14 +54,14 @@ pub async fn enqueue_many_uploads(
     file_paths: Vec<String>,
 ) -> Result<Vec<UploadRequest>, String> {
     let mut requests = Vec::new();
-    
+
     for path in file_paths {
         match enqueue_upload(window.clone(), app_state.clone(), path).await {
             Ok(request) => requests.push(request),
             Err(e) => println!("Failed to enqueue file: {}", e),
         }
     }
-    
+
     Ok(requests)
 }
 
@@ -72,40 +72,39 @@ pub async fn retry_upload(
     request: UploadRequest,
 ) -> Result<(), String> {
     // Create a new request with the same ID and file info
-    let mut new_request = UploadRequest::new(
-        request.id,
-        request.name,
-        request.size,
-        request.mime_type,
-        request.path,
-    );
-    
-    // Start upload in background
-    let window_clone = window.clone();
-    
-    tauri::async_runtime::spawn(async move {
-        // Upload the file
-        match upload_file(window_clone, new_request).await {
-            Ok(_) => {
-                // Success is handled by the progress updates
-            }
-            Err(e) => {
-                // Handle error
-                println!("Upload retry failed: {}", e);
-            }
-        }
-    });
-    
+    // let mut new_request = UploadRequest::new(
+    //     request.id,
+    //     request.name,
+    //     request.size,
+    //     request.mime_type,
+    //     request.path,
+    // );
+    //
+    // // Start upload in background
+    // let window_clone = window.clone();
+    //
+    // tauri::async_runtime::spawn(async move {
+    //     // Upload the file
+    //     match upload_file(window_clone, new_request).await {
+    //         Ok(_) => {
+    //             // Success is handled by the progress updates
+    //         }
+    //         Err(e) => {
+    //             // Handle error
+    //             println!("Upload retry failed: {}", e);
+    //         }
+    //     }
+    // });
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn abort_upload(
-    app_handle: AppHandle,
-    upload_id: String,
-) -> Result<(), String> {
+pub async fn abort_upload(app_handle: AppHandle, upload_id: String) -> Result<(), String> {
     // Emit an event to abort the upload
-    app_handle.emit(&format!("abort-upload-{}", upload_id), ()).map_err(|e| e.to_string())?;
+    app_handle
+        .emit(&format!("abort-upload-{}", upload_id), ())
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -115,28 +114,26 @@ pub async fn delete_upload(
     upload_id: String,
 ) -> Result<(), String> {
     //let db = app_state.db.lock().unwrap();
-    
+
     // Find the upload
     /*let upload = db.find_upload_by_id(&upload_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Upload not found".to_string())?;*/
-    
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Upload not found".to_string())?;*/
+
     // Delete from server if URL exists
     /*if let Some(url) = &upload.url {
         // In a real implementation, you would call the server API to delete the file
         println!("Would delete file from server: {}", url);
     }*/
-    
+
     // Delete from database
     //db.delete_upload(&upload_id).map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn find_all_uploads(
-    app_state: State<'_, AppState>,
-) -> Result<Vec<Upload>, String> {
+pub async fn find_all_uploads(app_state: State<'_, AppState>) -> Result<Vec<Upload>, String> {
     //let db = app_state.db.lock().unwrap();
     //db.find_all_uploads().map_err(|e| e.to_string())
     Ok(vec![])
@@ -152,48 +149,48 @@ pub async fn copy_upload_link(
 
     // Find the upload
     /*let upload = db.find_upload_by_id(&upload_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Upload not found".to_string())?;*/
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Upload not found".to_string())?;*/
 
     // Get the URL
     //let url = upload.url.ok_or_else(|| "Upload has no URL".to_string())?;
 
     // Copy to clipboard
     /*app_handle.clipboard()
-        .write_text(url)
-        .map_err(|e| e.to_string())?;*/
+    .write_text(url)
+    .map_err(|e| e.to_string())?;*/
 
     Ok(())
 }
 
 // Helper function to upload a file
 async fn upload_file(window: Window, mut request: UploadRequest) -> Result<(), String> {
-    debug!("Uploading file");
-    // Create a channel to handle abort signals
-    let (abort_tx, mut abort_rx) = mpsc::channel::<()>(1);
-    
-    // Listen for abort events
-    let abort_id = request.id.clone();
-    let abort_handler = window.listen(&format!("abort-upload-{}", abort_id), move |_| {
-        let _ = abort_tx.try_send(());
-    });
-    
-    // Get server URL based on environment
-    let server_url = if cfg!(debug_assertions) {
-        "http://localhost:8080/upload"
-    } else {
-        "https://mikupush.io/upload"
-    };
-
-    // Open the file
-    let file = match File::open(&request.path) {
-        Ok(file) => file,
-        Err(e) => {
-            request.set_failed(format!("Failed to open file: {}", e));
-            emit_progress(&window, &request)?;
-            return Err(e.to_string());
-        }
-    };
+    // debug!("Uploading file");
+    // // Create a channel to handle abort signals
+    // let (abort_tx, mut abort_rx) = mpsc::channel::<()>(1);
+    //
+    // // Listen for abort events
+    // let abort_id = request.id.clone();
+    // let abort_handler = window.listen(&format!("abort-upload-{}", abort_id), move |_| {
+    //     let _ = abort_tx.try_send(());
+    // });
+    //
+    // // Get server URL based on environment
+    // let server_url = if cfg!(debug_assertions) {
+    //     "http://localhost:8080/upload"
+    // } else {
+    //     "https://mikupush.io/upload"
+    // };
+    //
+    // // Open the file
+    // let file = match File::open(&request.path) {
+    //     Ok(file) => file,
+    //     Err(e) => {
+    //         request.set_failed(format!("Failed to open file: {}", e));
+    //         emit_progress(&window, &request)?;
+    //         return Err(e.to_string());
+    //     }
+    // };
 
     // Create a client
     // let client = reqwest::Client::new();
@@ -270,5 +267,7 @@ async fn upload_file(window: Window, mut request: UploadRequest) -> Result<(), S
 
 // Helper function to emit progress updates
 fn emit_progress(window: &Window, request: &UploadRequest) -> Result<(), String> {
-    window.emit("upload-progress", request).map_err(|e| e.to_string())
+    window
+        .emit("upload-progress", request)
+        .map_err(|e| e.to_string())
 }

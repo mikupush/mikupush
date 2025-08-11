@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub name: String,
-    pub size: i64,
+    pub size: u64,
     pub mime_type: String,
     #[sea_orm(column_type = "Text")]
     pub path: String,

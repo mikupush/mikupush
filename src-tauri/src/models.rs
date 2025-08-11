@@ -1,11 +1,11 @@
-use std::fmt::Display;
-use std::path::Path;
+use mikupush_entity::upload;
 use mimetype_detector::detect_file;
+use rand::random;
 use sea_orm::prelude::DateTimeUtc;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::path::Path;
 use uuid::Uuid;
-use mikupush_entity::upload;
-use rand::random;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -48,7 +48,7 @@ impl From<String> for UploadStatus {
 pub struct Upload {
     pub id: Uuid,
     pub name: String,
-    pub size: i64,
+    pub size: u64,
     pub mime_type: String,
     pub path: String,
     pub url: Option<String>,
@@ -57,13 +57,7 @@ pub struct Upload {
 }
 
 impl Upload {
-    pub fn new(
-        id: Uuid,
-        name: String,
-        size: i64,
-        mime_type: String,
-        path: String
-    ) -> Self {
+    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String) -> Self {
         Self {
             id,
             name,
@@ -82,7 +76,7 @@ impl Upload {
             "test.zip".to_string(),
             random(),
             "application/zip".to_string(),
-            "/path/to/zip".to_string()
+            "/path/to/zip".to_string(),
         )
     }
 }
@@ -127,14 +121,7 @@ pub struct UploadRequest {
 }
 
 impl UploadRequest {
-    pub fn new(
-        id: Uuid,
-        name: String,
-        size: i64,
-        mime_type:
-        String,
-        path: String
-    ) -> Self {
+    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String) -> Self {
         Self {
             progress: 0.0,
             error: None,
@@ -150,9 +137,9 @@ impl UploadRequest {
             .and_then(|name| name.to_str())
             .ok_or_else(|| "Failed to get file name".to_string())?
             .to_string();
-        let metadata = std::fs::metadata(&path)
-            .map_err(|e| format!("Failed to get file metadata: {}", e))?;
-        let size = metadata.len() as i64;
+        let metadata =
+            std::fs::metadata(&path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
+        let size = metadata.len();
         let mime_type = match detect_file(path.to_str().unwrap()) {
             Ok(mime_type) => mime_type.to_string(),
             Err(_) => "application/octet-stream".to_string(),
@@ -163,17 +150,17 @@ impl UploadRequest {
             file_name,
             size,
             mime_type,
-            path.to_str().unwrap().to_string()
+            path.to_str().unwrap().to_string(),
         ))
     }
-    
+
     pub fn set_progress(&mut self, progress: f64) {
         self.progress = progress;
         if progress > 0.0 && progress < 1.0 {
             self.status = UploadStatus::InProgress.to_string();
         }
     }
-    
+
     pub fn set_completed(&mut self) {
         self.progress = 1.0;
         self.status = UploadStatus::Completed.to_string();
@@ -183,20 +170,39 @@ impl UploadRequest {
         self.status = UploadStatus::Failed.to_string();
         self.error = Some(error);
     }
-    
+
     pub fn set_aborted(&mut self) {
         self.status = UploadStatus::Aborted.to_string();
     }
-    
+
     pub fn is_completed(&self) -> bool {
         self.status == UploadStatus::Completed.to_string()
     }
-    
+
     pub fn is_failed(&self) -> bool {
         self.status == UploadStatus::Failed.to_string()
     }
-    
+
     pub fn is_aborted(&self) -> bool {
         self.status == UploadStatus::Aborted.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use uuid::Uuid;
+
+    use crate::models::UploadRequest;
+
+    impl UploadRequest {
+        pub fn test() -> Self {
+            Self::new(
+                Uuid::new_v4(),
+                "hatsune-miku.jpg".to_string(),
+                1790390,
+                "image/jpeg".to_string(),
+                "tests/examples/hatsune-miku.jpg".to_string(),
+            )
+        }
     }
 }
