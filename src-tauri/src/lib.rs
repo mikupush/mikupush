@@ -11,9 +11,10 @@ use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Manager, Wry};
 use tokio::runtime::Runtime;
+use crate::models::UploadRequest;
 
 pub struct AppState {
-
+    uploads: Mutex<Vec<Mutex<UploadRequest>>>
 }
 
 pub struct AppContext {
@@ -45,6 +46,9 @@ pub fn run() {
         // Set up the application state
         .manage(AppContext {
             db_connection: Mutex::default(),
+        })
+        .manage(AppState {
+            uploads: Mutex::new(vec![])
         })
         .setup(|app| setup_app(app))
         // Register command handlers

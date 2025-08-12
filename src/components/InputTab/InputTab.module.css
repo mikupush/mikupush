@@ -13,8 +13,7 @@
   cursor: pointer;
 }
 
-.area:hover,
-.active {
+.area:hover {
   border-color: var(--primary-color);
   color: var(--primary-color);
 }

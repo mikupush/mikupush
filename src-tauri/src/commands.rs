@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter, Listener, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use crate::AppState;
+use crate::{AppState, GenericResult};
 
 #[tauri::command]
 pub async fn resolve_file_path(path: String) -> Result<String, String> {
@@ -22,14 +22,15 @@ pub async fn enqueue_upload(
     window: Window,
     app_state: State<'_, AppState>,
     file_path: String,
-) -> Result<UploadRequest, String> {
-    // Create upload request from file path
-    let mut request = UploadRequest::from_file_path(file_path)?;
+) -> Result<(), String> {
+    let mut requests = app_state.uploads.lock()
+        .map_err(|e| format!("failed to get current uploads list: {}", e.to_string()))?;
+    let request = UploadRequest::from_file_path(file_path)?;
 
     // Start upload in background
     let request_clone = request.clone();
     let window_clone = window.clone();
-    //let db = app_state.db.lock().unwrap();
+    requests.push(Mutex::new(request));
 
     tauri::async_runtime::spawn(async move {
         // Upload the file
@@ -44,25 +45,20 @@ pub async fn enqueue_upload(
         }
     });
 
-    Ok(request)
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn enqueue_many_uploads(
     window: Window,
     app_state: State<'_, AppState>,
-    file_paths: Vec<String>,
-) -> Result<Vec<UploadRequest>, String> {
-    let mut requests = Vec::new();
-
-    for path in file_paths {
-        match enqueue_upload(window.clone(), app_state.clone(), path).await {
-            Ok(request) => requests.push(request),
-            Err(e) => println!("Failed to enqueue file: {}", e),
-        }
+    paths: Vec<String>,
+) -> Result<(), String> {
+    for path in paths {
+        enqueue_upload(window.clone(), app_state.clone(), path).await?;
     }
 
-    Ok(requests)
+    Ok(())
 }
 
 #[tauri::command]
