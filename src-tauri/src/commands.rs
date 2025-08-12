@@ -1,14 +1,14 @@
-use crate::models::{Upload, UploadRequest, UploadStatus};
-use log::debug;
-use reqwest::multipart::{Form, Part};
-use std::fs::File;
-use std::io::Read;
-use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Listener, Manager, State, Window};
-use tauri_plugin_clipboard_manager::ClipboardExt;
-use tokio::sync::mpsc;
-use uuid::Uuid;
+use std::error::Error;
+use crate::models::{Upload, UploadRequest};
+use crate::server_client::{ServerClient, UploadError};
 use crate::{AppState, GenericResult};
+use log::{debug, info, warn};
+use serde::Serialize;
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter, State, Window};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use uuid::Uuid;
+use crate::events::*;
 
 #[tauri::command]
 pub async fn resolve_file_path(path: String) -> Result<String, String> {
@@ -27,21 +27,26 @@ pub async fn enqueue_upload(
         .map_err(|e| format!("failed to get current uploads list: {}", e.to_string()))?;
     let request = UploadRequest::from_file_path(file_path)?;
 
-    // Start upload in background
-    let request_clone = request.clone();
-    let window_clone = window.clone();
-    requests.push(Mutex::new(request));
+    let mutable_request = Arc::new(Mutex::new(request));
+    requests.push(mutable_request.clone());
+
+    window.emit(UPLOAD_LIST_CHANGED_EVENT, &requests)
+        .map_err(|e| format!("failed to emit uploads-list-changed: {}", e.to_string()))?;
 
     tauri::async_runtime::spawn(async move {
-        // Upload the file
-        match upload_file(window_clone, request_clone).await {
-            Ok(_) => {
-                // Success is handled by the progress updates
+        let request = {
+            let request_lock = mutable_request.lock();
+            if let Err(err) = request_lock {
+                warn!("failed to get lock for upload request on upload task: {}", err);
+                return;
             }
-            Err(e) => {
-                // Handle error
-                println!("Upload failed: {}", e);
-            }
+
+            request_lock.unwrap().clone()
+        };
+
+        match upload_file(window.clone(), mutable_request.clone()).await {
+            Ok(_) => handle_upload_finish(window, request),
+            Err(error) => handle_upload_failed(window, error, request),
         }
     });
 
@@ -159,105 +164,31 @@ pub async fn copy_upload_link(
     Ok(())
 }
 
-// Helper function to upload a file
-async fn upload_file(window: Window, mut request: UploadRequest) -> Result<(), String> {
-    // debug!("Uploading file");
-    // // Create a channel to handle abort signals
-    // let (abort_tx, mut abort_rx) = mpsc::channel::<()>(1);
-    //
-    // // Listen for abort events
-    // let abort_id = request.id.clone();
-    // let abort_handler = window.listen(&format!("abort-upload-{}", abort_id), move |_| {
-    //     let _ = abort_tx.try_send(());
-    // });
-    //
-    // // Get server URL based on environment
-    // let server_url = if cfg!(debug_assertions) {
-    //     "http://localhost:8080/upload"
-    // } else {
-    //     "https://mikupush.io/upload"
-    // };
-    //
-    // // Open the file
-    // let file = match File::open(&request.path) {
-    //     Ok(file) => file,
-    //     Err(e) => {
-    //         request.set_failed(format!("Failed to open file: {}", e));
-    //         emit_progress(&window, &request)?;
-    //         return Err(e.to_string());
-    //     }
-    // };
+async fn upload_file(window: Window, request_ref: Arc<Mutex<UploadRequest>>) -> GenericResult<()> {
+    let client = ServerClient::new();
+    let request = {
+        let request_guard = request_ref.lock()
+            .map_err(|e| format!("failed to get lock for upload request: {}", e))?;
+        request_guard.clone()
+    };
 
-    // Create a client
-    // let client = reqwest::Client::new();
+    let task = client.upload(&request).await?;
+    let mut progress_receiver = task.progress();
 
-    // // Start the upload
-    // let mut response = match client.post(server_url)
-    //     .multipart(form)
-    //     .send()
-    //     .await {
-    //         Ok(response) => response,
-    //         Err(e) => {
-    //             request.set_failed(format!("Failed to start upload: {}", e));
-    //             emit_progress(&window, &request)?;
-    //             return Err(e.to_string());
-    //         }
-    //     };
-    //
-    // // Process the response
-    // if response.status().is_success() {
-    //     // Get the URL from the response
-    //     let response_json: serde_json::Value = match response.json().await {
-    //         Ok(json) => json,
-    //         Err(e) => {
-    //             request.set_failed(format!("Failed to parse response: {}", e));
-    //             emit_progress(&window, &request)?;
-    //             return Err(e.to_string());
-    //         }
-    //     };
-    //
-    //     // Extract the URL
-    //     let url = match response_json.get("url") {
-    //         Some(url) => match url.as_str() {
-    //             Some(url_str) => url_str.to_string(),
-    //             None => {
-    //                 request.set_failed("Invalid URL in response".to_string());
-    //                 emit_progress(&window, &request)?;
-    //                 return Err("Invalid URL in response".to_string());
-    //             }
-    //         },
-    //         None => {
-    //             request.set_failed("No URL in response".to_string());
-    //             emit_progress(&window, &request)?;
-    //             return Err("No URL in response".to_string());
-    //         }
-    //     };
-    //
-    //     // Mark as completed
-    //     request.set_completed(url);
-    //     emit_progress(&window, &request)?;
-    //
-    //     // Save to database
-    //     if let Some(upload) = &request.upload {
-    //         let app_handle = window.app_handle();
-    //         let app_state = app_handle.state::<AppState>();
-    //         let db = app_state.db.lock().unwrap();
-    //         if let Err(e) = db.save_upload(upload) {
-    //             println!("Failed to save upload to database: {}", e);
-    //         }
-    //     }
-    //
-    //     Ok(())
-    // } else {
-    //     // Handle error response
-    //     let error_text = response.text().await
-    //         .unwrap_or_else(|e| format!("Failed to read error response: {}", e));
-    //
-    //     request.set_failed(format!("Upload failed: {}", error_text));
-    //     emit_progress(&window, &request)?;
-    //
-    //     Err(error_text)
-    // }
+    tokio::spawn(async move {
+        while progress_receiver.changed().await.is_ok() {
+            let current = *progress_receiver.borrow();
+            let _ = window.emit(UPLOAD_PROGRESS_CHANGE_EVENT, current);
+        }
+    });
+
+    let result = task.wait().await;
+    if let Err(err) = result {
+        if err != UploadError::Canceled {
+            return Err(err.message().into());
+        }
+    }
+
     Ok(())
 }
 
@@ -266,4 +197,19 @@ fn emit_progress(window: &Window, request: &UploadRequest) -> Result<(), String>
     window
         .emit("upload-progress", request)
         .map_err(|e| e.to_string())
+}
+
+fn handle_upload_finish(window: Window, request: UploadRequest) {
+    info!("upload file success for {}", request.upload.path);
+    let _ = window.emit(UPLOAD_FINISH_EVENT, UploadFinishEvent {
+        upload_id: request.upload.id,
+    });
+}
+
+fn handle_upload_failed(window: Window, error: Box<dyn Error>, request: UploadRequest) {
+    warn!("Upload failed: {}", error);
+    let _ = window.emit(UPLOAD_FAILED_EVENT, UploadFailedEvent {
+        upload_id: request.upload.id,
+        message: error.to_string(),
+    });
 }

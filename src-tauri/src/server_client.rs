@@ -7,6 +7,7 @@ use std::cmp::min;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use serde::Serialize;
 use tokio::fs::File;
 use tokio::select;
 use tokio::sync::watch;
@@ -15,19 +16,34 @@ use tokio_stream::StreamExt;
 use tokio_util::{io::ReaderStream, sync::CancellationToken};
 use uuid::Uuid;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub struct ProgressEvent {
+    pub upload_id: Uuid,
     pub progress: f32,
     pub total_size: u64,
     pub uploaded_bytes: u64,
 }
 
 impl ProgressEvent {
-    pub fn new(total_size: u64) -> Self {
+    pub fn new(upload_id: Uuid, total_size: u64) -> Self {
         Self {
+            upload_id,
             progress: 0.0,
             total_size,
             uploaded_bytes: 0,
+        }
+    }
+
+    pub fn update(&mut self, uploaded_bytes: u64) -> Self {
+        self.progress = self.calculate_progress(uploaded_bytes);
+        self.clone()
+    }
+
+    fn calculate_progress(&self, uploaded_bytes: u64) -> f32 {
+        if self.total_size > 0 {
+            uploaded_bytes as f32 / self.total_size as f32
+        } else {
+            0.0
         }
     }
 }
@@ -52,6 +68,16 @@ impl UploadError {
                 status,
                 reason
             ),
+        }
+    }
+
+    pub fn message(&self) -> String {
+        match self {
+            UploadError::FileSystem { message } => message.clone(),
+            UploadError::Http { message } => message.clone(),
+            UploadError::Canceled => "upload was canceled".to_string(),
+            UploadError::JoinError { message } => message.clone(),
+            UploadError::ServerError { message } => message.clone(),
         }
     }
 }
@@ -180,7 +206,7 @@ impl ServerClient {
         let cancellation_token = CancellationToken::new();
         let handle_cancellation_token = cancellation_token.clone();
         let (progress_sender, progress_receiver) = watch::channel(
-            ProgressEvent::new(request.upload.size)
+            ProgressEvent::new(request.upload.id, request.upload.size)
         );
 
         let handle: JoinHandle<Result<(), UploadError>> = tokio::spawn(async move {
@@ -192,6 +218,8 @@ impl ServerClient {
             let stream_cancellation_token = handle_cancellation_token.clone();
 
             let stream = async_stream::stream! {
+                let mut progress_event = ProgressEvent::new(request.upload.id, total_size);
+
                 while let Some(chunk) = reader_stream.next().await {
                     if stream_cancellation_token.is_cancelled() {
                         break;
@@ -205,17 +233,7 @@ impl ServerClient {
                             current_bytes = *bytes;
                         }
 
-                        let progress = if total_size > 0 {
-                            current_bytes as f32 / total_size as f32
-                        } else {
-                            0.0
-                        };
-
-                        let _ = progress_sender.send(ProgressEvent {
-                            progress,
-                            uploaded_bytes: current_bytes,
-                            total_size,
-                        });
+                        let _ = progress_sender.send(progress_event.update(current_bytes));
 
                         #[cfg(test)]
                         {

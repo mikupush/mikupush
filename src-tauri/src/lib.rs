@@ -3,18 +3,21 @@ mod database;
 mod models;
 mod repository;
 mod server_client;
+mod events;
 
 use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Manager, Wry};
 use tokio::runtime::Runtime;
 use crate::models::UploadRequest;
 
+// TODO: crear un struct que se llame InProgressUploads que tenga un mapa key: uuid y valor UploadRequest
+// y que este se vaya actualizando segun se aplica progreso en una subida o se termina
 pub struct AppState {
-    uploads: Mutex<Vec<Mutex<UploadRequest>>>
+    uploads: Mutex<Vec<Arc<Mutex<UploadRequest>>>>,
 }
 
 pub struct AppContext {
