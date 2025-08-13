@@ -4,6 +4,7 @@ import './index.css'
 import App from './App'
 import '@material/web/all'
 import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js'
+import '@/i18n'
 
 document.adoptedStyleSheets.push(typescaleStyles.styleSheet!)
 

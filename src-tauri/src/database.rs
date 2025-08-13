@@ -1,7 +1,7 @@
 use log::debug;
+use mikupush_migration::{Migrator, MigratorTrait};
 use sea_orm::{Database, DatabaseConnection};
 use tauri::{App, Manager};
-use mikupush_migration::{Migrator, MigratorTrait};
 
 pub async fn setup_app_database_connection(app: &App) -> DatabaseConnection {
     let app_dir = app.path().app_data_dir().unwrap();
@@ -27,7 +27,10 @@ async fn create_database_connection(database_url: &str) -> DatabaseConnection {
     debug!("sqlite database url: {:?}", database_url);
     let db: DatabaseConnection = Database::connect(database_url).await.unwrap();
 
-    debug!("executing migrations on sqlite database: {:?}", database_url);
+    debug!(
+        "executing migrations on sqlite database: {:?}",
+        database_url
+    );
     Migrator::up(&db, None).await.unwrap();
 
     db

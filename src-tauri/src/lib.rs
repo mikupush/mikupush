@@ -1,10 +1,11 @@
 mod commands;
 mod database;
+mod events;
 mod models;
 mod repository;
 mod server_client;
-mod events;
 
+use crate::models::UploadRequest;
 use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
 use std::sync::{Arc, Mutex};
@@ -12,7 +13,6 @@ use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Manager, Wry};
 use tokio::runtime::Runtime;
-use crate::models::UploadRequest;
 
 // TODO: crear un struct que se llame InProgressUploads que tenga un mapa key: uuid y valor UploadRequest
 // y que este se vaya actualizando segun se aplica progreso en una subida o se termina
@@ -32,7 +32,7 @@ pub fn run() {
     env_logger::init();
 
     tauri::Builder::default()
-        // Initialize plugins
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
@@ -51,14 +51,12 @@ pub fn run() {
             db_connection: Mutex::default(),
         })
         .manage(AppState {
-            uploads: Mutex::new(vec![])
+            uploads: Mutex::new(vec![]),
         })
         .setup(|app| setup_app(app))
         // Register command handlers
         .invoke_handler(tauri::generate_handler![
-            // File system commands
-            commands::resolve_file_path,
-            // Upload commands
+            commands::select_files_to_upload,
             commands::enqueue_upload,
             commands::enqueue_many_uploads,
             commands::retry_upload,

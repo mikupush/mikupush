@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react'
 import styles from './App.module.css'
-import AppTabs from './components/AppTabs/AppTabs'
-import AppTitle from './components/AppTitle/AppTitle'
-import InputTab from './components/InputTab/InputTab'
-import UploadsFinishedTab from './components/UploadsFinishedTab/UploadsFinishedTab'
-import UploadsProgressTab from './components/UploadsProgressTab/UploadsProgressTab'
 import { UploadsContext } from './context/upload'
-import { SerializableUploadRequest, UploadRequest } from './model/upload-request.ts'
 import { Upload } from './model/upload.ts'
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import {invoke} from "@tauri-apps/api/core";
+import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { invoke } from '@tauri-apps/api/core'
+import AppBar from '@/components/AppBar'
+import Uploads from '@/components/Uploads.tsx'
 
 await getCurrentWebview().onDragDropEvent(async (event) => {
 	const dropArea = document.querySelectorAll('.file-drop-area');
@@ -35,14 +31,7 @@ await getCurrentWebview().onDragDropEvent(async (event) => {
 })
 
 function App() {
-	const tabs = {
-		upload: <InputTab />,
-		'uploads-in-progress': <UploadsProgressTab />,
-		'finished-uploads': <UploadsFinishedTab />,
-	}
-
-	const [currentTab, setCurrentTab] = useState<keyof typeof tabs>('upload')
-	const [inProgressUploads, setInProgressUploads] = useState<UploadRequest[]>([])
+	/* const [inProgressUploads, setInProgressUploads] = useState<UploadRequest[]>([])
 	const [finishedUploads, setFinishedUploads] = useState<Upload[]>([])
 	const [inProgressUploadsCount, setInProgressUploadsCount] = useState(0)
 	const [finishedUploadsCount, setFinishedUploadsCount] = useState(0)
@@ -63,10 +52,6 @@ function App() {
 		setInProgressUploads(inProgressUploads.filter((item) => item.id !== request.id))
 		setInProgressUploadsCount(inProgressUploads.length)
 		setFinishedUploads([request.upload, ...finishedUploads])
-
-		if (currentTab !== 'finished-uploads') {
-			setFinishedUploadsCount(finishedUploadsCount + 1)
-		}
 
 		// systemChannels.showNotification({
 		// 	title: `The file ${request.name} has been uploaded!`,
@@ -101,10 +86,6 @@ function App() {
 		}
 
 		setInProgressUploads((previous) => [...previous, ...newUploads])
-
-		if (currentTab !== 'uploads-in-progress') {
-			setInProgressUploadsCount((previous) => previous + newUploads.length)
-		}
 	}
 
 	const cancelUpload = (request: UploadRequest) => {
@@ -121,40 +102,19 @@ function App() {
 	const resetInProgressUploadsCount = () => setInProgressUploadsCount(0)
 	const resetFinishedUploadsCount = () => setFinishedUploadsCount(0)
 
-	const handleTabSelected = (index: keyof typeof tabs) => {
-		setCurrentTab(index)
-	}
-
 	const deleteUpload = async (id: string) => {
 		// await uploadChannels.delete(id)
 
 		setFinishedUploads((previous) =>
 			previous.filter((item) => item.id !== id)
 		)
-	}
+	} */
 
 	return (
-		<UploadsContext.Provider value={{
-			inProgressUploads,
-			finishedUploads,
-			inProgressUploadsCount,
-			finishedUploadsCount,
-			requestUploads,
-			cancelUpload,
-			retryUpload,
-			resetInProgressUploadsCount,
-			resetFinishedUploadsCount,
-			deleteUpload
-		}}>
-			<div className={styles.app}>
-				<div>
-					<div className={styles.dragArea} />
-					<AppTitle />
-					<AppTabs onTabSelected={handleTabSelected} />
-				</div>
-				<div className={styles.content}>{tabs[currentTab]}</div>
-			</div>
-		</UploadsContext.Provider>
+		<div className={styles.app}>
+      <AppBar />
+			<Uploads />
+		</div>
 	)
 }
 

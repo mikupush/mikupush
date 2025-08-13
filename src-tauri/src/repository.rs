@@ -5,7 +5,7 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
 use uuid::Uuid;
 
 pub struct UploadRepository {
-    db: DatabaseConnection
+    db: DatabaseConnection,
 }
 
 impl UploadRepository {
@@ -16,7 +16,8 @@ impl UploadRepository {
     pub async fn find_all(&self) -> GenericResult<Vec<Upload>> {
         let entities = upload::Entity::find().all(&self.db).await?;
 
-        let models: Vec<Upload> = entities.iter()
+        let models: Vec<Upload> = entities
+            .iter()
             .map(|entity| entity.clone().into())
             .collect();
 
@@ -45,12 +46,12 @@ impl UploadRepository {
 
 #[cfg(test)]
 mod tests {
-    use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
-    use uuid::Uuid;
-    use mikupush_entity::upload;
     use crate::database::setup_test_database_connection;
     use crate::models::Upload;
     use crate::repository::UploadRepository;
+    use mikupush_entity::upload;
+    use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn upload_repository_find_all_should_return_all() {
@@ -92,7 +93,10 @@ mod tests {
         let upload = Upload::test();
 
         repository.save(upload.clone()).await.unwrap();
-        let existing = upload::Entity::find_by_id(upload.id).one(&db).await.unwrap();
+        let existing = upload::Entity::find_by_id(upload.id)
+            .one(&db)
+            .await
+            .unwrap();
 
         assert_eq!(true, existing.is_some());
         assert_eq!(upload, existing.unwrap().into());

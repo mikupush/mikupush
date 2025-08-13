@@ -3,5 +3,4 @@ export interface FileDetails {
 	path: string
 	size: number
 	mimeType: string
-	isDirectory: boolean
 }

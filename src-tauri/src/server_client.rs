@@ -2,12 +2,12 @@ use crate::models::{Upload, UploadRequest};
 use crate::GenericResult;
 use log::debug;
 use reqwest::{Client, Response};
+use serde::Serialize;
 use serde_json::json;
 use std::cmp::min;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use serde::Serialize;
 use tokio::fs::File;
 use tokio::select;
 use tokio::sync::watch;
@@ -65,8 +65,7 @@ impl UploadError {
         UploadError::ServerError {
             message: format!(
                 "server respond error with status code: {}: {}",
-                status,
-                reason
+                status, reason
             ),
         }
     }
@@ -129,7 +128,8 @@ impl UploadTask {
     }
 
     pub async fn wait(self) -> Result<(), UploadError> {
-        self.handle.await
+        self.handle
+            .await
             .unwrap_or_else(|join_err| Err(join_err.into()))
     }
 
@@ -205,9 +205,8 @@ impl ServerClient {
         let request = request.clone();
         let cancellation_token = CancellationToken::new();
         let handle_cancellation_token = cancellation_token.clone();
-        let (progress_sender, progress_receiver) = watch::channel(
-            ProgressEvent::new(request.upload.id, request.upload.size)
-        );
+        let (progress_sender, progress_receiver) =
+            watch::channel(ProgressEvent::new(request.upload.id, request.upload.size));
 
         let handle: JoinHandle<Result<(), UploadError>> = tokio::spawn(async move {
             let file_path = Path::new(&request.upload.path);

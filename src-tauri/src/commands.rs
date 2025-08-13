@@ -1,20 +1,26 @@
-use std::error::Error;
+use crate::events::*;
 use crate::models::{Upload, UploadRequest};
 use crate::server_client::{ServerClient, UploadError};
 use crate::{AppState, GenericResult};
 use log::{debug, info, warn};
 use serde::Serialize;
+use std::error::Error;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
-use crate::events::*;
 
 #[tauri::command]
-pub async fn resolve_file_path(path: String) -> Result<String, String> {
-    // In Tauri, we don't need to resolve web file paths like in Electron
-    // We can use the path directly
-    Ok(path)
+pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<(), String> {
+    let files = app_handle
+        .dialog()
+        .file()
+        .blocking_pick_files()
+        .unwrap_or_default();
+
+    println!("files {:?}", files);
+    Ok(())
 }
 
 #[tauri::command]
@@ -23,21 +29,26 @@ pub async fn enqueue_upload(
     app_state: State<'_, AppState>,
     file_path: String,
 ) -> Result<(), String> {
-    let mut requests = app_state.uploads.lock()
+    let mut requests = app_state
+        .uploads
+        .lock()
         .map_err(|e| format!("failed to get current uploads list: {}", e.to_string()))?;
     let request = UploadRequest::from_file_path(file_path)?;
 
     let mutable_request = Arc::new(Mutex::new(request));
     requests.push(mutable_request.clone());
-
-    window.emit(UPLOAD_LIST_CHANGED_EVENT, &requests)
-        .map_err(|e| format!("failed to emit uploads-list-changed: {}", e.to_string()))?;
-
+    /*
+        window.emit(UPLOAD_LIST_CHANGED_EVENT, &requests)
+            .map_err(|e| format!("failed to emit uploads-list-changed: {}", e.to_string()))?;
+    */
     tauri::async_runtime::spawn(async move {
         let request = {
             let request_lock = mutable_request.lock();
             if let Err(err) = request_lock {
-                warn!("failed to get lock for upload request on upload task: {}", err);
+                warn!(
+                    "failed to get lock for upload request on upload task: {}",
+                    err
+                );
                 return;
             }
 
@@ -167,7 +178,8 @@ pub async fn copy_upload_link(
 async fn upload_file(window: Window, request_ref: Arc<Mutex<UploadRequest>>) -> GenericResult<()> {
     let client = ServerClient::new();
     let request = {
-        let request_guard = request_ref.lock()
+        let request_guard = request_ref
+            .lock()
             .map_err(|e| format!("failed to get lock for upload request: {}", e))?;
         request_guard.clone()
     };
@@ -201,15 +213,21 @@ fn emit_progress(window: &Window, request: &UploadRequest) -> Result<(), String>
 
 fn handle_upload_finish(window: Window, request: UploadRequest) {
     info!("upload file success for {}", request.upload.path);
-    let _ = window.emit(UPLOAD_FINISH_EVENT, UploadFinishEvent {
-        upload_id: request.upload.id,
-    });
+    let _ = window.emit(
+        UPLOAD_FINISH_EVENT,
+        UploadFinishEvent {
+            upload_id: request.upload.id,
+        },
+    );
 }
 
 fn handle_upload_failed(window: Window, error: Box<dyn Error>, request: UploadRequest) {
     warn!("Upload failed: {}", error);
-    let _ = window.emit(UPLOAD_FAILED_EVENT, UploadFailedEvent {
-        upload_id: request.upload.id,
-        message: error.to_string(),
-    });
+    let _ = window.emit(
+        UPLOAD_FAILED_EVENT,
+        UploadFailedEvent {
+            upload_id: request.upload.id,
+            message: error.to_string(),
+        },
+    );
 }
