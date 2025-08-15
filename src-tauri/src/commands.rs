@@ -1,7 +1,8 @@
 use crate::events::*;
 use crate::models::{Upload, UploadRequest};
 use crate::server_client::{ServerClient, UploadError};
-use crate::{AppState, GenericResult};
+use crate::state::UploadsState;
+use crate::GenericResult;
 use log::{debug, info, warn};
 use serde::Serialize;
 use std::error::Error;
@@ -12,50 +13,40 @@ use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 
 #[tauri::command]
-pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<(), String> {
+pub async fn select_files_to_upload(
+    window: Window,
+    app_state: State<'_, UploadsState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
     let files = app_handle
         .dialog()
         .file()
         .blocking_pick_files()
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .iter()
+        .map(|file| file.to_string())
+        .collect();
 
-    println!("files {:?}", files);
+    debug!("attempting to upload files {:?}", files);
+    enqueue_many_uploads(window, app_state, files).await?;
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn enqueue_upload(
     window: Window,
-    app_state: State<'_, AppState>,
+    app_state: State<'_, UploadsState>,
     file_path: String,
 ) -> Result<(), String> {
-    let mut requests = app_state
-        .uploads
-        .lock()
-        .map_err(|e| format!("failed to get current uploads list: {}", e.to_string()))?;
     let request = UploadRequest::from_file_path(file_path)?;
-
-    let mutable_request = Arc::new(Mutex::new(request));
-    requests.push(mutable_request.clone());
+    let in_progress_uploads = app_state.add_request(request.clone());
     /*
         window.emit(UPLOAD_LIST_CHANGED_EVENT, &requests)
             .map_err(|e| format!("failed to emit uploads-list-changed: {}", e.to_string()))?;
     */
     tauri::async_runtime::spawn(async move {
-        let request = {
-            let request_lock = mutable_request.lock();
-            if let Err(err) = request_lock {
-                warn!(
-                    "failed to get lock for upload request on upload task: {}",
-                    err
-                );
-                return;
-            }
-
-            request_lock.unwrap().clone()
-        };
-
-        match upload_file(window.clone(), mutable_request.clone()).await {
+        match upload_file(window.clone(), request.clone()).await {
             Ok(_) => handle_upload_finish(window, request),
             Err(error) => handle_upload_failed(window, error, request),
         }
@@ -67,7 +58,7 @@ pub async fn enqueue_upload(
 #[tauri::command]
 pub async fn enqueue_many_uploads(
     window: Window,
-    app_state: State<'_, AppState>,
+    app_state: State<'_, UploadsState>,
     paths: Vec<String>,
 ) -> Result<(), String> {
     for path in paths {
@@ -80,7 +71,7 @@ pub async fn enqueue_many_uploads(
 #[tauri::command]
 pub async fn retry_upload(
     window: Window,
-    app_state: State<'_, AppState>,
+    app_state: State<'_, UploadsState>,
     request: UploadRequest,
 ) -> Result<(), String> {
     // Create a new request with the same ID and file info
@@ -121,10 +112,7 @@ pub async fn abort_upload(app_handle: AppHandle, upload_id: String) -> Result<()
 }
 
 #[tauri::command]
-pub async fn delete_upload(
-    app_state: State<'_, AppState>,
-    upload_id: String,
-) -> Result<(), String> {
+pub async fn delete_upload(upload_id: String) -> Result<(), String> {
     //let db = app_state.db.lock().unwrap();
 
     // Find the upload
@@ -145,18 +133,14 @@ pub async fn delete_upload(
 }
 
 #[tauri::command]
-pub async fn find_all_uploads(app_state: State<'_, AppState>) -> Result<Vec<Upload>, String> {
+pub async fn find_all_uploads() -> Result<Vec<Upload>, String> {
     //let db = app_state.db.lock().unwrap();
     //db.find_all_uploads().map_err(|e| e.to_string())
     Ok(vec![])
 }
 
 #[tauri::command]
-pub async fn copy_upload_link(
-    app_handle: AppHandle,
-    app_state: State<'_, AppState>,
-    upload_id: String,
-) -> Result<(), String> {
+pub async fn copy_upload_link(app_handle: AppHandle, upload_id: String) -> Result<(), String> {
     //let db = app_state.db.lock().unwrap();
 
     // Find the upload
@@ -175,15 +159,8 @@ pub async fn copy_upload_link(
     Ok(())
 }
 
-async fn upload_file(window: Window, request_ref: Arc<Mutex<UploadRequest>>) -> GenericResult<()> {
+async fn upload_file(window: Window, request: UploadRequest) -> GenericResult<()> {
     let client = ServerClient::new();
-    let request = {
-        let request_guard = request_ref
-            .lock()
-            .map_err(|e| format!("failed to get lock for upload request: {}", e))?;
-        request_guard.clone()
-    };
-
     let task = client.upload(&request).await?;
     let mut progress_receiver = task.progress();
 

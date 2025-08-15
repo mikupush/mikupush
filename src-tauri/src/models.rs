@@ -7,6 +7,8 @@ use std::fmt::Display;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::server_client::ProgressEvent;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum UploadStatus {
@@ -115,6 +117,7 @@ impl From<Upload> for upload::Model {
 #[serde(rename_all = "camelCase")]
 pub struct UploadRequest {
     pub progress: f64,
+    pub uploaded_bytes: u64,
     pub error: Option<String>,
     pub upload: Upload,
     pub status: String,
@@ -124,6 +127,7 @@ impl UploadRequest {
     pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String) -> Self {
         Self {
             progress: 0.0,
+            uploaded_bytes: 0,
             error: None,
             upload: Upload::new(id, name, size, mime_type, path),
             status: UploadStatus::Pending.to_string(),
@@ -152,6 +156,11 @@ impl UploadRequest {
             mime_type,
             path.to_str().unwrap().to_string(),
         ))
+    }
+
+    pub fn update_progress(&mut self, event: ProgressEvent) {
+        self.progress = event.progress as f64;
+        self.uploaded_bytes = event.uploaded_bytes;
     }
 
     pub fn set_progress(&mut self, progress: f64) {
