@@ -1,3 +1,11 @@
+export interface UploadRequest {
+  progress: number
+  speed: number
+  error: string
+  finished: boolean
+  upload: Upload
+}
+
 export interface Upload {
     id: string
     name: string

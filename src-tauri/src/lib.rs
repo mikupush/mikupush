@@ -6,7 +6,6 @@ mod repository;
 mod server_client;
 mod state;
 
-use crate::models::UploadRequest;
 use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
 use state::UploadsState;

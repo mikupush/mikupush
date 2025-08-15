@@ -2,13 +2,19 @@ import { useTranslation } from "react-i18next";
 import { Paragraph } from '@/components/Typography'
 import { Button } from "./ui/button";
 import { FolderIcon } from "lucide-react";
-import { selectFiles } from "@/ipc";
+import { selectFiles } from "@/helpers/file-select";
 import UploadList from "@/components/UploadList";
+import { useUploadsStore } from "@/store/uploads";
 
 export default function Uploads() {
+  const { inProgressUploads } = useUploadsStore()
+
   return (
-    <UploadList />
-    //<EmptyState />
+    (inProgressUploads.length > 0) ? (
+      <UploadList items={inProgressUploads} />
+    ) : (
+      <EmptyState />
+    )
   )
 }
 

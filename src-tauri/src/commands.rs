@@ -7,7 +7,7 @@ use log::{debug, info, warn};
 use serde::Serialize;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, State, Window};
+use tauri::{App, AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
@@ -17,7 +17,7 @@ pub async fn select_files_to_upload(
     window: Window,
     app_state: State<'_, UploadsState>,
     app_handle: AppHandle,
-) -> Result<(), String> {
+) -> Result<Vec<UploadRequest>, String> {
     let files = app_handle
         .dialog()
         .file()
@@ -28,9 +28,9 @@ pub async fn select_files_to_upload(
         .collect();
 
     debug!("attempting to upload files {:?}", files);
-    enqueue_many_uploads(window, app_state, files).await?;
+    let in_progress_uploads = enqueue_many_uploads(window, app_state, files).await?;
 
-    Ok(())
+    Ok(in_progress_uploads)
 }
 
 #[tauri::command]
@@ -38,21 +38,18 @@ pub async fn enqueue_upload(
     window: Window,
     app_state: State<'_, UploadsState>,
     file_path: String,
-) -> Result<(), String> {
+) -> Result<Vec<UploadRequest>, String> {
     let request = UploadRequest::from_file_path(file_path)?;
-    let in_progress_uploads = app_state.add_request(request.clone());
-    /*
-        window.emit(UPLOAD_LIST_CHANGED_EVENT, &requests)
-            .map_err(|e| format!("failed to emit uploads-list-changed: {}", e.to_string()))?;
-    */
+    let in_progress_uploads = app_state.add_request(request.clone())?;
+
     tauri::async_runtime::spawn(async move {
-        match upload_file(window.clone(), request.clone()).await {
-            Ok(_) => handle_upload_finish(window, request),
-            Err(error) => handle_upload_failed(window, error, request),
-        }
+        // match upload_file(window.clone(), request.clone()).await {
+        //     Ok(_) => handle_upload_finish(window, request),
+        //     Err(error) => handle_upload_failed(window, error, request),
+        // }
     });
 
-    Ok(())
+    Ok(in_progress_uploads)
 }
 
 #[tauri::command]
@@ -60,12 +57,14 @@ pub async fn enqueue_many_uploads(
     window: Window,
     app_state: State<'_, UploadsState>,
     paths: Vec<String>,
-) -> Result<(), String> {
+) -> Result<Vec<UploadRequest>, String> {
+    let mut in_progress_uploads: Vec<UploadRequest> = vec![];
+
     for path in paths {
-        enqueue_upload(window.clone(), app_state.clone(), path).await?;
+        in_progress_uploads = enqueue_upload(window.clone(), app_state.clone(), path).await?;
     }
 
-    Ok(())
+    Ok(in_progress_uploads)
 }
 
 #[tauri::command]
@@ -159,12 +158,18 @@ pub async fn copy_upload_link(app_handle: AppHandle, upload_id: String) -> Resul
     Ok(())
 }
 
-async fn upload_file(window: Window, request: UploadRequest) -> GenericResult<()> {
+async fn upload_file(
+    window: Window,
+    app_handle: AppHandle,
+    request: UploadRequest,
+) -> GenericResult<()> {
     let client = ServerClient::new();
     let task = client.upload(&request).await?;
     let mut progress_receiver = task.progress();
 
     tokio::spawn(async move {
+        // let state = app_handle.state::<UploadsState>();
+
         while progress_receiver.changed().await.is_ok() {
             let current = *progress_receiver.borrow();
             let _ = window.emit(UPLOAD_PROGRESS_CHANGE_EVENT, current);

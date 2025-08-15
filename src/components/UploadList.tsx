@@ -1,7 +1,14 @@
 import UploadItem from "@/components/UploadItem";
+import { UploadRequest } from "@/model/upload";
 
-export default function UploadList() {
+interface UploadListProps {
+  items: UploadRequest[]
+}
+
+export default function UploadList({ items }: UploadListProps) {
   return (
-    <UploadItem />
+    <>
+      {items.map(item => <UploadItem item={item} />)}
+    </>
   )
 }

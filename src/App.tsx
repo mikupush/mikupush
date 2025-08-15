@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import styles from './App.module.css'
 import { UploadsContext } from './context/upload'
-import { Upload } from './model/upload.ts'
+import { Upload } from './model/upload'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { invoke } from '@tauri-apps/api/core'
 import AppBar from '@/components/AppBar'

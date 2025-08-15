@@ -2,16 +2,15 @@ import FileIcon from "@/components/FileIcon"
 import { Large, Small } from "@/components/Typography"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { FileDetails } from "@/model/file-details"
+import { UploadRequest } from "@/model/upload"
 import { XIcon } from "lucide-react"
 //import { UploadProgress } from "@/model/upload-progress"
 
 interface UploadItemProps {
-  //progress: UploadProgress
-  file: FileDetails
+  item: UploadRequest
 }
 
-export default function UploadItem() {
+export default function UploadItem({ item }: UploadItemProps) {
   return (
     <div className="flex p-[10px]">
       <FileIcon extension="png" />
