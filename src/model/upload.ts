@@ -1,7 +1,8 @@
+// TODO: alinear con rust
 export interface UploadRequest {
   progress: number
   speed: number
-  error: string
+  error?: string
   finished: boolean
   upload: Upload
 }

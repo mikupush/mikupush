@@ -1,6 +1,6 @@
 import SelectedServer from '@/components/SelectedServer'
 import { Button } from '@/components/ui/button'
-import { selectFiles } from '@/helpers/file-select'
+import { selectFiles } from '@/helpers/file'
 import { UploadIcon, SidebarOpenIcon } from 'lucide-react'
 
 export default function AppBar() {

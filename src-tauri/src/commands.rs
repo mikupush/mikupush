@@ -30,6 +30,10 @@ pub async fn select_files_to_upload(
     debug!("attempting to upload files {:?}", files);
     let in_progress_uploads = enqueue_many_uploads(window, app_state, files).await?;
 
+    debug!(
+        "returning in progress equeued uploads: {:?}",
+        in_progress_uploads
+    );
     Ok(in_progress_uploads)
 }
 
