@@ -2,3 +2,9 @@
 members = ["src-tauri", "entity", "migration"]
 
 resolver = "3"
+
+[profile.dev]
+incremental = true
+
+[profile.test]
+incremental = true

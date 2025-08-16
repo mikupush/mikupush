@@ -3,6 +3,13 @@ name = "mikupush_entity"
 version = "0.1.0"
 edition = "2024"
 
+[profile.dev]
+incremental = true
+
+[profile.test]
+incremental = true
+
+
 [lib]
 name = "mikupush_entity"
 path = "src/lib.rs"
