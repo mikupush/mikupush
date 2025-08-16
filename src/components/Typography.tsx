@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import {JSX} from "react";
 
 export type FontWeight = 'normal'
   | 'medium'

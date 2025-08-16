@@ -118,9 +118,11 @@ impl From<Upload> for upload::Model {
 pub struct UploadRequest {
     pub progress: f64,
     pub uploaded_bytes: u64,
+    pub rate_bytes: u64,
     pub error: Option<String>,
     pub upload: Upload,
-    pub status: String,
+    pub finished: bool,
+    pub canceled: bool,
 }
 
 impl UploadRequest {
@@ -128,9 +130,11 @@ impl UploadRequest {
         Self {
             progress: 0.0,
             uploaded_bytes: 0,
+            rate_bytes: 0,
             error: None,
             upload: Upload::new(id, name, size, mime_type, path),
-            status: UploadStatus::Pending.to_string(),
+            finished: false,
+            canceled: false,
         }
     }
 
@@ -158,42 +162,34 @@ impl UploadRequest {
         ))
     }
 
-    pub fn update_progress(&mut self, event: ProgressEvent) {
-        self.progress = event.progress as f64;
-        self.uploaded_bytes = event.uploaded_bytes;
+    pub fn update_progress(&self, event: ProgressEvent) -> Self {
+        let mut this = self.clone();
+        this.progress = event.progress as f64;
+        this.uploaded_bytes = event.uploaded_bytes;
+        this.rate_bytes = event.rate_bytes;
+        this
     }
 
-    pub fn set_progress(&mut self, progress: f64) {
-        self.progress = progress;
-        if progress > 0.0 && progress < 1.0 {
-            self.status = UploadStatus::InProgress.to_string();
-        }
+    pub fn finish(&self) -> Self {
+        let mut this = self.clone();
+        this.finished = true;
+        this.error = None;
+        this
     }
 
-    pub fn set_completed(&mut self) {
-        self.progress = 1.0;
-        self.status = UploadStatus::Completed.to_string();
+    pub fn finish_with_error(&self, error: String) -> Self {
+        let mut this = self.clone();
+        this.error = Some(error);
+        this.finished = true;
+        this
     }
 
-    pub fn set_failed(&mut self, error: String) {
-        self.status = UploadStatus::Failed.to_string();
-        self.error = Some(error);
-    }
-
-    pub fn set_aborted(&mut self) {
-        self.status = UploadStatus::Aborted.to_string();
-    }
-
-    pub fn is_completed(&self) -> bool {
-        self.status == UploadStatus::Completed.to_string()
-    }
-
-    pub fn is_failed(&self) -> bool {
-        self.status == UploadStatus::Failed.to_string()
-    }
-
-    pub fn is_aborted(&self) -> bool {
-        self.status == UploadStatus::Aborted.to_string()
+    pub fn canceled(&self) -> Self {
+        let mut this = self.clone();
+        this.canceled = true;
+        this.finished = true;
+        this.error = None;
+        this
     }
 }
 

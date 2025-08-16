@@ -5,20 +5,22 @@ import { Progress } from "@/components/ui/progress"
 import { extractExtension } from "@/helpers/file"
 import { UploadRequest } from "@/model/upload"
 import { XIcon } from "lucide-react"
+import {useEffect, useState} from "react"
+import { listen } from "@tauri-apps/api/event"
+import { ProgressEvent } from "@/model/events"
+import { formatRate } from "@/helpers/rate"
 
 interface UploadItemProps {
   item: UploadRequest
 }
 
 export default function UploadItem({ item }: UploadItemProps) {
-  // TODO: usar signals para actualizar el progreso
-
   return (
     <div className="flex p-[10px]">
       <FileIcon extension={extractExtension(item.upload.name)} />
       <div className="flex flex-1 flex-col place-content-between mx-[10px]">
         <Large>{item.upload.name}</Large>
-        <UploadProgress value={item.progress} />
+        <UploadProgress item={item} />
       </div>
       <div className="flex items-center">
         <UploadActions />
@@ -28,20 +30,37 @@ export default function UploadItem({ item }: UploadItemProps) {
 }
 
 interface UploadProgressProps {
-  value: number
+  item: UploadRequest
 }
 
-export function UploadProgress({ value }: UploadProgressProps) {
+export function UploadProgress({ item }: UploadProgressProps) {
+  const [progress, setProgress] = useState(item.progress)
+  const [rate, setRate] = useState(formatRate(item.rateBytes))
+
+  useEffect(() => {
+    const progressListener = listen<ProgressEvent>(
+      'upload-progress-changed',
+      (event) => {
+        const progressEvent = event.payload
+
+        if (progressEvent.uploadId === item.upload.id) {
+          setProgress(progressEvent.progress * 100)
+          setRate(formatRate(progressEvent.rateBytes))
+        }
+      }
+    )
+
+    return () => {
+      progressListener.then(unlistenFn => unlistenFn())
+    }
+  }, [item.upload.id])
+
   return (
     <>
-      <Progress className="h-3" value={value}></Progress>
-      <Small>40 MB/s</Small>
+      <Progress className="h-3" value={progress}></Progress>
+      <Small>{rate}</Small>
     </>
   )
-}
-
-interface UploadActionsProps {
-  uploadId: string
 }
 
 export function UploadActions() {

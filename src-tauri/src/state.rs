@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Mutex};
-
+use log::warn;
+use uuid::Uuid;
 use crate::models::UploadRequest;
 
 #[derive(Debug)]
@@ -14,20 +15,47 @@ impl UploadsState {
         }
     }
 
-    pub fn add_request(&self, upload_request: UploadRequest) -> Result<Vec<UploadRequest>, String> {
+    pub fn add_request(&self, upload_request: UploadRequest) -> Vec<UploadRequest> {
         let upload = upload_request.upload.clone();
         let id = upload.id.clone().to_string();
 
-        let mut in_progress = self
-            .in_progress
-            .lock()
-            .map_err(|err| format!("can't lock in_progress property: {}", err.to_string()))?;
+        let in_progress = self.in_progress.lock();
+        if let Err(error) = in_progress {
+            warn!("can't lock in_progress property: {}, returning empty vector", error);
+            return vec![];
+        }
 
+        let mut in_progress = in_progress.unwrap();
         if let None = in_progress.get_mut(&id) {
             in_progress.insert(id, upload_request);
         }
 
-        Ok(Self::sorted_in_progress(&in_progress))
+        Self::sorted_in_progress(&in_progress)
+    }
+
+    pub fn update_request(&self, upload_request: UploadRequest) {
+        let id = upload_request.upload.id.clone().to_string();
+        let in_progress = self.in_progress.lock();
+        if let Err(error) = in_progress {
+            warn!("can't lock in_progress property: {}, skipping update operation", error);
+            return;
+        }
+
+        let mut in_progress = in_progress.unwrap();
+        if let Some(_) = in_progress.get_mut(&id) {
+            in_progress.insert(id, upload_request);
+        }
+    }
+
+    pub fn get_request(&self, id: String) -> Option<UploadRequest> {
+        let in_progress = self.in_progress.lock();
+        if let Err(error) = in_progress {
+            warn!("can't lock in_progress property: {}, returning None optional", error);
+            return None;
+        }
+
+        let in_progress = in_progress.unwrap();
+        in_progress.get(&id).map(|upload_request| upload_request.clone())
     }
 
     fn sorted_in_progress(in_progress: &HashMap<String, UploadRequest>) -> Vec<UploadRequest> {

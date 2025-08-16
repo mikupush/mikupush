@@ -5,9 +5,10 @@ use reqwest::{Client, Response};
 use serde::Serialize;
 use serde_json::json;
 use std::cmp::min;
+use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::select;
 use tokio::sync::watch;
@@ -17,11 +18,13 @@ use tokio_util::{io::ReaderStream, sync::CancellationToken};
 use uuid::Uuid;
 
 #[derive(Debug, Copy, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProgressEvent {
     pub upload_id: Uuid,
     pub progress: f32,
     pub total_size: u64,
     pub uploaded_bytes: u64,
+    pub rate_bytes: u64,
 }
 
 impl ProgressEvent {
@@ -31,11 +34,14 @@ impl ProgressEvent {
             progress: 0.0,
             total_size,
             uploaded_bytes: 0,
+            rate_bytes: 0,
         }
     }
 
-    pub fn update(&mut self, uploaded_bytes: u64) -> Self {
+    pub fn update(&mut self, uploaded_bytes: u64, rate_bytes: u64) -> Self {
+        self.uploaded_bytes = uploaded_bytes;
         self.progress = self.calculate_progress(uploaded_bytes);
+        self.rate_bytes = rate_bytes;
         self.clone()
     }
 
@@ -106,6 +112,12 @@ impl From<std::io::Error> for UploadError {
         UploadError::FileSystem {
             message: format!("error during file operation: {}", m),
         }
+    }
+}
+
+impl Display for UploadError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message())
     }
 }
 
@@ -195,9 +207,11 @@ impl ServerClient {
         Ok(())
     }
 
-    pub async fn upload(&self, request: &UploadRequest) -> GenericResult<UploadTask> {
+    pub async fn upload(&self, request: &UploadRequest) -> Result<UploadTask, UploadError> {
         if request.upload.mime_type.is_empty() {
-            return Err("unknown file type".into());
+            return Err(UploadError::FileSystem {
+                message: "unknown file type".to_string()
+            });
         }
 
         let client = self.client.clone();
@@ -218,6 +232,7 @@ impl ServerClient {
 
             let stream = async_stream::stream! {
                 let mut progress_event = ProgressEvent::new(request.upload.id, total_size);
+                let mut last_measured_rate = Instant::now();
 
                 while let Some(chunk) = reader_stream.next().await {
                     if stream_cancellation_token.is_cancelled() {
@@ -232,7 +247,16 @@ impl ServerClient {
                             current_bytes = *bytes;
                         }
 
-                        let _ = progress_sender.send(progress_event.update(current_bytes));
+                        let mut rate_bytes = progress_event.rate_bytes;
+                        let elapsed = last_measured_rate.elapsed();
+
+                        if elapsed >= Duration::from_secs(1) {
+                            rate_bytes = current_bytes.saturating_sub(rate_bytes);
+                            last_measured_rate = Instant::now();
+                        }
+
+                        let updated_progress = progress_event.update(current_bytes, rate_bytes);
+                        let _ = progress_sender.send(updated_progress);
 
                         #[cfg(test)]
                         {
