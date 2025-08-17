@@ -9,7 +9,7 @@ export type FontWeight = 'normal'
 export type TextAlign = 'left' | 'right' | 'center' | 'justify'
 
 export interface TypographyProps {
-  children: string
+  children: string | string[]
   weight?: FontWeight
   align?: TextAlign
   className?: string

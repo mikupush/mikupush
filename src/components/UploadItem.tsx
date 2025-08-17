@@ -5,10 +5,10 @@ import { Progress } from "@/components/ui/progress"
 import { extractExtension } from "@/helpers/file"
 import { UploadRequest } from "@/model/upload"
 import { XIcon } from "lucide-react"
-import {useEffect, useState} from "react"
+import { useEffect, useState } from "react"
 import { listen } from "@tauri-apps/api/event"
 import { ProgressEvent } from "@/model/events"
-import { formatRate } from "@/helpers/rate"
+import { formatRate, formatSizeBytes } from "@/helpers/format"
 
 interface UploadItemProps {
   item: UploadRequest
@@ -35,30 +35,49 @@ interface UploadProgressProps {
 
 export function UploadProgress({ item }: UploadProgressProps) {
   const [progress, setProgress] = useState(item.progress)
-  const [rate, setRate] = useState(formatRate(item.rateBytes))
+  const [rate, setRate] = useState(item.rateBytes)
+  const [uploaded, setUploaded] = useState(item.uploadedBytes)
 
   useEffect(() => {
     const progressListener = listen<ProgressEvent>(
       'upload-progress-changed',
       (event) => {
-        const progressEvent = event.payload
+        const progress = event.payload
 
-        if (progressEvent.uploadId === item.upload.id) {
-          setProgress(progressEvent.progress * 100)
-          setRate(formatRate(progressEvent.rateBytes))
+        if (progress.uploadId === item.upload.id) {
+          setProgress(progress.progress)
+          setRate(progress.rateBytes)
+          setUploaded(progress.uploadedBytes)
+        }
+      }
+    )
+
+    const finishListener = listen<UploadRequest>(
+      'upload-finish',
+      (event) => {
+        const request = event.payload
+
+        if (request.upload.id === item.upload.id) {
+          setProgress(request.progress)
+          setRate(request.rateBytes)
+          setUploaded(request.uploadedBytes)
         }
       }
     )
 
     return () => {
       progressListener.then(unlistenFn => unlistenFn())
+      finishListener.then(unlistenFn => unlistenFn())
     }
   }, [item.upload.id])
 
   return (
     <>
-      <Progress className="h-3" value={progress}></Progress>
-      <Small>{rate}</Small>
+      <Progress className="h-3" value={progress * 100}></Progress>
+      <div className="flex place-content-between">
+        <Small>{formatRate(rate)}</Small>
+        <Small>{formatSizeBytes(uploaded)} / {formatSizeBytes(item.upload.size)}</Small>
+      </div>
     </>
   )
 }

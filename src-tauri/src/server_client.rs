@@ -25,6 +25,7 @@ pub struct ProgressEvent {
     pub total_size: u64,
     pub uploaded_bytes: u64,
     pub rate_bytes: u64,
+    last_uploaded_bytes: u64,
 }
 
 impl ProgressEvent {
@@ -35,13 +36,14 @@ impl ProgressEvent {
             total_size,
             uploaded_bytes: 0,
             rate_bytes: 0,
+            last_uploaded_bytes: 0,
         }
     }
 
-    pub fn update(&mut self, uploaded_bytes: u64, rate_bytes: u64) -> Self {
+    pub fn update(&mut self, uploaded_bytes: u64) -> Self {
         self.uploaded_bytes = uploaded_bytes;
         self.progress = self.calculate_progress(uploaded_bytes);
-        self.rate_bytes = rate_bytes;
+        self.rate_bytes = self.calculate_rate(uploaded_bytes);
         self.clone()
     }
 
@@ -51,6 +53,12 @@ impl ProgressEvent {
         } else {
             0.0
         }
+    }
+
+    fn calculate_rate(&mut self, uploaded_bytes: u64) -> u64 {
+        let rate_bytes = uploaded_bytes.saturating_sub(self.last_uploaded_bytes);
+        self.last_uploaded_bytes = uploaded_bytes;
+        rate_bytes
     }
 }
 
@@ -210,7 +218,7 @@ impl ServerClient {
     pub async fn upload(&self, request: &UploadRequest) -> Result<UploadTask, UploadError> {
         if request.upload.mime_type.is_empty() {
             return Err(UploadError::FileSystem {
-                message: "unknown file type".to_string()
+                message: "unknown file type".to_string(),
             });
         }
 
@@ -227,11 +235,11 @@ impl ServerClient {
             let file = File::open(file_path).await?;
             let total_size = file.metadata().await?.len();
             let mut reader_stream = ReaderStream::new(file);
-            let uploaded_bytes = Arc::new(Mutex::new(0u64));
             let stream_cancellation_token = handle_cancellation_token.clone();
 
             let stream = async_stream::stream! {
                 let mut progress_event = ProgressEvent::new(request.upload.id, total_size);
+                let mut uploaded_bytes: u64 = 0;
                 let mut last_measured_rate = Instant::now();
 
                 while let Some(chunk) = reader_stream.next().await {
@@ -240,23 +248,14 @@ impl ServerClient {
                     }
 
                     if let Ok(chunk) = &chunk {
-                        let current_bytes: u64;
-                        {
-                            let mut bytes = uploaded_bytes.lock().unwrap();
-                            *bytes = min(*bytes + (chunk.len() as u64), total_size);
-                            current_bytes = *bytes;
-                        }
-
-                        let mut rate_bytes = progress_event.rate_bytes;
+                        uploaded_bytes = min(uploaded_bytes + (chunk.len() as u64), total_size);
                         let elapsed = last_measured_rate.elapsed();
 
                         if elapsed >= Duration::from_secs(1) {
-                            rate_bytes = current_bytes.saturating_sub(rate_bytes);
+                            let updated_progress = progress_event.update(uploaded_bytes);
+                            let _ = progress_sender.send(updated_progress);
                             last_measured_rate = Instant::now();
                         }
-
-                        let updated_progress = progress_event.update(current_bytes, rate_bytes);
-                        let _ = progress_sender.send(updated_progress);
 
                         #[cfg(test)]
                         {
@@ -266,6 +265,9 @@ impl ServerClient {
 
                     yield chunk;
                 }
+
+                let updated_progress = progress_event.update(uploaded_bytes);
+                let _ = progress_sender.send(updated_progress);
             };
 
             let body = reqwest::Body::wrap_stream(stream);
