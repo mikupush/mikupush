@@ -4,28 +4,24 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { extractExtension } from "@/helpers/file"
 import { UploadRequest } from "@/model/upload"
-import { XIcon } from "lucide-react"
+import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { listen } from "@tauri-apps/api/event"
 import { ProgressEvent } from "@/model/events"
-import { formatRate, formatSizeBytes } from "@/helpers/format"
+import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
+import { JSX } from "react/jsx-runtime"
 
 interface UploadItemProps {
   item: UploadRequest
 }
 
-export default function UploadItem({ item }: UploadItemProps) {
+export function UploadItem({ item }: UploadItemProps) {
   return (
-    <div className="flex p-[10px]">
-      <FileIcon extension={extractExtension(item.upload.name)} />
-      <div className="flex flex-1 flex-col place-content-between mx-[10px]">
-        <Large>{item.upload.name}</Large>
-        <UploadProgress item={item} />
-      </div>
-      <div className="flex items-center">
-        <UploadActions />
-      </div>
-    </div>
+    <UploadItemLayout
+      item={item}
+      body={<FinishedUploadBody item={item} />}
+      actions={<FinishedUploadActions item={item} />}
+    />
   )
 }
 
@@ -33,21 +29,23 @@ interface UploadProgressProps {
   item: UploadRequest
 }
 
-export function UploadProgress({ item }: UploadProgressProps) {
-  const [progress, setProgress] = useState(item.progress)
-  const [rate, setRate] = useState(item.rateBytes)
-  const [uploaded, setUploaded] = useState(item.uploadedBytes)
+export function UploadProgressItem({ item }: UploadProgressProps) {
+  const [uploadRequest, setUploadRequest] = useState(item)
 
   useEffect(() => {
+    console.log('item', item)
     const progressListener = listen<ProgressEvent>(
       'upload-progress-changed',
       (event) => {
         const progress = event.payload
 
         if (progress.uploadId === item.upload.id) {
-          setProgress(progress.progress)
-          setRate(progress.rateBytes)
-          setUploaded(progress.uploadedBytes)
+          setUploadRequest(previous => ({
+            ...previous,
+            progress: progress.progress,
+            rateBytes: progress.rateBytes,
+            uploadedBytes: progress.uploadedBytes
+          }))
         }
       }
     )
@@ -58,9 +56,8 @@ export function UploadProgress({ item }: UploadProgressProps) {
         const request = event.payload
 
         if (request.upload.id === item.upload.id) {
-          setProgress(request.progress)
-          setRate(request.rateBytes)
-          setUploaded(request.uploadedBytes)
+          console.log('finish fired', request)
+          setUploadRequest(request)
         }
       }
     )
@@ -69,25 +66,106 @@ export function UploadProgress({ item }: UploadProgressProps) {
       progressListener.then(unlistenFn => unlistenFn())
       finishListener.then(unlistenFn => unlistenFn())
     }
-  }, [item.upload.id])
+  }, [])
 
   return (
+    <UploadItemLayout
+      item={item}
+      body={<UploadProgressBody item={uploadRequest} />}
+      actions={<UploadActions item={uploadRequest} />}
+    />
+  )
+}
+
+function UploadProgressBody({ item }: UploadItemProps) {
+  if (item.finished && item.error == null) {
+    return <FinishedUploadBody item={item} />
+  }
+
+  if (item.finished && item.error != null && item.error != '') {
+    return (
+      <Small className="mt-[10px] text-red-600 line-clamp-1">
+        {item.error ?? ''}
+      </Small>
+    )
+  }
+
+  console.log('render progress is progress')
+  return (
     <>
-      <Progress className="h-3" value={progress * 100}></Progress>
-      <div className="flex place-content-between">
-        <Small>{formatRate(rate)}</Small>
-        <Small>{formatSizeBytes(uploaded)} / {formatSizeBytes(item.upload.size)}</Small>
+      <Progress className="h-3 mt-[10px]" value={item.progress * 100}></Progress>
+      <div className="flex place-content-between mt-[10px]">
+        <Small>{formatRate(item.rateBytes)}</Small>
+        <Small>{formatSizeBytes(item.uploadedBytes)} / {formatSizeBytes(item.upload.size)}</Small>
       </div>
     </>
   )
 }
 
-export function UploadActions() {
+function FinishedUploadBody({ item }: UploadItemProps) {
+  return (
+    <Small className="mt-[10px] line-clamp-1">
+      {formatSizeBytes(item.upload.size)} · {formatDate(item.upload.createdAt)}
+    </Small>
+  )
+}
+
+function UploadActions({ item }: UploadItemProps) {
+  if (item.finished && item.error == null) {
+    return <FinishedUploadActions item={item} />
+  }
+
+  if (item.finished && item.error != null && item.error != '') {
+    return (
+      <>
+        <Button variant="outline" size="icon">
+          <RotateCwIcon />
+        </Button>
+        <Button variant="outline" size="icon">
+          <XIcon color="red" />
+        </Button>
+      </>
+    )
+  }
+
   return (
     <>
       <Button variant="outline" size="icon">
-        <XIcon />
+        <XIcon color="red" />
       </Button>
     </>
+  )
+}
+
+function FinishedUploadActions({ item }: UploadItemProps) {
+  return (
+    <>
+      <Button variant="outline" size="icon">
+        <LinkIcon />
+      </Button>
+      <Button variant="outline" size="icon">
+        <TrashIcon color="red" />
+      </Button>
+    </>
+  )
+}
+
+interface UploadItemLayout extends UploadItemProps {
+  body: JSX.Element
+  actions: JSX.Element
+}
+
+function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
+  return (
+    <div className="flex p-[10px]">
+      <FileIcon extension={extractExtension(item.upload.name)} />
+      <div className="flex flex-1 flex-col mx-[10px]">
+        <Large className="line-clamp-1">{item.upload.name}</Large>
+        {body}
+      </div>
+      <div className="flex items-center space-x-[10px]">
+        {actions}
+      </div>
+    </div>
   )
 }

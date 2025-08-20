@@ -37,3 +37,25 @@ export function formatSizeBytes(bytes: number): string {
 
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
+
+export function formatDate(date: string | Date) {
+  let dateTime: Date
+
+  if (typeof date === 'string') {
+    dateTime = new Date(date);
+  } else {
+    dateTime = date
+  }
+
+  if (isNaN(dateTime.getTime())) {
+    return ''
+  }
+
+  const year = dateTime.getFullYear()
+  const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+  const day = String(dateTime.getDate()).padStart(2, '0');
+  const hour = String(dateTime.getHours()).padStart(2, '0');
+  const minute = String(dateTime.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hour}:${minute}`;
+}

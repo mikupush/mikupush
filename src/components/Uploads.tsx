@@ -3,7 +3,7 @@ import { Paragraph } from '@/components/Typography'
 import { Button } from "./ui/button";
 import { FolderIcon } from "lucide-react";
 import { selectFiles } from "@/helpers/file";
-import UploadList from "@/components/UploadList";
+import { UploadProgressList } from "@/components/UploadList";
 import { useUploadsStore } from "@/store/uploads";
 
 export default function Uploads() {
@@ -11,7 +11,7 @@ export default function Uploads() {
 
   return (
     (inProgressUploads.length > 0) ? (
-      <UploadList items={inProgressUploads} />
+      <UploadProgressList items={inProgressUploads} />
     ) : (
       <EmptyState />
     )
