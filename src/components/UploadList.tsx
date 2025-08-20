@@ -1,4 +1,4 @@
-import UploadItem, { UploadProgressItem } from "@/components/UploadItem";
+import { UploadProgressItem, UploadItem } from "@/components/UploadItem";
 import { UploadRequest } from "@/model/upload";
 
 interface UploadListProps {
