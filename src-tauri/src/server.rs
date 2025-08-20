@@ -1,13 +1,12 @@
 use crate::models::{Upload, UploadRequest};
 use crate::GenericResult;
 use log::debug;
-use reqwest::{Client, Response};
+use reqwest::Response;
 use serde::Serialize;
 use serde_json::json;
 use std::cmp::min;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::select;
@@ -16,6 +15,28 @@ use tokio::task::{JoinError, JoinHandle};
 use tokio_stream::StreamExt;
 use tokio_util::{io::ReaderStream, sync::CancellationToken};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Server {
+    pub base_url: String,
+    pub name: String,
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        #[cfg(debug_assertions)]
+        let base_url = "http://localhost:8080".to_string();
+
+        #[cfg(not(debug_assertions))]
+        let base_url = "https://mikupush.io".to_string();
+
+        Self {
+            base_url,
+            name: "mikupush.io".to_string(),
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -158,23 +179,19 @@ impl UploadTask {
     }
 }
 
-pub struct ServerClient {
+pub struct Client {
     base_url: String,
-    client: Client,
+    client: reqwest::Client,
 }
 
-impl ServerClient {
+impl Client {
     pub fn new() -> Self {
-        #[cfg(debug_assertions)]
-        let base_url = "http://localhost:8080".to_string();
+        let server = Server::default();
 
-        #[cfg(not(debug_assertions))]
-        let base_url = "https://mikupush.io".to_string();
-
-        debug!("using server client with base url: {}", base_url);
+        debug!("using server client with base url: {}", server.base_url);
         Self {
-            base_url,
-            client: Client::new(),
+            base_url: server.base_url,
+            client: reqwest::Client::new(),
         }
     }
 
@@ -306,18 +323,18 @@ mod tests {
     use super::*;
     use uuid::Uuid;
 
-    impl ServerClient {
+    impl Client {
         pub fn test() -> Self {
             Self {
                 base_url: "http://localhost:8080".to_string(),
-                client: Client::new(),
+                client: reqwest::Client::new(),
             }
         }
     }
 
     #[tokio::test]
     async fn server_client_create_should_create_file() {
-        let client = ServerClient::test();
+        let client = Client::test();
         let upload = UploadRequest::test().upload;
         let result = client.create(&upload).await;
         println!("create file result: {:?}", result);
@@ -327,7 +344,7 @@ mod tests {
 
     #[tokio::test]
     async fn server_client_delete_should_delete_file() {
-        let client = ServerClient::test();
+        let client = Client::test();
         let upload = UploadRequest::test().upload;
         let id = upload.id.clone();
 
@@ -340,7 +357,7 @@ mod tests {
 
     #[tokio::test]
     async fn server_client_delete_should_not_delete_not_existing_file() {
-        let client = ServerClient::test();
+        let client = Client::test();
         let id = Uuid::new_v4();
         let result = client.delete(id).await;
         println!("delete not existing file result: {:?}", result);
@@ -350,7 +367,7 @@ mod tests {
 
     #[tokio::test]
     async fn server_client_upload_should_upload_file() {
-        let client = ServerClient::test();
+        let client = Client::test();
         let upload_request = UploadRequest::test();
 
         client.create(&upload_request.upload).await.unwrap();
@@ -363,7 +380,7 @@ mod tests {
 
     #[tokio::test]
     async fn server_client_upload_should_cancel() {
-        let client = ServerClient::test();
+        let client = Client::test();
         let upload_request = UploadRequest::test();
 
         let task = client.upload(&upload_request).await.unwrap();

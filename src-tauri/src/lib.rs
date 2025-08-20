@@ -3,7 +3,7 @@ mod database;
 mod events;
 mod models;
 mod repository;
-mod server_client;
+mod server;
 mod state;
 
 use database::setup_app_database_connection;

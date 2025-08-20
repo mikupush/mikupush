@@ -1,6 +1,6 @@
 use crate::events::*;
 use crate::models::{Upload, UploadRequest};
-use crate::server_client::{ServerClient, UploadError};
+use crate::server::{Client, UploadError};
 use crate::state::UploadsState;
 use crate::GenericResult;
 use log::{debug, info, warn};
@@ -28,7 +28,8 @@ pub async fn select_files_to_upload(
         .collect();
 
     debug!("attempting to upload files {:?}", files);
-    let in_progress_uploads = enqueue_many_uploads(window, app_handle.clone(), app_state, files).await?;
+    let in_progress_uploads =
+        enqueue_many_uploads(window, app_handle.clone(), app_state, files).await?;
 
     debug!(
         "returning in progress equeued uploads: {:?}",
@@ -73,12 +74,8 @@ pub async fn enqueue_many_uploads(
     let mut in_progress_uploads: Vec<UploadRequest> = vec![];
 
     for path in paths {
-        in_progress_uploads = enqueue_upload(
-            window.clone(),
-            app_handle.clone(),
-            app_state.clone(),
-            path
-        ).await?;
+        in_progress_uploads =
+            enqueue_upload(window.clone(), app_handle.clone(), app_state.clone(), path).await?;
     }
 
     Ok(in_progress_uploads)
@@ -176,7 +173,7 @@ pub async fn copy_upload_link(app_handle: AppHandle, upload_id: String) -> Resul
 }
 
 async fn register_file(request: UploadRequest) -> GenericResult<()> {
-    let client = ServerClient::new();
+    let client = Client::new();
     client.create(&request.upload).await
 }
 
@@ -186,7 +183,7 @@ async fn upload_file(
     request: UploadRequest,
 ) -> Result<(), UploadError> {
     let upload_id = request.upload.id.clone().to_string();
-    let client = ServerClient::new();
+    let client = Client::new();
     let task = client.upload(&request).await?;
 
     let mut progress_receiver = task.progress();
@@ -196,7 +193,10 @@ async fn upload_file(
         let state = app_handle_clone.state::<UploadsState>();
         let request = state.get_request(upload_id_clone.clone());
         if let None = request {
-            warn!("upload request with id {} not found during progress listen", upload_id_clone);
+            warn!(
+                "upload request with id {} not found during progress listen",
+                upload_id_clone
+            );
             return;
         }
 
@@ -224,7 +224,10 @@ fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String
     let state = app_handle.state::<UploadsState>();
     let request = state.get_request(upload_id.clone());
     if let None = request {
-        warn!("upload request with id {} not found during finish handle", upload_id);
+        warn!(
+            "upload request with id {} not found during finish handle",
+            upload_id
+        );
         return;
     }
 
@@ -233,15 +236,26 @@ fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String
     state.update_request(request.clone());
 
     let _ = window.emit(UPLOAD_FINISH_EVENT, request);
-    debug!("event {} emited for upload with id {}", UPLOAD_FINISH_EVENT, upload_id);
+    debug!(
+        "event {} emited for upload with id {}",
+        UPLOAD_FINISH_EVENT, upload_id
+    );
 }
 
-fn handle_upload_failed(window: Window, app_handle: AppHandle, error: UploadError, upload_id: String) {
+fn handle_upload_failed(
+    window: Window,
+    app_handle: AppHandle,
+    error: UploadError,
+    upload_id: String,
+) {
     info!("upload with id {} failed {}", upload_id, error);
     let state = app_handle.state::<UploadsState>();
     let request = state.get_request(upload_id.clone());
     if let None = request {
-        warn!("upload request with id {} not found during failed handle", upload_id);
+        warn!(
+            "upload request with id {} not found during failed handle",
+            upload_id
+        );
         return;
     }
 
@@ -254,5 +268,8 @@ fn handle_upload_failed(window: Window, app_handle: AppHandle, error: UploadErro
 
     state.update_request(request.clone());
     let _ = window.emit(UPLOAD_FAILED_EVENT, request);
-    debug!("event {} emited for upload with id {}", UPLOAD_FAILED_EVENT, upload_id);
+    debug!(
+        "event {} emited for upload with id {}",
+        UPLOAD_FAILED_EVENT, upload_id
+    );
 }

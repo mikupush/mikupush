@@ -7,7 +7,7 @@ use std::fmt::Display;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::server_client::ProgressEvent;
+use crate::server::ProgressEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
