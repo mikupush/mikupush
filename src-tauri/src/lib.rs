@@ -12,9 +12,7 @@ use state::UploadsState;
 use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-#[cfg(target_os = "macos")]
-use tauri::TitleBarStyle;
-use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Wry};
+use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 use tokio::runtime::Runtime;
 
 // TODO: crear un struct que se llame InProgressUploads que tenga un mapa key: uuid y valor UploadRequest
@@ -101,18 +99,28 @@ fn initialize_main_window(app: &App) {
         .title(MAIN_WINDOW_TITLE)
         .inner_size(800.0, 600.0);
 
-    let window = win_builder.build().unwrap();
+    #[cfg(target_os = "windows")]
+    {
+        let window = win_builder.build().unwrap();
+        window.set_decorations(false).unwrap();
+    }
 
     #[cfg(target_os = "macos")]
     {
         use objc2::rc::Retained;
         use objc2_app_kit::{NSWindow, NSWindowTitleVisibility};
 
+        let window = win_builder.build().unwrap();
         let ns_window_ptr = window.ns_window().unwrap();
         let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
         let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
 
         ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = win_builder.build().unwrap();
     }
 }
 
