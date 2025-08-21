@@ -10,20 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "Miku Push!",
-        "width": 800,
-        "height": 600,
-        "decorations": true,
-        "transparent": false,
-        "center": true,
-        "resizable": true,
-        "fullscreen": false,
-        "focus": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
@@ -33,10 +20,12 @@
     "targets": "all",
     "icon": [
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/icon.png"
     ]
   }
 }

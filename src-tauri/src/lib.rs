@@ -12,7 +12,9 @@ use state::UploadsState;
 use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, Wry};
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
+use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Wry};
 use tokio::runtime::Runtime;
 
 // TODO: crear un struct que se llame InProgressUploads que tenga un mapa key: uuid y valor UploadRequest
@@ -22,6 +24,9 @@ pub struct AppContext {
 }
 
 type GenericResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+const MAIN_WINDOW_TITLE: &'static str = "MikuPush!";
+const MAIN_WINDOW: &'static str = "main";
 
 // Initialize all plugins and set up the application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -71,6 +76,7 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
+    initialize_main_window(app);
     let tokio_runtime = Runtime::new().unwrap();
     let db = tokio_runtime.block_on(setup_app_database_connection(app));
 
@@ -90,6 +96,26 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     Ok(())
 }
 
+fn initialize_main_window(app: &App) {
+    let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
+        .title(MAIN_WINDOW_TITLE)
+        .inner_size(800.0, 600.0);
+
+    let window = win_builder.build().unwrap();
+
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::rc::Retained;
+        use objc2_app_kit::{NSWindow, NSWindowTitleVisibility};
+
+        let ns_window_ptr = window.ns_window().unwrap();
+        let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
+        let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
+
+        ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+    }
+}
+
 fn setup_tray_menu(app: &App) -> Menu<Wry> {
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>).unwrap();
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).unwrap();
@@ -101,7 +127,7 @@ fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
     match event.id.as_ref() {
         "quit" => app.exit(0),
         "show" => {
-            let window = app.get_webview_window("main").unwrap();
+            let window = app.get_webview_window(MAIN_WINDOW).unwrap();
             window.show().unwrap()
         }
         &_ => {}
