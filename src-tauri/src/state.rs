@@ -1,4 +1,7 @@
-use crate::{models::UploadRequest, server::Server};
+use crate::{
+    models::UploadRequest,
+    server::{self, Server},
+};
 use log::warn;
 use std::{collections::HashMap, sync::Mutex};
 
@@ -78,6 +81,7 @@ impl UploadsState {
     }
 }
 
+#[derive(Debug)]
 pub struct SelectedServerState {
     pub server: Mutex<Server>,
 }
@@ -87,5 +91,9 @@ impl SelectedServerState {
         Self {
             server: Mutex::new(Server::default()),
         }
+    }
+
+    pub fn client(&self) -> server::Client {
+        server::Client::new(self.server.lock().unwrap().clone())
     }
 }

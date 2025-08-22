@@ -186,9 +186,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new() -> Self {
-        let server = Server::default();
-
+    pub fn new(server: Server) -> Self {
         debug!("using server client with base url: {}", server.base_url);
         Self {
             base_url: server.base_url,

@@ -1,8 +1,8 @@
 use crate::events::*;
 use crate::models::{Upload, UploadRequest};
-use crate::server::{Client, UploadError};
+use crate::server;
+use crate::server::UploadError;
 use crate::state::{SelectedServerState, UploadsState};
-use crate::GenericResult;
 use log::{debug, info, warn};
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -12,6 +12,7 @@ use tauri_plugin_dialog::DialogExt;
 pub async fn select_files_to_upload(
     window: Window,
     app_state: State<'_, UploadsState>,
+    server_state: State<'_, SelectedServerState>,
     app_handle: AppHandle,
 ) -> Result<Vec<UploadRequest>, String> {
     let files = app_handle
@@ -25,7 +26,7 @@ pub async fn select_files_to_upload(
 
     debug!("attempting to upload files {:?}", files);
     let in_progress_uploads =
-        enqueue_many_uploads(window, app_handle.clone(), app_state, files).await?;
+        enqueue_many_uploads(window, app_handle.clone(), app_state, server_state, files).await?;
 
     debug!(
         "returning in progress equeued uploads: {:?}",
@@ -39,19 +40,21 @@ pub async fn enqueue_upload(
     window: Window,
     app_handle: AppHandle,
     app_state: State<'_, UploadsState>,
+    server_state: State<'_, SelectedServerState>,
     file_path: String,
 ) -> Result<Vec<UploadRequest>, String> {
     let request = UploadRequest::from_file_path(file_path)?;
     let upload_id = request.upload.id.clone().to_string();
     let in_progress_uploads = app_state.add_request(request.clone());
     let app_handle_clone = app_handle.clone();
+    let client = server_state.clone().client();
     tauri::async_runtime::spawn(async move {
-        if let Err(error) = register_file(request.clone()).await {
+        if let Err(error) = client.create(&request.clone().upload).await {
             warn!("error registering file {:?}", error);
             return;
         }
 
-        match upload_file(window.clone(), app_handle, request.clone()).await {
+        match upload_file(window.clone(), app_handle, client, request.clone()).await {
             Ok(_) => handle_upload_finish(window, app_handle_clone, upload_id),
             Err(error) => handle_upload_failed(window, app_handle_clone, error, upload_id),
         }
@@ -65,13 +68,20 @@ pub async fn enqueue_many_uploads(
     window: Window,
     app_handle: AppHandle,
     app_state: State<'_, UploadsState>,
+    server_state: State<'_, SelectedServerState>,
     paths: Vec<String>,
 ) -> Result<Vec<UploadRequest>, String> {
     let mut in_progress_uploads: Vec<UploadRequest> = vec![];
 
     for path in paths {
-        in_progress_uploads =
-            enqueue_upload(window.clone(), app_handle.clone(), app_state.clone(), path).await?;
+        in_progress_uploads = enqueue_upload(
+            window.clone(),
+            app_handle.clone(),
+            app_state.clone(),
+            server_state.clone(),
+            path,
+        )
+        .await?;
     }
 
     Ok(in_progress_uploads)
@@ -170,18 +180,13 @@ pub async fn copy_upload_link(
     Ok(())
 }
 
-async fn register_file(request: UploadRequest) -> GenericResult<()> {
-    let client = Client::new();
-    client.create(&request.upload).await
-}
-
 async fn upload_file(
     window: Window,
     app_handle: AppHandle,
+    client: server::Client,
     request: UploadRequest,
 ) -> Result<(), UploadError> {
     let upload_id = request.upload.id.clone().to_string();
-    let client = Client::new();
     let task = client.upload(&request).await?;
 
     let mut progress_receiver = task.progress();
