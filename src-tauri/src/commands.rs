@@ -7,6 +7,7 @@ use log::{debug, info, warn};
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
+use uuid::Uuid;
 
 #[tauri::command]
 pub async fn select_files_to_upload(
@@ -131,24 +132,20 @@ pub async fn abort_upload(app_handle: AppHandle, upload_id: String) -> Result<()
 }
 
 #[tauri::command]
-pub async fn delete_upload(upload_id: String) -> Result<(), String> {
-    //let db = app_state.db.lock().unwrap();
+pub async fn delete_upload(
+    server_state: State<'_, SelectedServerState>,
+    uploads_state: State<'_, UploadsState>,
+    upload_id: String,
+) -> Result<Vec<UploadRequest>, String> {
+    debug!("Deleting upload with id {}", upload_id.clone());
 
-    // Find the upload
-    /*let upload = db.find_upload_by_id(&upload_id)
-    .map_err(|e| e.to_string())?
-    .ok_or_else(|| "Upload not found".to_string())?;*/
+    let id = Uuid::parse_str(upload_id.as_str()).map_err(|err| err.to_string())?;
+    let client = server_state.client();
+    client.delete(id).await.map_err(|err| err.to_string())?;
+    let uploads = uploads_state.delete_request(upload_id.clone());
 
-    // Delete from server if URL exists
-    /*if let Some(url) = &upload.url {
-        // In a real implementation, you would call the server API to delete the file
-        println!("Would delete file from server: {}", url);
-    }*/
-
-    // Delete from database
-    //db.delete_upload(&upload_id).map_err(|e| e.to_string())?;
-
-    Ok(())
+    debug!("deleted upload with id {}", upload_id.clone());
+    Ok(uploads)
 }
 
 #[tauri::command]

@@ -71,6 +71,12 @@ impl UploadsState {
             .map(|upload_request| upload_request.clone())
     }
 
+    pub fn delete_request(&self, id: String) -> Vec<UploadRequest> {
+        let mut in_progress = self.in_progress.lock().unwrap();
+        in_progress.remove(&id);
+        Self::sorted_in_progress(&in_progress)
+    }
+
     fn sorted_in_progress(in_progress: &HashMap<String, UploadRequest>) -> Vec<UploadRequest> {
         let mut items: Vec<UploadRequest> = in_progress.values().cloned().collect();
 

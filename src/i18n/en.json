@@ -5,6 +5,18 @@
     "link_copied": {
       "success": "Link copied to the clipboard",
       "error": "Failed to copy link to the clipboard"
+    },
+    "delete": {
+      "warning": "This action cannot be undone. This will permanently delete the file on the server and it cannot be dowloaded later.",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "success": "{{fileName}} have been deleted",
+      "error": "error deleting {{fileName}}"
+    }
+  },
+  "dialog": {
+    "heading": {
+      "danger": "Are you sure absolutely sure?"
     }
   }
 }

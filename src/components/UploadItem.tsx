@@ -1,18 +1,29 @@
 import FileIcon from "@/components/FileIcon"
 import { Large, Small } from "@/components/Typography"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Progress } from "@/components/ui/progress"
 import { extractExtension } from "@/helpers/file"
+import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
+import { ProgressEvent } from "@/model/events"
 import { UploadRequest } from "@/model/upload"
+import { useUploadsStore } from "@/store/uploads"
+import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
 import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from "lucide-react"
 import { useEffect, useState } from "react"
-import { listen } from "@tauri-apps/api/event"
-import { ProgressEvent } from "@/model/events"
-import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
-import { JSX } from "react/jsx-runtime"
-import { invoke } from "@tauri-apps/api/core"
-import { useTranslation } from "react-i18next"
 import toast from 'react-hot-toast'
+import { useTranslation } from "react-i18next"
+import { JSX } from "react/jsx-runtime"
 
 interface UploadItemProps {
   item: UploadRequest
@@ -145,20 +156,18 @@ function FinishedUploadActions({ item }: UploadItemProps) {
 
   return (
     <>
-      <Button 
+      <Button
         onClick={() => {
           invoke('copy_upload_link', { uploadId: item.upload.id })
             .then(() => toast.success(t('uploads.link_copied.success')))
             .catch(() => toast.error(t('uploads.link_copied.error')))
-        }} 
-        variant="outline" 
+        }}
+        variant="outline"
         size="icon"
       >
         <LinkIcon />
       </Button>
-      <Button variant="outline" size="icon">
-        <TrashIcon color="red" />
-      </Button>
+      <DeleteAction item={item} />
     </>
   )
 }
@@ -180,5 +189,43 @@ function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
         {actions}
       </div>
     </div>
+  )
+}
+
+function DeleteAction({ item }: UploadItemProps) {
+  const { t } = useTranslation()
+  const { setInProgressUploads } = useUploadsStore()
+
+  const performDelete = () => {
+    invoke<UploadRequest[]>('delete_upload', { uploadId: item.upload.id })
+      .then((uploadsRequests) => {
+        toast.success(t('uploads.delete.success', { fileName: item.upload.name }))
+        setInProgressUploads(uploadsRequests)
+      })
+      .catch(() => toast.error(t('uploads.delete.error', { fileName: item.upload.name })))
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="icon">
+          <TrashIcon color="red" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('dialog.heading.danger')}</DialogTitle>
+          <DialogDescription>{t('uploads.delete.warning')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">{t('uploads.delete.cancel')}</Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button variant="destructive" onClick={performDelete}>{t('uploads.delete.confirm')}</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
