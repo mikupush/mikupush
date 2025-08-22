@@ -30,6 +30,7 @@ const MAIN_WINDOW: &'static str = "main";
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -108,14 +109,30 @@ fn initialize_main_window(app: &App) {
     #[cfg(target_os = "macos")]
     {
         use objc2::rc::Retained;
-        use objc2_app_kit::{NSWindow, NSWindowTitleVisibility};
+        use objc2_app_kit::{NSWindow, NSWindowTitleVisibility, NSWindowToolbarStyle};
+        use tauri::TitleBarStyle;
 
         let window = win_builder.build().unwrap();
         let ns_window_ptr = window.ns_window().unwrap();
         let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
         let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
 
-        ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+        window.set_title_bar_style(TitleBarStyle::Overlay).unwrap();
+
+        unsafe {
+            use objc2::{MainThreadMarker, MainThreadOnly};
+            use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
+            use objc2_foundation::NSString;
+
+            let toolbar_id = NSString::from_str("MainToolbar");
+            let mtm = MainThreadMarker::new().expect("must be on the main thread");
+            let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
+
+            ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+            ns_window.setToolbar(Some(&toolbar));
+            ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
+            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
+        }
     }
 
     #[cfg(target_os = "linux")]

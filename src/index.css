@@ -101,6 +101,11 @@
 * {
   box-sizing: border-box;
   user-select: none;
+  -webkit-user-select: none;
+}
+
+p, span, h1, h2, h3, h4, small {
+  cursor: default;
 }
 
 html, body {

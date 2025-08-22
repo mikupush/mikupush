@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Mutex};
-use log::warn;
-use uuid::Uuid;
 use crate::models::UploadRequest;
+use log::warn;
+use std::{collections::HashMap, sync::Mutex};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct UploadsState {
@@ -21,7 +21,10 @@ impl UploadsState {
 
         let in_progress = self.in_progress.lock();
         if let Err(error) = in_progress {
-            warn!("can't lock in_progress property: {}, returning empty vector", error);
+            warn!(
+                "can't lock in_progress property: {}, returning empty vector",
+                error
+            );
             return vec![];
         }
 
@@ -37,7 +40,10 @@ impl UploadsState {
         let id = upload_request.upload.id.clone().to_string();
         let in_progress = self.in_progress.lock();
         if let Err(error) = in_progress {
-            warn!("can't lock in_progress property: {}, skipping update operation", error);
+            warn!(
+                "can't lock in_progress property: {}, skipping update operation",
+                error
+            );
             return;
         }
 
@@ -50,12 +56,17 @@ impl UploadsState {
     pub fn get_request(&self, id: String) -> Option<UploadRequest> {
         let in_progress = self.in_progress.lock();
         if let Err(error) = in_progress {
-            warn!("can't lock in_progress property: {}, returning None optional", error);
+            warn!(
+                "can't lock in_progress property: {}, returning None optional",
+                error
+            );
             return None;
         }
 
         let in_progress = in_progress.unwrap();
-        in_progress.get(&id).map(|upload_request| upload_request.clone())
+        in_progress
+            .get(&id)
+            .map(|upload_request| upload_request.clone())
     }
 
     fn sorted_in_progress(in_progress: &HashMap<String, UploadRequest>) -> Vec<UploadRequest> {

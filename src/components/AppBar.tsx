@@ -3,12 +3,17 @@ import { Button } from '@/components/ui/button'
 import { selectFiles } from '@/helpers/file'
 import { UploadIcon, SidebarOpenIcon, Minus, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { platform } from '@tauri-apps/plugin-os';
 import { useEffect, useState } from 'react'
 
 export default function AppBar() {
+  const margins = (platform() === 'macos') 
+    ? 'ml-[90px] my-[10px]' 
+    : 'm-[15px]'
+
   return (
-    <div className="flex place-content-between">
-      <div className="flex items-center space-x-[10px] m-[15px]">
+    <div className="flex">
+      <div className={`flex items-center space-x-[10px] ${margins}`}>
         <SelectedServer />
         <Button variant="outline" size="icon">
           <SidebarOpenIcon />
@@ -21,12 +26,27 @@ export default function AppBar() {
           <UploadIcon />
         </Button>
       </div>
+      <DragArea />
       <WindowControls />
     </div>
   )
 }
 
+export function DragArea() {
+  if (!['windows', 'macos'].includes(platform())) {
+    return;
+  }
+
+  return (
+    <div className="flex-1" data-tauri-drag-region></div>
+  )
+}
+
 export function WindowControls() {
+  if (platform() !== 'windows') {
+    return;
+  }
+
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
