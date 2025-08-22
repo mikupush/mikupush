@@ -1,7 +1,6 @@
-use crate::models::UploadRequest;
+use crate::{models::UploadRequest, server::Server};
 use log::warn;
 use std::{collections::HashMap, sync::Mutex};
-use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct UploadsState {
@@ -76,5 +75,17 @@ impl UploadsState {
         items.reverse();
 
         items
+    }
+}
+
+pub struct SelectedServerState {
+    pub server: Mutex<Server>,
+}
+
+impl SelectedServerState {
+    pub fn new() -> Self {
+        Self {
+            server: Mutex::new(Server::default()),
+        }
     }
 }

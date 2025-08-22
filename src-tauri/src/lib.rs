@@ -8,7 +8,7 @@ mod state;
 
 use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
-use state::UploadsState;
+use state::{SelectedServerState, UploadsState};
 use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -58,6 +58,7 @@ pub fn run() {
             db_connection: Mutex::default(),
         })
         .manage(UploadsState::new())
+        .manage(SelectedServerState::new())
         .setup(|app| setup_app(app))
         // Register command handlers
         .invoke_handler(tauri::generate_handler![

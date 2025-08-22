@@ -10,6 +10,9 @@ import { listen } from "@tauri-apps/api/event"
 import { ProgressEvent } from "@/model/events"
 import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
 import { JSX } from "react/jsx-runtime"
+import { invoke } from "@tauri-apps/api/core"
+import { useTranslation } from "react-i18next"
+import toast from 'react-hot-toast'
 
 interface UploadItemProps {
   item: UploadRequest
@@ -138,9 +141,19 @@ function UploadActions({ item }: UploadItemProps) {
 }
 
 function FinishedUploadActions({ item }: UploadItemProps) {
+  const { t } = useTranslation()
+
   return (
     <>
-      <Button variant="outline" size="icon">
+      <Button 
+        onClick={() => {
+          invoke('copy_upload_link', { uploadId: item.upload.id })
+            .then(() => toast.success(t('uploads.link_copied.success')))
+            .catch(() => toast.error(t('uploads.link_copied.error')))
+        }} 
+        variant="outline" 
+        size="icon"
+      >
         <LinkIcon />
       </Button>
       <Button variant="outline" size="icon">

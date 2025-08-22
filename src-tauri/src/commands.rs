@@ -1,16 +1,12 @@
 use crate::events::*;
 use crate::models::{Upload, UploadRequest};
 use crate::server::{Client, UploadError};
-use crate::state::UploadsState;
+use crate::state::{SelectedServerState, UploadsState};
 use crate::GenericResult;
 use log::{debug, info, warn};
-use serde::Serialize;
-use std::error::Error;
-use std::sync::{Arc, Mutex};
-use tauri::{App, AppHandle, Emitter, Manager, State, Window};
+use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
-use uuid::Uuid;
 
 #[tauri::command]
 pub async fn select_files_to_upload(
@@ -153,21 +149,23 @@ pub async fn find_all_uploads() -> Result<Vec<Upload>, String> {
 }
 
 #[tauri::command]
-pub async fn copy_upload_link(app_handle: AppHandle, upload_id: String) -> Result<(), String> {
-    //let db = app_state.db.lock().unwrap();
+pub async fn copy_upload_link(
+    app_handle: AppHandle,
+    state: State<'_, SelectedServerState>,
+    upload_id: String,
+) -> Result<(), String> {
+    let current_server = state.server.lock().unwrap().clone();
+    let link = format!("{}/u/{}", current_server.base_url, upload_id);
 
-    // Find the upload
-    /*let upload = db.find_upload_by_id(&upload_id)
-    .map_err(|e| e.to_string())?
-    .ok_or_else(|| "Upload not found".to_string())?;*/
-
-    // Get the URL
-    //let url = upload.url.ok_or_else(|| "Upload has no URL".to_string())?;
-
-    // Copy to clipboard
-    /*app_handle.clipboard()
-    .write_text(url)
-    .map_err(|e| e.to_string())?;*/
+    let result = app_handle.clipboard().write_text(link);
+    if let Err(error) = result {
+        warn!(
+            "failed to copy link to the cipboard for upload id {}: {}",
+            upload_id,
+            error.to_string()
+        );
+        return Err(format!("failed copy to clipboard: {}", error.to_string()));
+    }
 
     Ok(())
 }

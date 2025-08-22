@@ -6,6 +6,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { invoke } from '@tauri-apps/api/core'
 import AppBar from '@/components/AppBar'
 import Uploads from '@/components/Uploads.tsx'
+import { Toaster } from 'react-hot-toast'
 
 await getCurrentWebview().onDragDropEvent(async (event) => {
 	const dropArea = document.querySelectorAll('.file-drop-area');
@@ -114,6 +115,7 @@ function App() {
 		<div className={styles.app}>
       <AppBar />
 			<Uploads />
+      <Toaster position="bottom-right" />
 		</div>
 	)
 }
