@@ -47,7 +47,6 @@ export function UploadProgressItem({ item }: UploadProgressProps) {
   const [uploadRequest, setUploadRequest] = useState(item)
 
   useEffect(() => {
-    console.log('item', item)
     const progressListener = listen<ProgressEvent>(
       'upload-progress-changed',
       (event) => {
@@ -70,7 +69,6 @@ export function UploadProgressItem({ item }: UploadProgressProps) {
         const request = event.payload
 
         if (request.upload.id === item.upload.id) {
-          console.log('finish fired', request)
           setUploadRequest(request)
         }
       }
@@ -104,7 +102,6 @@ function UploadProgressBody({ item }: UploadItemProps) {
     )
   }
 
-  console.log('render progress is progress')
   return (
     <>
       <Progress className="h-3 mt-[10px]" value={item.progress * 100}></Progress>

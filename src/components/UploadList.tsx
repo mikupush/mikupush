@@ -8,7 +8,7 @@ interface UploadListProps {
 export default function UploadList({ items }: UploadListProps) {
   return (
     <div className="overflow-y-scroll">
-      {items.map((item, index) => <UploadItem key={index} item={item} />)}
+      {items.map(item => <UploadItem key={item.upload.id} item={item} />)}
     </div>
   )
 }
@@ -16,7 +16,7 @@ export default function UploadList({ items }: UploadListProps) {
 export function UploadProgressList({ items }: UploadListProps) {
   return (
     <div className="overflow-y-scroll">
-      {items.map((item, index) => <UploadProgressItem key={index} item={item} />)}
+      {items.map(item => <UploadProgressItem key={item.upload.id} item={item} />)}
     </div>
   )
 }
