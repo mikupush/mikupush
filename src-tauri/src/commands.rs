@@ -72,6 +72,7 @@ pub async fn enqueue_many_uploads(
     server_state: State<'_, SelectedServerState>,
     paths: Vec<String>,
 ) -> Result<Vec<UploadRequest>, String> {
+    debug!("Equeue many files to uploads: {}", paths.join(";"));
     let mut in_progress_uploads: Vec<UploadRequest> = vec![];
 
     for path in paths {
