@@ -17,7 +17,6 @@ export const useUploadsStore = create<UploadsStore>((set) => ({
   archivedUploads: [],
 
   setInProgressUploads: (inProgressUploads: UploadRequest[]) => {
-    console.log('set uploads in progress', inProgressUploads)
     set((state) => ({ ...state, inProgressUploads }))
   }
 }))
