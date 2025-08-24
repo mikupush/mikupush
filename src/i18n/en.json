@@ -12,7 +12,8 @@
       "confirm": "Delete",
       "success": "{{fileName}} have been deleted",
       "error": "error deleting {{fileName}}"
-    }
+    },
+    "drop": "Drop to upload"
   },
   "dialog": {
     "heading": {

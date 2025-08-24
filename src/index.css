@@ -34,34 +34,25 @@
 }
 
 :root {
-  --primary-color: #057073;
-  --on-primary-color: #FFFFFF;
-  --secondary-color: #9AD5D5;
+  --primary-color: #39C5BB;
+  --on-primary-color: #000000;
+  --primary-hover: #2E9E97;
+  --secondary-color: #FF66CC;
+  --on-secondary: #000000;
+  --secondary-hover: #FF47C2;
   --background-color: #FFFFFF;
-  --foreground-color: #000000;
+  --on-background: #000000;
   --secondary-background-color: #EAEAEB;
 
-  /* Material Web Components colors */
-  --md-sys-color-surface: var(--background-color);
-  --md-sys-color-on-surface: var(--foreground-color);
-  --md-sys-color-primary: var(--primary-color);
-  --md-sys-color-on-primary: var(--on-primary-color);
-  --md-sys-color-secondary: var(--secondary-color);
-  --md-sys-color-on-secondary: var(--background-color);
-  --md-sys-color-primary-container: var(--primary-color);
-  --md-sys-color-on-primary-container: var(--on-primary-color);
-  --md-sys-color-secondary-container: var(--secondary-color);
-  --md-sys-color-on-secondary-container: var(--foreground-color);
-  --md-sys-color-surface-container-highest: var(--secondary-background-color);
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: var(--background);
+  --foreground: var(--on-background);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: var(--primary-color);
+  --primary-foreground: var(--on-primary-color);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -93,7 +84,7 @@
     --on-primary-color: #1C1B1F;
     --secondary-color: #020516;
     --background-color: #1C1B1F;
-    --foreground-color: #FFFFFF;
+    --on-background: #FFFFFF;
     --secondary-background-color: #000000;
   }
 }
@@ -116,7 +107,7 @@ html, body {
 
 body {
   background-color: var(--background-color);
-  color: var(--foreground-color);
+  color: var(--on-background);
 }
 
 @theme inline {

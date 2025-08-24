@@ -4,27 +4,20 @@ import { invoke } from '@tauri-apps/api/core'
 import AppBar from '@/components/AppBar'
 import Uploads from '@/components/Uploads.tsx'
 import { Toaster } from 'react-hot-toast'
+import { useUploadsStore } from '@/store/uploads'
 
 await getCurrentWebview().onDragDropEvent(async (event) => {
-  const dropArea = document.querySelectorAll('.file-drop-area');
+  const store = useUploadsStore.getState()
 
-  const showActive = () => dropArea.forEach(el => {
-    el.classList.remove('active')
-    el.classList.add('active')
-  })
-
-  const hideActive = () => dropArea.forEach(el => {
-    el.classList.remove('active')
-  })
-  // añadir aqui clase de css al input del fichero y llamar a un comando de tauri
   // se repiten mucho los eventos habra que tener cuidado con eso
   // https://v2.tauri.app/plugin/dialog/#build-a-file-selector-dialog
   if (event.payload.type === 'over') {
-    showActive()
+    store.showDropZone(true)
   } else if (event.payload.type === 'drop') {
     await invoke('enqueue_many_uploads', { paths: event.payload.paths })
+    store.showDropZone(false)
   } else {
-    hideActive()
+    store.showDropZone(false)
   }
 })
 
