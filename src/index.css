@@ -40,12 +40,12 @@
   --secondary-color: #FF66CC;
   --on-secondary: #000000;
   --secondary-hover: #FF47C2;
-  --background-color: #FFFFFF;
+  --background: #FFFFFF;
   --on-background: #000000;
   --secondary-background-color: #EAEAEB;
 
   --radius: 0.625rem;
-  --background: var(--background);
+  /*--background: var(--background);*/
   --foreground: var(--on-background);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
