@@ -15,12 +15,9 @@ import { Progress } from "@/components/ui/progress"
 import { extractExtension } from "@/helpers/file"
 import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
 import { UploadRequest } from "@/model/upload"
-import { ProgressEvent } from "@/model/events"
 import { useUploadsStore } from "@/store/uploads"
 import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
 import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from "lucide-react"
-import { useEffect, useState } from "react"
 import toast from 'react-hot-toast'
 import { useTranslation } from "react-i18next"
 import { JSX } from "react/jsx-runtime"
@@ -45,45 +42,11 @@ interface UploadProgressProps {
 }
 
 export function UploadProgressItem({ item }: UploadProgressProps) {
-  const [uploadRequest, setUploadRequest] = useState(item)
-
-  useEffect(() => {
-    const progressListener = listen<ProgressEvent>(
-      'upload-progress-changed',
-      (event) => {
-        const progress = event.payload
-
-        if (progress.uploadId === item.upload.id) {
-          setUploadRequest(previous => ({
-            ...previous,
-            progress: progress.progress
-          }))
-        }
-      }
-    )
-
-    const finishListener = listen<UploadRequest>(
-      'upload-finish',
-      (event) => {
-        const request = event.payload
-
-        if (request.upload.id === item.upload.id) {
-          setUploadRequest(request)
-        }
-      }
-    )
-
-    return () => {
-      progressListener.then(unlistenFn => unlistenFn())
-      finishListener.then(unlistenFn => unlistenFn())
-    }
-  }, [])
-
   return (
     <UploadItemLayout
       item={item}
-      body={<UploadProgressBody item={uploadRequest} />}
-      actions={<UploadActions item={uploadRequest} />}
+      body={<UploadProgressBody item={item} />}
+      actions={<UploadActions item={item} />}
     />
   )
 }
@@ -96,7 +59,7 @@ function UploadProgressBody({ item }: UploadItemProps) {
   if (item.finished && item.error != null && item.error != '') {
     return (
       <Small className="mt-[10px] text-red-600 line-clamp-1">
-        {item.error ?? ''}
+        {item.error}
       </Small>
     )
   }

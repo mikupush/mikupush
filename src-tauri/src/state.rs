@@ -98,6 +98,11 @@ impl UploadsState {
         tokens.remove(&id);
     }
 
+    pub fn get_all_in_progress(&self) -> Vec<UploadRequest> {
+        let in_progress = self.in_progress.lock().unwrap();
+        Self::sorted_in_progress(&in_progress)
+    }
+
     fn sorted_in_progress(in_progress: &HashMap<String, UploadRequest>) -> Vec<UploadRequest> {
         let mut items: Vec<UploadRequest> = in_progress.values().cloned().collect();
 

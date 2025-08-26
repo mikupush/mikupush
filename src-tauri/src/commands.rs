@@ -224,11 +224,7 @@ async fn upload_file(
 
             request = request.update_progress(progress);
             state.update_request(request.clone());
-
-            let _ = window.emit(UPLOAD_PROGRESS_CHANGE_EVENT, ProgressEvent {
-                upload_id: request.upload.id.to_string(),
-                progress: progress.clone()
-            });
+            emit_uploads_changed(&window, state.get_all_in_progress())
         }
     });
 
@@ -252,12 +248,7 @@ fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String
     let mut request = request.unwrap();
     request = request.finish();
     state.update_request(request.clone());
-
-    let _ = window.emit(UPLOAD_FINISH_EVENT, request);
-    debug!(
-        "event {} emited for upload with id {}",
-        UPLOAD_FINISH_EVENT, upload_id
-    );
+    emit_uploads_changed(&window, state.get_all_in_progress())
 }
 
 fn handle_upload_failed(
@@ -285,9 +276,12 @@ fn handle_upload_failed(
     }
 
     state.update_request(request.clone());
-    let _ = window.emit(UPLOAD_FAILED_EVENT, request);
-    debug!(
-        "event {} emited for upload with id {}",
-        UPLOAD_FAILED_EVENT, upload_id
-    );
+    emit_uploads_changed(&window, state.get_all_in_progress())
+}
+
+fn emit_uploads_changed(window: &Window, requests: Vec<UploadRequest>) {
+    match window.emit(UPLOADS_CHANGED_EVENT, requests) {
+        Ok(_) => debug!("event {} emited", UPLOADS_CHANGED_EVENT),
+        Err(error) => warn!("event {} failed emited: {}", UPLOADS_CHANGED_EVENT, error),
+    }
 }
