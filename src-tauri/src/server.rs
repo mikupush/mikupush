@@ -7,7 +7,7 @@ use serde_json::json;
 use std::cmp::min;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::select;
@@ -151,24 +151,14 @@ impl Display for UploadError {
     }
 }
 
+#[derive(Debug)]
 pub struct UploadTask {
-    cancellation_token: CancellationToken,
+    pub cancellation_token: CancellationToken,
     handle: JoinHandle<Result<(), UploadError>>,
     progress_receiver: watch::Receiver<ProgressEvent>,
 }
 
 impl UploadTask {
-    pub fn cancel(&self) {
-        self.cancellation_token.cancel();
-        if !self.handle.is_finished() {
-            self.handle.abort();
-        }
-    }
-
-    pub fn is_finished(&self) -> bool {
-        self.handle.is_finished()
-    }
-
     pub async fn wait(self) -> Result<(), UploadError> {
         self.handle
             .await
@@ -260,6 +250,7 @@ impl Client {
 
                 while let Some(chunk) = reader_stream.next().await {
                     if stream_cancellation_token.is_cancelled() {
+                        debug!("upload canceled for: {}", request.upload.id);
                         break;
                     }
 

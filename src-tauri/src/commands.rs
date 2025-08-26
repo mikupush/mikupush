@@ -157,6 +157,16 @@ pub async fn find_all_uploads() -> Result<Vec<Upload>, String> {
 }
 
 #[tauri::command]
+pub fn cancel_upload(
+    uploads_state: State<'_, UploadsState>,
+    upload_id: String,
+) -> Vec<UploadRequest> {
+    debug!("canceling upload for: {}", upload_id);
+    uploads_state.cancel_upload(upload_id.clone());
+    uploads_state.delete_request(upload_id.clone())
+}
+
+#[tauri::command]
 pub async fn copy_upload_link(
     app_handle: AppHandle,
     state: State<'_, SelectedServerState>,
@@ -184,8 +194,11 @@ async fn upload_file(
     client: server::Client,
     request: UploadRequest,
 ) -> Result<(), UploadError> {
+    let state = app_handle.state::<UploadsState>();
     let upload_id = request.upload.id.clone().to_string();
     let task = client.upload(&request).await?;
+
+    state.add_cancellation_token(upload_id.clone(), task.cancellation_token.clone());
 
     let mut progress_receiver = task.progress();
     let app_handle_clone = app_handle.clone();
@@ -210,14 +223,9 @@ async fn upload_file(
         }
     });
 
-    task.wait().await
-}
-
-// Helper function to emit progress updates
-fn emit_progress(window: &Window, request: &UploadRequest) -> Result<(), String> {
-    window
-        .emit("upload-progress", request)
-        .map_err(|e| e.to_string())
+    let result = task.wait().await;
+    state.remove_cancellation_token(upload_id.clone());
+    result
 }
 
 fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String) {

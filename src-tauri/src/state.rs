@@ -1,19 +1,23 @@
 use crate::{
     models::UploadRequest,
-    server::{self, Server},
+    server::{self, ProgressEvent, Server, UploadTask},
 };
 use log::warn;
 use std::{collections::HashMap, sync::Mutex};
+use tokio::sync::watch;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug)]
 pub struct UploadsState {
     in_progress: Mutex<HashMap<String, UploadRequest>>,
+    cancellation_tokens: Mutex<HashMap<String, CancellationToken>>,
 }
 
 impl UploadsState {
     pub fn new() -> Self {
         Self {
             in_progress: Mutex::new(HashMap::new()),
+            cancellation_tokens: Mutex::new(HashMap::new()),
         }
     }
 
@@ -75,6 +79,26 @@ impl UploadsState {
         let mut in_progress = self.in_progress.lock().unwrap();
         in_progress.remove(&id);
         Self::sorted_in_progress(&in_progress)
+    }
+
+    pub fn add_cancellation_token(&self, id: String, token: CancellationToken) {
+        let mut tokens = self.cancellation_tokens.lock().unwrap();
+        tokens.insert(id, token);
+    }
+
+    pub fn cancel_upload(&self, id: String) {
+        let mut tokens = self.cancellation_tokens.lock().unwrap();
+
+        if let Some(task) = tokens.get(&id) {
+            task.cancel();
+        }
+
+        tokens.remove(&id);
+    }
+
+    pub fn remove_cancellation_token(&self, id: String) {
+        let mut tokens = self.cancellation_tokens.lock().unwrap();
+        tokens.remove(&id);
     }
 
     fn sorted_in_progress(in_progress: &HashMap<String, UploadRequest>) -> Vec<UploadRequest> {
