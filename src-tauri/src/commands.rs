@@ -1,7 +1,6 @@
 use crate::events::*;
-use crate::models::{Upload, UploadRequest};
-use crate::server;
-use crate::server::UploadError;
+use mikupush_common::{Progress, Upload, UploadRequest};
+use mikupush_client::{Client, UploadError};
 use crate::state::{SelectedServerState, UploadsState};
 use log::{debug, info, warn};
 use tauri::{AppHandle, Emitter, Manager, State, Window};
@@ -49,9 +48,11 @@ pub async fn enqueue_upload(
     let in_progress_uploads = app_state.add_request(request.clone());
     let app_handle_clone = app_handle.clone();
     let client = server_state.clone().client();
+
     tauri::async_runtime::spawn(async move {
         if let Err(error) = client.create(&request.clone().upload).await {
             warn!("error registering file {:?}", error);
+            handle_upload_failed(window.clone(), app_handle, error.into(), upload_id);
             return;
         }
 
@@ -191,7 +192,7 @@ pub async fn copy_upload_link(
 async fn upload_file(
     window: Window,
     app_handle: AppHandle,
-    client: server::Client,
+    client: Client,
     request: UploadRequest,
 ) -> Result<(), UploadError> {
     let state = app_handle.state::<UploadsState>();
@@ -200,9 +201,11 @@ async fn upload_file(
 
     state.add_cancellation_token(upload_id.clone(), task.cancellation_token.clone());
 
-    let mut progress_receiver = task.progress();
+    let mut progress_receiver = task.progress_receiver.clone();
     let app_handle_clone = app_handle.clone();
     let upload_id_clone = upload_id.clone();
+    let handle = task.start();
+
     tokio::spawn(async move {
         let state = app_handle_clone.state::<UploadsState>();
         let request = state.get_request(upload_id_clone.clone());
@@ -217,13 +220,19 @@ async fn upload_file(
         let mut request = request.unwrap();
         while progress_receiver.changed().await.is_ok() {
             let current = *progress_receiver.borrow();
-            request = request.update_progress(current.clone());
+            let progress: Progress = current.clone().into();
+
+            request = request.update_progress(progress);
             state.update_request(request.clone());
-            let _ = window.emit(UPLOAD_PROGRESS_CHANGE_EVENT, current);
+
+            let _ = window.emit(UPLOAD_PROGRESS_CHANGE_EVENT, ProgressEvent {
+                upload_id: request.upload.id.to_string(),
+                progress: progress.clone()
+            });
         }
     });
 
-    let result = task.wait().await;
+    let result = handle.await?;
     state.remove_cancellation_token(upload_id.clone());
     result
 }

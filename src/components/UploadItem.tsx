@@ -14,8 +14,8 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { extractExtension } from "@/helpers/file"
 import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
-import { ProgressEvent } from "@/model/events"
 import { UploadRequest } from "@/model/upload"
+import { ProgressEvent } from "@/model/events"
 import { useUploadsStore } from "@/store/uploads"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
@@ -24,6 +24,7 @@ import { useEffect, useState } from "react"
 import toast from 'react-hot-toast'
 import { useTranslation } from "react-i18next"
 import { JSX } from "react/jsx-runtime"
+import { cancelUpload } from "@/helpers/upload.ts"
 
 interface UploadItemProps {
   item: UploadRequest
@@ -55,9 +56,7 @@ export function UploadProgressItem({ item }: UploadProgressProps) {
         if (progress.uploadId === item.upload.id) {
           setUploadRequest(previous => ({
             ...previous,
-            progress: progress.progress,
-            rateBytes: progress.rateBytes,
-            uploadedBytes: progress.uploadedBytes
+            progress: progress.progress
           }))
         }
       }
@@ -104,10 +103,10 @@ function UploadProgressBody({ item }: UploadItemProps) {
 
   return (
     <>
-      <Progress className="h-3 mt-[10px]" value={item.progress * 100}></Progress>
+      <Progress className="h-3 mt-[10px]" value={item.progress.progress * 100}></Progress>
       <div className="flex place-content-between mt-[10px]">
-        <Small>{formatRate(item.rateBytes)}</Small>
-        <Small>{formatSizeBytes(item.uploadedBytes)} / {formatSizeBytes(item.upload.size)}</Small>
+        <Small>{formatRate(item.progress.rateBytes)}</Small>
+        <Small>{formatSizeBytes(item.progress.uploadedBytes)} / {formatSizeBytes(item.upload.size)}</Small>
       </div>
     </>
   )
@@ -132,7 +131,11 @@ function UploadActions({ item }: UploadItemProps) {
         <Button variant="outline" size="icon">
           <RotateCwIcon />
         </Button>
-        <Button variant="outline" size="icon">
+        <Button
+            variant="outline"
+            size="icon"
+            onClick={() => cancelUpload(item.upload.id)}
+        >
           <XIcon color="red" />
         </Button>
       </>
@@ -141,7 +144,11 @@ function UploadActions({ item }: UploadItemProps) {
 
   return (
     <>
-      <Button variant="outline" size="icon">
+      <Button
+          variant="outline"
+          size="icon"
+          onClick={() => cancelUpload(item.upload.id)}
+      >
         <XIcon color="red" />
       </Button>
     </>

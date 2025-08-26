@@ -16,3 +16,4 @@ path = "src/lib.rs"
 
 [dependencies]
 sea-orm = { version = "1.1.0" }
+mikupush_common = { path = "../lib/common" }

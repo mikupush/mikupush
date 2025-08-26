@@ -1,7 +1,12 @@
+export interface Progress {
+  progress: number
+  totalSize: number
+  uploadedBytes: number
+  rateBytes: number
+}
+
 export interface UploadRequest {
-  progress: number;
-  uploadedBytes: number;
-  rateBytes: number;
+  progress: Progress;
   error?: string;
   upload: Upload;
   finished: boolean;

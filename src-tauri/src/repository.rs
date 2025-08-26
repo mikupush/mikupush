@@ -1,4 +1,4 @@
-use crate::models::Upload;
+use mikupush_common::Upload;
 use crate::GenericResult;
 use mikupush_entity::upload;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
@@ -47,11 +47,11 @@ impl UploadRepository {
 #[cfg(test)]
 mod tests {
     use crate::database::setup_test_database_connection;
-    use crate::models::Upload;
     use crate::repository::UploadRepository;
     use mikupush_entity::upload;
     use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
     use uuid::Uuid;
+    use mikupush_common::Upload;
 
     #[tokio::test]
     async fn upload_repository_find_all_should_return_all() {

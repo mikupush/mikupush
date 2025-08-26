@@ -3086,9 +3086,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "mikupush_client"
+version = "0.0.0"
+dependencies = [
+ "async-stream",
+ "bytes",
+ "chrono",
+ "env_logger",
+ "log",
+ "mikupush_common",
+ "mimetype-detector",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
+name = "mikupush_common"
+version = "0.0.0"
+dependencies = [
+ "async-stream",
+ "bytes",
+ "chrono",
+ "env_logger",
+ "log",
+ "mimetype-detector",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "mikupush_entity"
 version = "0.1.0"
 dependencies = [
+ "mikupush_common",
  "sea-orm",
 ]
 
@@ -6011,6 +6053,8 @@ dependencies = [
  "env_logger",
  "futures-core",
  "log",
+ "mikupush_client",
+ "mikupush_common",
  "mikupush_entity",
  "mikupush_migration",
  "mimetype-detector",

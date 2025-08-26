@@ -1,7 +1,6 @@
+import { Progress } from "@/model/upload.ts"
+
 export interface ProgressEvent {
   uploadId: string
-  progress: number
-  totalSize: number
-  uploadedBytes: number
-  rateBytes: number
+  progress: Progress
 }

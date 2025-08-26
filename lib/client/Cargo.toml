@@ -1,0 +1,32 @@
+[package]
+name = "mikupush_client"
+version = "0.0.0"
+authors = ["MikuPush"]
+edition = "2021"
+
+[profile.dev]
+incremental = true
+
+[profile.test]
+incremental = true
+
+[lib]
+name = "mikupush_client"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1.4", features = ["v4", "serde"] }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1.17"
+tokio-util = { version = "0.7", features = ["full"] }
+async-stream = "0.3.6"
+reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
+chrono = { version = "0.4", features = ["serde"] }
+env_logger = "0.10"
+log = "0.4.27"
+rand = "0.8.5"
+mimetype-detector = "0.1.1"
+bytes = "1.10.1"
+mikupush_common = { path = "../common" }

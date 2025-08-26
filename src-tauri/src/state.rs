@@ -1,11 +1,8 @@
-use crate::{
-    models::UploadRequest,
-    server::{self, ProgressEvent, Server, UploadTask},
-};
+use mikupush_common::UploadRequest;
 use log::warn;
 use std::{collections::HashMap, sync::Mutex};
-use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
+use mikupush_client::{Client, Server};
 
 #[derive(Debug)]
 pub struct UploadsState {
@@ -123,7 +120,7 @@ impl SelectedServerState {
         }
     }
 
-    pub fn client(&self) -> server::Client {
-        server::Client::new(self.server.lock().unwrap().clone())
+    pub fn client(&self) -> Client {
+        Client::new(self.server.lock().unwrap().clone())
     }
 }
