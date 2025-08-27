@@ -1,6 +1,6 @@
 import { createContext } from 'react'
-import { Upload } from '../model/upload'
-import { UploadRequest } from '../model/events.ts'
+import { Upload } from '@/model/upload'
+import { UploadRequest } from '@/model/upload'
 
 interface UploadsContextProps {
   inProgressUploads: UploadRequest[]
