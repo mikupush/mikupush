@@ -65,7 +65,8 @@ pub fn run() {
             commands::abort_upload,
             commands::delete_upload,
             commands::find_all_uploads,
-            commands::copy_upload_link
+            commands::copy_upload_link,
+            commands::cancel_upload
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
