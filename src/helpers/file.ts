@@ -11,12 +11,12 @@ export function selectFiles() {
 }
 
 export function extractExtension(path: string): string {
-  const baseName = (path.split(/[\\/]/).pop() ?? '').trim();
-  const lastDot = baseName.lastIndexOf('.');
+  const baseName = (path.split(/[\\/]/).pop() ?? '').trim()
+  const lastDot = baseName.lastIndexOf('.')
 
   if (lastDot <= 0 || lastDot === baseName.length - 1) {
     return ''
   }
 
-  return baseName.slice(lastDot + 1).toLowerCase();
+  return baseName.slice(lastDot + 1).toLowerCase()
 };

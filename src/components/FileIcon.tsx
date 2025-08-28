@@ -1,4 +1,4 @@
-import { Large } from "@/components/Typography"
+import { Large } from '@/components/Typography'
 
 interface FileIconProps {
   extension: string

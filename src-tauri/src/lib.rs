@@ -62,9 +62,7 @@ pub fn run() {
             commands::enqueue_upload,
             commands::enqueue_many_uploads,
             commands::retry_upload,
-            commands::abort_upload,
             commands::delete_upload,
-            commands::find_all_uploads,
             commands::copy_upload_link,
             commands::cancel_upload
         ])

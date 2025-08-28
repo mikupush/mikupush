@@ -6,7 +6,7 @@ import Uploads from '@/components/Uploads.tsx'
 import { Toaster } from 'react-hot-toast'
 import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
-import {listen} from "@tauri-apps/api/event";
+import { listen } from '@tauri-apps/api/event'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()

@@ -1,11 +1,11 @@
-import { useTranslation } from "react-i18next";
+import { useTranslation } from 'react-i18next'
 import { Paragraph } from '@/components/Typography'
-import { Button } from "./ui/button";
-import { FolderIcon } from "lucide-react";
-import { selectFiles } from "@/helpers/file";
-import { UploadProgressList } from "@/components/UploadList";
-import { useUploadsStore } from "@/store/uploads";
-import UploadDropZone from "@/components/UploadDropZone";
+import { Button } from './ui/button'
+import { FolderIcon } from 'lucide-react'
+import { selectFiles } from '@/helpers/file'
+import { UploadProgressList } from '@/components/UploadList'
+import { useUploadsStore } from '@/store/uploads'
+import UploadDropZone from '@/components/UploadDropZone'
 
 export default function Uploads() {
   const inProgressUploads = useUploadsStore(state => state.inProgressUploads)
@@ -27,7 +27,7 @@ export default function Uploads() {
 }
 
 function EmptyState() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   return (
     <div className="flex flex-1 flex-col justify-center items-center px-20">

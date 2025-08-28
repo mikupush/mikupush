@@ -1,4 +1,4 @@
-import { Progress } from "@/model/upload"
+import { Progress } from '@/model/upload'
 
 export interface ProgressEvent {
   uploadId: string

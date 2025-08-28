@@ -1,6 +1,6 @@
-import FileIcon from "@/components/FileIcon"
-import { Large, Small } from "@/components/Typography"
-import { Button } from "@/components/ui/button"
+import FileIcon from '@/components/FileIcon'
+import { Large, Small } from '@/components/Typography'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogClose,
@@ -11,17 +11,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Progress } from "@/components/ui/progress"
-import { extractExtension } from "@/helpers/file"
-import { formatDate, formatRate, formatSizeBytes } from "@/helpers/format"
-import { UploadRequest } from "@/model/upload"
-import { useUploadsStore } from "@/store/uploads"
-import { invoke } from "@tauri-apps/api/core"
-import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from "lucide-react"
+import { Progress } from '@/components/ui/progress'
+import { extractExtension } from '@/helpers/file'
+import { formatDate, formatRate, formatSizeBytes } from '@/helpers/format'
+import { UploadRequest } from '@/model/upload'
+import { useUploadsStore } from '@/store/uploads'
+import { invoke } from '@tauri-apps/api/core'
+import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useTranslation } from "react-i18next"
-import { JSX } from "react/jsx-runtime"
-import { cancelUpload } from "@/helpers/upload.ts"
+import { useTranslation } from 'react-i18next'
+import { JSX } from 'react/jsx-runtime'
+import { cancelUpload, retryUpload } from '@/helpers/upload'
 
 interface UploadItemProps {
   item: UploadRequest
@@ -31,8 +31,8 @@ export function UploadItem({ item }: UploadItemProps) {
   return (
     <UploadItemLayout
       item={item}
-      body={<FinishedUploadBody item={item} />}
-      actions={<FinishedUploadActions item={item} />}
+      body={<FinishedUploadBody item={item}/>}
+      actions={<FinishedUploadActions item={item}/>}
     />
   )
 }
@@ -45,15 +45,15 @@ export function UploadProgressItem({ item }: UploadProgressProps) {
   return (
     <UploadItemLayout
       item={item}
-      body={<UploadProgressBody item={item} />}
-      actions={<UploadActions item={item} />}
+      body={<UploadProgressBody item={item}/>}
+      actions={<UploadActions item={item}/>}
     />
   )
 }
 
 function UploadProgressBody({ item }: UploadItemProps) {
   if (item.finished && item.error == null) {
-    return <FinishedUploadBody item={item} />
+    return <FinishedUploadBody item={item}/>
   }
 
   if (item.finished && item.error != null && item.error != '') {
@@ -85,21 +85,25 @@ function FinishedUploadBody({ item }: UploadItemProps) {
 
 function UploadActions({ item }: UploadItemProps) {
   if (item.finished && item.error == null) {
-    return <FinishedUploadActions item={item} />
+    return <FinishedUploadActions item={item}/>
   }
 
   if (item.finished && item.error != null && item.error != '') {
     return (
       <>
-        <Button variant="outline" size="icon">
-          <RotateCwIcon />
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => retryUpload(item.upload.id)}
+        >
+          <RotateCwIcon/>
         </Button>
         <Button
-            variant="outline"
-            size="icon"
-            onClick={() => cancelUpload(item.upload.id)}
+          variant="outline"
+          size="icon"
+          onClick={() => cancelUpload(item.upload.id)}
         >
-          <XIcon color="red" />
+          <XIcon color="red"/>
         </Button>
       </>
     )
@@ -108,11 +112,11 @@ function UploadActions({ item }: UploadItemProps) {
   return (
     <>
       <Button
-          variant="outline"
-          size="icon"
-          onClick={() => cancelUpload(item.upload.id)}
+        variant="outline"
+        size="icon"
+        onClick={() => cancelUpload(item.upload.id)}
       >
-        <XIcon color="red" />
+        <XIcon color="red"/>
       </Button>
     </>
   )
@@ -132,9 +136,9 @@ function FinishedUploadActions({ item }: UploadItemProps) {
         variant="outline"
         size="icon"
       >
-        <LinkIcon />
+        <LinkIcon/>
       </Button>
-      <DeleteAction item={item} />
+      <DeleteAction item={item}/>
     </>
   )
 }
@@ -147,7 +151,7 @@ interface UploadItemLayout extends UploadItemProps {
 function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
   return (
     <div className="flex p-[10px]">
-      <FileIcon extension={extractExtension(item.upload.name)} />
+      <FileIcon extension={extractExtension(item.upload.name)}/>
       <div className="flex flex-1 flex-col mx-[10px]">
         <Large className="line-clamp-1">{item.upload.name}</Large>
         {body}
@@ -176,7 +180,7 @@ function DeleteAction({ item }: UploadItemProps) {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="icon">
-          <TrashIcon color="red" />
+          <TrashIcon color="red"/>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

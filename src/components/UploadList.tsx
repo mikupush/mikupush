@@ -1,5 +1,5 @@
-import { UploadProgressItem, UploadItem } from "@/components/UploadItem";
-import { UploadRequest } from "@/model/upload";
+import { UploadProgressItem, UploadItem } from '@/components/UploadItem'
+import { UploadRequest } from '@/model/upload'
 
 interface UploadListProps {
   items: UploadRequest[]

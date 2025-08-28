@@ -93,43 +93,27 @@ pub async fn enqueue_many_uploads(
 #[tauri::command]
 pub async fn retry_upload(
     window: Window,
+    app_handle: AppHandle,
     app_state: State<'_, UploadsState>,
-    request: UploadRequest,
+    server_state: State<'_, SelectedServerState>,
+    upload_id: String,
 ) -> Result<(), String> {
-    // Create a new request with the same ID and file info
-    // let mut new_request = UploadRequest::new(
-    //     request.id,
-    //     request.name,
-    //     request.size,
-    //     request.mime_type,
-    //     request.path,
-    // );
-    //
-    // // Start upload in background
-    // let window_clone = window.clone();
-    //
-    // tauri::async_runtime::spawn(async move {
-    //     // Upload the file
-    //     match upload_file(window_clone, new_request).await {
-    //         Ok(_) => {
-    //             // Success is handled by the progress updates
-    //         }
-    //         Err(e) => {
-    //             // Handle error
-    //             println!("Upload retry failed: {}", e);
-    //         }
-    //     }
-    // });
+    let client = server_state.client();
+    let upload_request = app_state.get_request(upload_id.clone());
+    if let None = upload_request {
+        warn!("can't retry upload request with id {}: not found", upload_id);
+        return Ok(());
+    }
 
-    Ok(())
-}
+    let upload_request = upload_request.unwrap();
 
-#[tauri::command]
-pub async fn abort_upload(app_handle: AppHandle, upload_id: String) -> Result<(), String> {
-    // Emit an event to abort the upload
-    app_handle
-        .emit(&format!("abort-upload-{}", upload_id), ())
-        .map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn(async move {
+        match upload_file(window.clone(), app_handle.clone(), client, upload_request.clone()).await {
+            Ok(_) => handle_upload_finish(window, app_handle, upload_id),
+            Err(error) => handle_upload_failed(window, app_handle, error, upload_id),
+        }
+    });
+
     Ok(())
 }
 
@@ -148,13 +132,6 @@ pub async fn delete_upload(
 
     debug!("deleted upload with id {}", upload_id.clone());
     Ok(uploads)
-}
-
-#[tauri::command]
-pub async fn find_all_uploads() -> Result<Vec<Upload>, String> {
-    //let db = app_state.db.lock().unwrap();
-    //db.find_all_uploads().map_err(|e| e.to_string())
-    Ok(vec![])
 }
 
 #[tauri::command]
