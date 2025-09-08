@@ -7,9 +7,16 @@ use crate::upload::Upload;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UploadRequestError {
+    pub code: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UploadRequest {
     pub progress: Progress,
-    pub error: Option<String>,
+    pub error: Option<UploadRequestError>,
     pub upload: Upload,
     pub finished: bool,
     pub canceled: bool,
@@ -39,9 +46,9 @@ impl UploadRequest {
         this
     }
 
-    pub fn finish_with_error(&self, error: String) -> Self {
+    pub fn finish_with_error(&self, code: String, error: String) -> Self {
         let mut this = self.clone();
-        this.error = Some(error);
+        this.error = Some(UploadRequestError { code, message: error });
         this.finished = true;
         this
     }

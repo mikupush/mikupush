@@ -1,23 +1,24 @@
 use crate::progress::ProgressTrack;
+use crate::response::ErrorResponse;
+use crate::FileUploadError;
 use async_stream::__private::AsyncStream;
 use bytes::Bytes;
+use log::debug;
+use mikupush_common::Upload;
 use std::cmp::min;
 use std::future::Future;
 use std::io::Result as IoResult;
 use std::time::{Duration, Instant};
-use log::debug;
 use tokio::fs::File;
 use tokio::select;
-use tokio::sync::watch::Sender;
 use tokio::sync::watch;
 use tokio::sync::watch::Receiver;
+use tokio::sync::watch::Sender;
 use tokio::task::JoinHandle;
+use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use tokio_stream::StreamExt;
-use mikupush_common::Upload;
-use crate::error::{ServerResponseError, UploadError};
 
 #[derive(Debug, Clone)]
 pub struct UploadStream {
@@ -131,8 +132,9 @@ impl UploadTask {
         })
     }
 
-    async fn perform_upload(&self) -> Result<(), UploadError> {
-        let stream = self.stream.to_async_stream().await?;
+    async fn perform_upload(&self) -> Result<(), FileUploadError> {
+        let stream = self.stream.to_async_stream().await
+            .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
         let body = reqwest::Body::wrap_stream(stream);
         let send_future = self.client
             .post(&self.url)
@@ -142,20 +144,24 @@ impl UploadTask {
             .send();
 
         let response = select! {
-                res = send_future => res?,
+                res = send_future => res.map_err(|err| {
+                    FileUploadError::ClientError { message: err.to_string() }
+                })?,
                 _ = self.cancellation_token.cancelled() => {
-                    return Err(UploadError::Canceled);
+                    return Err(FileUploadError::Canceled);
                 }
             };
 
         if response.status() != 200 {
-            return Err(ServerResponseError::from_response(response).into());
+            let error_response = ErrorResponse::from_response(response).await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+            return Err(error_response.into());
         }
 
         Ok(())
     }
 
-    pub fn start(&self) -> JoinHandle<Result<(), UploadError>> {
+    pub fn start(&self) -> JoinHandle<Result<(), FileUploadError>> {
         let task = self.clone();
 
         tokio::spawn(async move {

@@ -52,14 +52,18 @@ export function UploadProgressItem({ item }: UploadProgressProps) {
 }
 
 function UploadProgressBody({ item }: UploadItemProps) {
+  const { t } = useTranslation()
+
   if (item.finished && item.error == null) {
     return <FinishedUploadBody item={item}/>
   }
 
-  if (item.finished && item.error != null && item.error != '') {
+  if (item.finished && item.error != null) {
     return (
       <Small className="mt-[10px] text-red-600 line-clamp-1">
-        {item.error}
+        {t(`errors.upload.${item.error.code}`, {
+          message: item.error.message
+        })}
       </Small>
     )
   }
@@ -88,7 +92,7 @@ function UploadActions({ item }: UploadItemProps) {
     return <FinishedUploadActions item={item}/>
   }
 
-  if (item.finished && item.error != null && item.error != '') {
+  if (item.finished && item.error != null) {
     return (
       <>
         <Button

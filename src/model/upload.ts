@@ -1,3 +1,5 @@
+import { type UploadErrorCode } from '@/constants/upload_error'
+
 export interface Progress {
   progress: number
   totalSize: number
@@ -5,9 +7,14 @@ export interface Progress {
   rateBytes: number
 }
 
+export interface UploadRequestError {
+  code: UploadErrorCode
+  message: string
+}
+
 export interface UploadRequest {
   progress: Progress;
-  error?: string;
+  error?: UploadRequestError;
   upload: Upload;
   finished: boolean;
   canceled: boolean;

@@ -1,10 +1,12 @@
-use crate::error::{ClientError, ServerResponseError, UploadError};
 use crate::server::Server;
 use crate::upload::UploadTask;
 use log::debug;
 use mikupush_common::{Upload, UploadRequest};
-use serde_json::json;
+use serde_json::{json, Value};
 use uuid::Uuid;
+use crate::error::{FileDeleteError, FileUploadError};
+use crate::HealthCheckError;
+use crate::response::{ErrorResponse, HealthCheckStatus};
 
 pub struct Client {
     base_url: String,
@@ -20,46 +22,66 @@ impl Client {
         }
     }
 
-    pub async fn create(&self, upload: &Upload) -> Result<(), ClientError> {
+    pub async fn create(&self, upload: &Upload) -> Result<(), FileUploadError> {
         let data = json!({
-            "uuid": upload.id,
+            "id": upload.id,
             "name": upload.name,
             "mime_type": upload.mime_type,
             "size": upload.size
         });
 
         let url = format!("{}/api/file", self.base_url);
-        let response = self.client.post(&url).json(&data).send().await?;
+        let response = self.client.post(&url).json(&data).send().await
+            .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
 
         if response.status() != 200 {
-            return Err(ServerResponseError::from_response(response).into());
+            let error_response = ErrorResponse::from_response(response).await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
+            return Err(error_response.into());
         }
 
         Ok(())
     }
 
-    pub async fn delete(&self, id: Uuid) -> Result<(), ClientError> {
+    pub async fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {
         let url = format!("{}/api/file/{}", self.base_url, id);
-        let response = self.client.delete(&url).send().await?;
+        let response = self.client.delete(&url).send().await
+            .map_err(|err| FileDeleteError::ClientError { message: err.to_string()})?;
 
         if response.status() != 200 {
-            return Err(ServerResponseError::from_response(response).into());
+            let error_response = ErrorResponse::from_response(response).await
+                .map_err(|err| FileDeleteError::ClientError { message: err.to_string()})?;
+            return Err(error_response.into());
         }
 
         Ok(())
     }
 
-    pub async fn upload(&self, request: &UploadRequest) -> Result<UploadTask, UploadError> {
+    pub async fn upload(&self, request: &UploadRequest) -> Result<UploadTask, FileUploadError> {
         if request.upload.mime_type.is_empty() {
-            return Err(UploadError::IO {
-                message: "unknown file type".to_string(),
-            });
+            return Err(FileUploadError::UnknownMimeType);
         }
 
         let client = self.client.clone();
         let url = format!("{}/api/file/{}/upload", self.base_url, request.upload.id);
 
         UploadTask::new(url, request.upload.clone(), client).await
-            .map_err(|err| UploadError::IO { message: err.to_string() })
+            .map_err(|err| FileUploadError::ClientError { message: err.to_string() })
+    }
+
+    pub async fn check_health(&self) -> Result<HealthCheckStatus, HealthCheckError> {
+        let url = format!("{}/health", self.base_url);
+        let response = self.client.get(&url).send().await
+            .map_err(|err| HealthCheckError { message: err.to_string()})?;
+        let response_body = response.text().await
+            .map_err(|err| HealthCheckError { message: err.to_string()})?;
+        let json_value: Value = serde_json::from_str(&response_body)
+            .map_err(|err| HealthCheckError { message: err.to_string()})?;
+        let status = json_value["status"].as_str().unwrap_or("down");
+
+        Ok(match status {
+            "up" => HealthCheckStatus::Up,
+            _ => HealthCheckStatus::Down
+        })
     }
 }

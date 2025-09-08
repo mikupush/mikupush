@@ -15,6 +15,23 @@
     },
     "drop": "Drop to upload"
   },
+  "errors": {
+    "upload": {
+      "exists": "A file with the same id already exists on the server.",
+      "not_exists": "The file does is not previously registered on the server before upload.",
+      "max_file_size_exceeded": "The file exceeds the maximum allowed size by the server.",
+      "not_completed": "The upload has not completed yet. It is possible that the file provided is corrupted.",
+      "unknown_mime_type": "unsupported file type.",
+      "canceled": "The upload was canceled.",
+      "internal_server_error": "An internal server error occurred: {{message}}",
+      "client_error": "A client error occurred while uploading."
+    },
+    "delete": {
+      "not_exists": "The file you are trying to delete does not exist on the server.",
+      "internal_server_error": "An internal server error occurred while deleting the file: {{message}}",
+      "client_error": "A client error occurred while deleting the file."
+    }
+  },
   "dialog": {
     "heading": {
       "danger": "Are you sure absolutely sure?"

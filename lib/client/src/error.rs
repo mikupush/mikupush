@@ -1,125 +1,119 @@
+use crate::response::ErrorResponse;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use reqwest::Response;
-use tokio::task::JoinError;
 
-#[derive(Debug, Clone)]
-pub struct ClientError {
-    pub message: String,
+pub trait ClientError: Debug + Display + Error {
+    fn code(&self) -> String;
 }
 
-impl Display for ClientError {
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileUploadError {
+    Exists { message: String },
+    NotExists { message: String },
+    MaxFileSizeExceeded { message: String },
+    NotCompleted { message: String },
+    UnknownMimeType,
+    Canceled,
+    InternalServerError { message: String },
+    ClientError { message: String },
+}
+
+impl From<ErrorResponse> for FileUploadError {
+    fn from(value: ErrorResponse) -> Self {
+        match value.code.as_str() {
+            "Exists" => Self::Exists { message: value.message },
+            "NotExists" => Self::NotExists { message: value.message },
+            "MaxFileSizeExceeded" => Self::MaxFileSizeExceeded { message: value.message },
+            _ => Self::InternalServerError { message: value.message },
+        }
+    }
+}
+
+impl Display for FileUploadError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exists { message } => write!(f, "{}", message),
+            Self::NotExists { message } => write!(f, "{}", message),
+            Self::MaxFileSizeExceeded { message } => write!(f, "{}", message),
+            Self::NotCompleted { message } => write!(f, "{}", message),
+            Self::UnknownMimeType => write!(f, "unknown mime type for the provided file to upload"),
+            Self::Canceled => write!(f, "file upload has been canceled"),
+            Self::InternalServerError { message } => write!(f, "{}", message),
+            Self::ClientError { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl Error for FileUploadError {}
+
+impl ClientError for FileUploadError {
+    fn code(&self) -> String {
+        match self {
+            Self::Exists { .. } => "exists".to_string(),
+            Self::NotExists { .. } => "not_exists".to_string(),
+            Self::MaxFileSizeExceeded { .. } => "max_file_size_exceeded".to_string(),
+            Self::NotCompleted { .. } => "not_completed".to_string(),
+            Self::UnknownMimeType => "unknown_mime_type".to_string(),
+            Self::Canceled => "canceled".to_string(),
+            Self::InternalServerError { .. } => "internal_server_error".to_string(),
+            Self::ClientError { .. } => "client_error".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileDeleteError {
+    NotExists { message: String },
+    InternalServerError { message: String },
+    ClientError { message: String },
+}
+
+impl From<ErrorResponse> for FileDeleteError {
+    fn from(value: ErrorResponse) -> Self {
+        match value.code.as_str() {
+            "NotExists" => Self::NotExists { message: value.message },
+            _ => Self::InternalServerError { message: value.message },
+        }
+    }
+}
+
+impl Display for FileDeleteError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotExists { message } => write!(f, "{}", message),
+            Self::InternalServerError { message } => write!(f, "{}", message),
+            Self::ClientError { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl Error for FileDeleteError {}
+
+impl ClientError for FileDeleteError {
+    fn code(&self) -> String {
+        match self {
+            Self::NotExists { .. } => "not_exists".to_string(),
+            Self::InternalServerError { .. } => "internal_server_error".to_string(),
+            Self::ClientError { .. } => "client_error".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HealthCheckError {
+    pub(crate) message: String
+}
+
+impl Display for HealthCheckError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)
     }
 }
 
-impl Error for ClientError {}
+impl Error for HealthCheckError {}
 
-impl From<reqwest::Error> for ClientError {
-    fn from(error: reqwest::Error) -> Self {
-        Self { message: error.to_string() }
+impl ClientError for HealthCheckError {
+    fn code(&self) -> String {
+        "health_check_error".to_string()
     }
 }
-
-#[derive(Debug)]
-pub struct ServerResponseError {
-    status: u16,
-    reason: String,
-}
-
-impl ServerResponseError {
-    pub fn from_response(response: Response) -> Self {
-        Self {
-            status: response.status().into(),
-            reason: response.status().canonical_reason()
-                .or_else(|| Some(""))
-                .unwrap()
-                .to_string()
-        }
-    }
-}
-
-impl Display for ServerResponseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "server respond with status: {}: {}", self.status, self.reason)
-    }
-}
-
-impl Error for ServerResponseError {}
-
-impl From<ServerResponseError> for ClientError {
-    fn from(error: ServerResponseError) -> Self {
-        Self { message: error.to_string() }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum UploadError {
-    IO { message: String },
-    Client { message: String },
-    Canceled,
-    JoinError { message: String },
-    Server { message: String },
-}
-
-impl From<ServerResponseError> for UploadError {
-    fn from(error: ServerResponseError) -> Self {
-        UploadError::Server {
-            message: format!(
-                "server respond error with status code: {}: {}",
-                error.status, error.reason
-            ),
-        }
-    }
-}
-
-impl From<JoinError> for UploadError {
-    fn from(m: JoinError) -> Self {
-        if m.is_cancelled() {
-            return UploadError::Canceled;
-        }
-
-        UploadError::JoinError {
-            message: format!("upload task join error: {}", m),
-        }
-    }
-}
-
-impl From<reqwest::Error> for UploadError {
-    fn from(m: reqwest::Error) -> Self {
-        UploadError::Client {
-            message: format!("error during the http request: {}", m),
-        }
-    }
-}
-
-impl From<ClientError> for UploadError {
-    fn from(m: ClientError) -> Self {
-        UploadError::Client { message: format!("{}", m), }
-    }
-}
-
-impl From<std::io::Error> for UploadError {
-    fn from(m: std::io::Error) -> Self {
-        UploadError::IO {
-            message: format!("error during I/O operation: {}", m),
-        }
-    }
-}
-
-impl Display for UploadError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let message = match self {
-            UploadError::IO { message } => message.clone(),
-            UploadError::Client { message } => message.clone(),
-            UploadError::Canceled => "upload was canceled".to_string(),
-            UploadError::JoinError { message } => message.clone(),
-            UploadError::Server { message } => message.clone(),
-        };
-
-        write!(f, "{}",message)
-    }
-}
-
-impl Error for UploadError {}

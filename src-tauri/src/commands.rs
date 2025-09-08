@@ -1,6 +1,6 @@
 use crate::events::*;
 use mikupush_common::{Progress, Upload, UploadRequest};
-use mikupush_client::{Client, UploadError};
+use mikupush_client::{Client, ClientError, FileUploadError};
 use crate::state::{SelectedServerState, UploadsState};
 use log::{debug, info, warn};
 use tauri::{AppHandle, Emitter, Manager, State, Window};
@@ -171,7 +171,7 @@ async fn upload_file(
     app_handle: AppHandle,
     client: Client,
     request: UploadRequest,
-) -> Result<(), UploadError> {
+) -> Result<(), FileUploadError> {
     let state = app_handle.state::<UploadsState>();
     let upload_id = request.upload.id.clone().to_string();
     let task = client.upload(&request).await?;
@@ -205,7 +205,9 @@ async fn upload_file(
         }
     });
 
-    let result = handle.await?;
+    let result = handle.await.map_err(|err| {
+        FileUploadError::ClientError { message: format!("upload task join error: {}", err.to_string()) }
+    })?;
     state.remove_cancellation_token(upload_id.clone());
     result
 }
@@ -231,7 +233,7 @@ fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String
 fn handle_upload_failed(
     window: Window,
     app_handle: AppHandle,
-    error: UploadError,
+    error: FileUploadError,
     upload_id: String,
 ) {
     info!("upload with id {} failed {}", upload_id, error);
@@ -246,10 +248,10 @@ fn handle_upload_failed(
     }
 
     let mut request = request.unwrap();
-    if error == UploadError::Canceled {
+    if error == FileUploadError::Canceled {
         request = request.canceled();
     } else {
-        request = request.finish_with_error(error.to_string());
+        request = request.finish_with_error(error.code(), error.to_string());
     }
 
     state.update_request(request.clone());
