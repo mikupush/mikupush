@@ -27,6 +27,7 @@ pub struct UploadStream {
     total_size: u64,
     uploaded_bytes: u64,
     cancellation_token: CancellationToken,
+    stop_token: CancellationToken,
     progress_sender: Sender<ProgressTrack>,
     progress: ProgressTrack,
     last_measured_rate: Instant,
@@ -37,6 +38,7 @@ impl UploadStream {
         path: String,
         upload_id: Uuid,
         cancellation_token: CancellationToken,
+        stop_token: CancellationToken,
         total_size: u64,
         progress: ProgressTrack,
         progress_sender: Sender<ProgressTrack>,
@@ -50,6 +52,7 @@ impl UploadStream {
             progress_sender,
             progress,
             last_measured_rate: Instant::now(),
+            stop_token
         })
     }
 
@@ -77,6 +80,11 @@ impl UploadStream {
 
         Ok(async_stream::stream! {
             while let Some(chunk) = reader.next().await {
+                if upload_stream.stop_token.is_cancelled() {
+                    debug!("upload stopped because maybe server returned an error for id: {}", upload_stream.upload_id);
+                    break;
+                }
+
                 if upload_stream.cancellation_token.is_cancelled() {
                     debug!("upload canceled for: {}", upload_stream.upload_id);
                     break;
@@ -95,6 +103,7 @@ pub struct UploadTask {
     stream: UploadStream,
     pub progress_receiver: Receiver<ProgressTrack>,
     pub cancellation_token: CancellationToken,
+    stop_token: CancellationToken,
     client: reqwest::Client,
     upload: Upload,
 }
@@ -107,6 +116,7 @@ impl UploadTask {
     ) -> Result<Self, std::io::Error> {
         let progress = ProgressTrack::new(upload.id.clone(), upload.size);
         let cancellation_token = CancellationToken::new();
+        let stop_token = CancellationToken::new();
 
         let (
             progress_sender,
@@ -117,6 +127,7 @@ impl UploadTask {
             upload.path.clone(),
             upload.id.clone(),
             cancellation_token.clone(),
+            stop_token.clone(),
             upload.size,
             progress,
             progress_sender,
@@ -128,7 +139,8 @@ impl UploadTask {
             progress_receiver,
             cancellation_token,
             client,
-            upload
+            upload,
+            stop_token,
         })
     }
 
@@ -144,16 +156,22 @@ impl UploadTask {
             .send();
 
         let response = select! {
-                res = send_future => res.map_err(|err| {
-                    FileUploadError::ClientError { message: err.to_string() }
-                })?,
-                _ = self.cancellation_token.cancelled() => {
-                    return Err(FileUploadError::Canceled);
-                }
-            };
+            res = send_future => res.map_err(|err| {
+                FileUploadError::ClientError { message: err.to_string() }
+            })?,
+            _ = self.cancellation_token.cancelled() => {
+                return Err(FileUploadError::Canceled);
+            }
+        };
+        let status = response.status().clone();
+        debug!("POST {}: {}",  self.url, status);
 
-        if response.status() != 200 {
-            let error_response = ErrorResponse::from_response(response).await
+        if status != 200 {
+            self.stop_token.cancel();
+            let response_body = response.text().await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
+            debug!("POST {}: {} - {} (after stop file content stream)",  self.url, status, response_body);
+            let error_response = ErrorResponse::from_string(response_body)
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
             return Err(error_response.into());
         }

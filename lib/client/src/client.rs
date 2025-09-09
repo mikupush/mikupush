@@ -18,7 +18,10 @@ impl Client {
         debug!("using server client with base url: {}", server.base_url);
         Self {
             base_url: server.base_url,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .user_agent("MikuPush/1.0.0")
+                .build()
+                .unwrap(),
         }
     }
 
@@ -33,9 +36,13 @@ impl Client {
         let url = format!("{}/api/file", self.base_url);
         let response = self.client.post(&url).json(&data).send().await
             .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
+        let status = response.status().clone();
+        let response_body = response.text().await
+            .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
+        debug!("POST {}: {} - {}",  url, status, response_body);
 
-        if response.status() != 200 {
-            let error_response = ErrorResponse::from_response(response).await
+        if status != 200 {
+            let error_response = ErrorResponse::from_string(response_body)
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
             return Err(error_response.into());
         }
@@ -47,9 +54,13 @@ impl Client {
         let url = format!("{}/api/file/{}", self.base_url, id);
         let response = self.client.delete(&url).send().await
             .map_err(|err| FileDeleteError::ClientError { message: err.to_string()})?;
+        let status = response.status().clone();
+        let response_body = response.text().await
+            .map_err(|err| FileDeleteError::ClientError { message: err.to_string()})?;
+        debug!("DELETE {}: {} - {}",  url, status, response_body);
 
-        if response.status() != 200 {
-            let error_response = ErrorResponse::from_response(response).await
+        if status != 200 {
+            let error_response = ErrorResponse::from_string(response_body)
                 .map_err(|err| FileDeleteError::ClientError { message: err.to_string()})?;
             return Err(error_response.into());
         }
@@ -73,15 +84,12 @@ impl Client {
         let url = format!("{}/health", self.base_url);
         let response = self.client.get(&url).send().await
             .map_err(|err| HealthCheckError { message: err.to_string()})?;
+        let status = response.status().clone();
         let response_body = response.text().await
             .map_err(|err| HealthCheckError { message: err.to_string()})?;
-        let json_value: Value = serde_json::from_str(&response_body)
-            .map_err(|err| HealthCheckError { message: err.to_string()})?;
-        let status = json_value["status"].as_str().unwrap_or("down");
+        debug!("GET {}: {} - {}",  url, status, response_body);
 
-        Ok(match status {
-            "up" => HealthCheckStatus::Up,
-            _ => HealthCheckStatus::Down
-        })
+        HealthCheckStatus::from_string(response_body)
+            .map_err(|err| HealthCheckError { message: err.to_string()})
     }
 }

@@ -32,7 +32,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
-        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             let window = app.get_webview_window("main").unwrap();
             window.show().unwrap();
             window.set_focus().unwrap();
@@ -43,10 +43,17 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Debug)
+                .level(log::LevelFilter::Error)
+                .level_for("mikupush", log::LevelFilter::Debug)
+                .level_for("mikupush_lib", log::LevelFilter::Debug)
+                .level_for("mikupush_client", log::LevelFilter::Debug)
+                .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("logs".to_string()),
+                    })
                 ])
                 .build(),
         )

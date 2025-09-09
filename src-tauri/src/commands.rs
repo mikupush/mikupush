@@ -73,7 +73,7 @@ pub async fn enqueue_many_uploads(
     server_state: State<'_, SelectedServerState>,
     paths: Vec<String>,
 ) -> Result<Vec<UploadRequest>, String> {
-    debug!("Equeue many files to uploads: {}", paths.join(";"));
+    debug!("enqueue many files to uploads: {}", paths.join(";"));
     let mut in_progress_uploads: Vec<UploadRequest> = vec![];
 
     for path in paths {
@@ -98,6 +98,8 @@ pub async fn retry_upload(
     server_state: State<'_, SelectedServerState>,
     upload_id: String,
 ) -> Result<(), String> {
+    debug!("retrying upload with id {}", upload_id);
+
     let client = server_state.client();
     let upload_request = app_state.get_request(upload_id.clone());
     if let None = upload_request {
@@ -123,7 +125,7 @@ pub async fn delete_upload(
     uploads_state: State<'_, UploadsState>,
     upload_id: String,
 ) -> Result<Vec<UploadRequest>, String> {
-    debug!("Deleting upload with id {}", upload_id.clone());
+    debug!("deleting upload with id {}", upload_id.clone());
 
     let id = Uuid::parse_str(upload_id.as_str()).map_err(|err| err.to_string())?;
     let client = server_state.client();
@@ -156,7 +158,7 @@ pub async fn copy_upload_link(
     let result = app_handle.clipboard().write_text(link);
     if let Err(error) = result {
         warn!(
-            "failed to copy link to the cipboard for upload id {}: {}",
+            "failed to copy link to the clipboard for upload id {}: {}",
             upload_id,
             error.to_string()
         );
@@ -174,6 +176,7 @@ async fn upload_file(
 ) -> Result<(), FileUploadError> {
     let state = app_handle.state::<UploadsState>();
     let upload_id = request.upload.id.clone().to_string();
+    debug!("launching file upload for upload with id {}", upload_id);
     let task = client.upload(&request).await?;
 
     state.add_cancellation_token(upload_id.clone(), task.cancellation_token.clone());
@@ -183,7 +186,7 @@ async fn upload_file(
     let upload_id_clone = upload_id.clone();
     let handle = task.start();
 
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let state = app_handle_clone.state::<UploadsState>();
         let request = state.get_request(upload_id_clone.clone());
         if let None = request {
@@ -209,6 +212,8 @@ async fn upload_file(
         FileUploadError::ClientError { message: format!("upload task join error: {}", err.to_string()) }
     })?;
     state.remove_cancellation_token(upload_id.clone());
+
+    debug!("upload task finished for upload with id {}", upload_id);
     result
 }
 
@@ -236,7 +241,7 @@ fn handle_upload_failed(
     error: FileUploadError,
     upload_id: String,
 ) {
-    info!("upload with id {} failed {}", upload_id, error);
+    info!("upload with id {} failed: {}", upload_id, error);
     let state = app_handle.state::<UploadsState>();
     let request = state.get_request(upload_id.clone());
     if let None = request {

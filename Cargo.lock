@@ -3086,6 +3086,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "mikupush"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "chrono",
+ "env_logger",
+ "futures-core",
+ "log",
+ "mikupush_client",
+ "mikupush_common",
+ "mikupush_entity",
+ "mikupush_migration",
+ "mimetype-detector",
+ "objc2 0.6.2",
+ "objc2-app-kit",
+ "objc2-foundation 0.3.1",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-http",
+ "tauri-plugin-log",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-shell",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-sql",
+ "tauri-plugin-window-state",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "mikupush_client"
 version = "0.0.0"
 dependencies = [
@@ -6046,48 +6088,6 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "0.1.0"
-dependencies = [
- "async-stream",
- "chrono",
- "env_logger",
- "futures-core",
- "log",
- "mikupush_client",
- "mikupush_common",
- "mikupush_entity",
- "mikupush_migration",
- "mimetype-detector",
- "objc2 0.6.2",
- "objc2-app-kit",
- "objc2-foundation 0.3.1",
- "rand 0.8.5",
- "reqwest 0.11.27",
- "sea-orm",
- "serde",
- "serde_json",
- "tauri 2.7.0",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-http",
- "tauri-plugin-log",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-shell",
- "tauri-plugin-single-instance",
- "tauri-plugin-sql",
- "tauri-plugin-window-state",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
-name = "tauri"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "352a4bc7bf6c25f5624227e3641adf475a6535707451b09bb83271df8b7a6ac7"
@@ -6226,7 +6226,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
 ]
@@ -6241,7 +6241,7 @@ dependencies = [
  "rust-ini",
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "tauri-utils",
  "thiserror 2.0.12",
@@ -6262,7 +6262,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "tauri-plugin-fs",
  "thiserror 2.0.12",
@@ -6283,7 +6283,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "tauri-utils",
  "thiserror 2.0.12",
@@ -6306,7 +6306,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "tauri-plugin-fs",
  "thiserror 2.0.12",
@@ -6331,7 +6331,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "swift-rs",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
  "time",
@@ -6349,7 +6349,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
  "time",
@@ -6370,7 +6370,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
  "url",
@@ -6391,7 +6391,7 @@ dependencies = [
  "serde_json",
  "serialize-to-javascript",
  "sys-locale",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
 ]
@@ -6411,7 +6411,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared_child",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
  "tokio",
@@ -6425,7 +6425,7 @@ checksum = "50a0e5a4ce43cb3a733c3aef85e8478bc769dac743c615e26639cbf5d953faf7"
 dependencies = [
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin-deep-link",
  "thiserror 2.0.12",
  "tracing",
@@ -6445,7 +6445,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
  "time",
@@ -6462,7 +6462,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
- "tauri 2.7.0",
+ "tauri",
  "tauri-plugin",
  "thiserror 2.0.12",
 ]
