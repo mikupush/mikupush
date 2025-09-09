@@ -11,11 +11,13 @@ export default function AppBar() {
     ? 'ml-[90px] my-[10px]'
     : 'm-[15px]'
 
+  const isDragArea = ['windows', 'macos'].includes(platform())
+
   return (
-    <div className="flex">
+    <div className="flex" data-tauri-drag-region={isDragArea}>
       <div className={`flex items-center space-x-[10px] ${margins}`}>
         <SelectedServer/>
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" hidden={true}>
           <SidebarOpenIcon/>
         </Button>
         <Button
@@ -26,19 +28,8 @@ export default function AppBar() {
           <UploadIcon/>
         </Button>
       </div>
-      <DragArea/>
       <WindowControls/>
     </div>
-  )
-}
-
-export function DragArea() {
-  if (!['windows', 'macos'].includes(platform())) {
-    return
-  }
-
-  return (
-    <div className="flex-1" data-tauri-drag-region></div>
   )
 }
 
