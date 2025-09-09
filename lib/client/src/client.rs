@@ -5,8 +5,8 @@ use mikupush_common::{Upload, UploadRequest};
 use serde_json::{json, Value};
 use uuid::Uuid;
 use crate::error::{FileDeleteError, FileUploadError};
-use crate::HealthCheckError;
-use crate::response::{ErrorResponse, HealthCheckStatus};
+use crate::{FileInfoError, HealthCheckError};
+use crate::response::{ErrorResponse, FileInfo, HealthCheckStatus};
 
 pub struct Client {
     base_url: String,
@@ -48,6 +48,27 @@ impl Client {
         }
 
         Ok(())
+    }
+
+    pub async fn info(&self, id: Uuid) -> Result<FileInfo, FileInfoError> {
+        let url = format!("{}/api/file/{}", self.base_url, id);
+        let response = self.client.delete(&url).send().await
+            .map_err(|err| FileInfoError::ClientError { message: err.to_string()})?;
+        let status = response.status().clone();
+        let response_body = response.text().await
+            .map_err(|err| FileInfoError::ClientError { message: err.to_string()})?;
+        debug!("GET {}: {} - {}",  url, status, response_body);
+
+        if status != 200 {
+            let error_response = ErrorResponse::from_string(response_body)
+                .map_err(|err| FileInfoError::ClientError { message: err.to_string()})?;
+            return Err(error_response.into());
+        }
+
+        let info: FileInfo = serde_json::from_str(&response_body)
+            .map_err(|err| FileInfoError::ClientError { message: err.to_string()})?;
+
+        Ok(info)
     }
 
     pub async fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {

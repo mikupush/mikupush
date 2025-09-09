@@ -49,17 +49,27 @@ impl Error for FileUploadError {}
 impl ClientError for FileUploadError {
     fn code(&self) -> String {
         match self {
-            Self::Exists { .. } => "exists".to_string(),
-            Self::NotExists { .. } => "not_exists".to_string(),
-            Self::MaxFileSizeExceeded { .. } => "max_file_size_exceeded".to_string(),
-            Self::NotCompleted { .. } => "not_completed".to_string(),
-            Self::UnknownMimeType => "unknown_mime_type".to_string(),
-            Self::Canceled => "canceled".to_string(),
-            Self::InternalServerError { .. } => "internal_server_error".to_string(),
-            Self::ClientError { .. } => "client_error".to_string(),
+            Self::Exists { .. } => FILE_UPLOAD_ERROR_EXISTS.to_string(),
+            Self::NotExists { .. } => FILE_UPLOAD_ERROR_NOT_EXISTS.to_string(),
+            Self::MaxFileSizeExceeded { .. } => FILE_UPLOAD_ERROR_MAX_FILE_SIZE_EXCEEDED.to_string(),
+            Self::NotCompleted { .. } => FILE_UPLOAD_ERROR_NOT_COMPLETED.to_string(),
+            Self::UnknownMimeType => FILE_UPLOAD_ERROR_UNKNOWN_MIME_TYPE.to_string(),
+            Self::Canceled => FILE_UPLOAD_ERROR_CANCELED.to_string(),
+            Self::InternalServerError { .. } => FILE_UPLOAD_ERROR_INTERNAL_SERVER_ERROR.to_string(),
+            Self::ClientError { .. } => FILE_UPLOAD_ERROR_CLIENT_ERROR.to_string(),
         }
     }
 }
+
+pub const FILE_UPLOAD_ERROR_EXISTS: &str = "exists";
+pub const FILE_UPLOAD_ERROR_NOT_EXISTS: &str = "not_exists";
+pub const FILE_UPLOAD_ERROR_MAX_FILE_SIZE_EXCEEDED: &str = "max_file_size_exceeded";
+pub const FILE_UPLOAD_ERROR_NOT_COMPLETED: &str = "not_completed";
+pub const FILE_UPLOAD_ERROR_UNKNOWN_MIME_TYPE: &str = "unknown_mime_type";
+pub const FILE_UPLOAD_ERROR_CANCELED: &str = "canceled";
+pub const FILE_UPLOAD_ERROR_INTERNAL_SERVER_ERROR: &str = "internal_server_error";
+pub const FILE_UPLOAD_ERROR_CLIENT_ERROR: &str = "client_error";
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileDeleteError {
@@ -92,12 +102,58 @@ impl Error for FileDeleteError {}
 impl ClientError for FileDeleteError {
     fn code(&self) -> String {
         match self {
-            Self::NotExists { .. } => "not_exists".to_string(),
-            Self::InternalServerError { .. } => "internal_server_error".to_string(),
-            Self::ClientError { .. } => "client_error".to_string(),
+            Self::NotExists { .. } => FILE_DELETE_ERROR_NOT_EXISTS.to_string(),
+            Self::InternalServerError { .. } => FILE_DELETE_ERROR_INTERNAL_SERVER_ERROR.to_string(),
+            Self::ClientError { .. } => FILE_DELETE_ERROR_CLIENT_ERROR.to_string(),
         }
     }
 }
+
+pub const FILE_DELETE_ERROR_NOT_EXISTS: &str = "not_exists";
+pub const FILE_DELETE_ERROR_INTERNAL_SERVER_ERROR: &str = "internal_server_error";
+pub const FILE_DELETE_ERROR_CLIENT_ERROR: &str = "client_error";
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileInfoError {
+    NotExists { message: String },
+    InternalServerError { message: String },
+    ClientError { message: String },
+}
+
+impl From<ErrorResponse> for FileInfoError {
+    fn from(value: ErrorResponse) -> Self {
+        match value.code.as_str() {
+            "NotExists" => Self::NotExists { message: value.message },
+            _ => Self::InternalServerError { message: value.message },
+        }
+    }
+}
+
+impl Display for FileInfoError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotExists { message } => write!(f, "{}", message),
+            Self::InternalServerError { message } => write!(f, "{}", message),
+            Self::ClientError { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl Error for FileInfoError {}
+
+impl ClientError for FileInfoError {
+    fn code(&self) -> String {
+        match self {
+            Self::NotExists { .. } => FILE_INFO_ERROR_NOT_EXISTS.to_string(),
+            Self::InternalServerError { .. } => FILE_INFO_ERROR_INTERNAL_SERVER_ERROR.to_string(),
+            Self::ClientError { .. } => FILE_INFO_ERROR_CLIENT_ERROR.to_string(),
+        }
+    }
+}
+
+pub const FILE_INFO_ERROR_NOT_EXISTS: &str = "not_exists";
+pub const FILE_INFO_ERROR_INTERNAL_SERVER_ERROR: &str = "internal_server_error";
+pub const FILE_INFO_ERROR_CLIENT_ERROR: &str = "client_error";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HealthCheckError {
@@ -114,6 +170,8 @@ impl Error for HealthCheckError {}
 
 impl ClientError for HealthCheckError {
     fn code(&self) -> String {
-        "health_check_error".to_string()
+        HEALTH_CHECK_ERROR_HEALTH_CHECK_ERROR.to_string()
     }
 }
+
+pub const HEALTH_CHECK_ERROR_HEALTH_CHECK_ERROR: &str = "health_check_error";

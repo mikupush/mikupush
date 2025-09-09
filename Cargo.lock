@@ -3134,11 +3134,8 @@ dependencies = [
  "async-stream",
  "bytes",
  "chrono",
- "env_logger",
  "log",
  "mikupush_common",
- "mimetype-detector",
- "rand 0.8.5",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
@@ -3152,19 +3149,10 @@ dependencies = [
 name = "mikupush_common"
 version = "0.0.0"
 dependencies = [
- "async-stream",
- "bytes",
  "chrono",
- "env_logger",
- "log",
  "mimetype-detector",
  "rand 0.8.5",
- "reqwest 0.11.27",
  "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tokio-util",
  "uuid",
 ]
 

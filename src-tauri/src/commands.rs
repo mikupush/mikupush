@@ -1,6 +1,6 @@
 use crate::events::*;
 use mikupush_common::{Progress, Upload, UploadRequest};
-use mikupush_client::{Client, ClientError, FileUploadError};
+use mikupush_client::{Client, ClientError, FileInfoError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
 use crate::state::{SelectedServerState, UploadsState};
 use log::{debug, info, warn};
 use tauri::{AppHandle, Emitter, Manager, State, Window};
@@ -110,6 +110,26 @@ pub async fn retry_upload(
     let upload_request = upload_request.unwrap();
 
     tauri::async_runtime::spawn(async move {
+        let info = client.info(upload_request.upload.id).await;
+        if let Err(error) = info.clone() {
+            if error.code() != FILE_INFO_ERROR_NOT_EXISTS {
+                debug!("error retrieving file info during upload retry: {}", error);
+                return;
+            }
+
+            debug!("upload with id {} is not registered, registering again", upload_request.upload.id);
+            if let Err(error) = client.create(&upload_request.clone().upload).await {
+                warn!("error registering file {:?}", error);
+                handle_upload_failed(window.clone(), app_handle, error.into(), upload_id);
+                return;
+            }
+        }
+
+        if let Ok(info) = info && info.status == FileStatus::Uploaded {
+            debug!("upload with id {} is already uploaded, aborting retry", upload_request.upload.id);
+            return;
+        }
+
         match upload_file(window.clone(), app_handle.clone(), client, upload_request.clone()).await {
             Ok(_) => handle_upload_finish(window, app_handle, upload_id),
             Err(error) => handle_upload_failed(window, app_handle, error, upload_id),

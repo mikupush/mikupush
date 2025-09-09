@@ -1,7 +1,9 @@
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use chrono::NaiveDateTime;
 use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ErrorResponse {
@@ -31,4 +33,20 @@ impl HealthCheckStatus {
             _ => Err(format!("Invalid health check status: {}", status).into()),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum FileStatus {
+    WaitingForUpload,
+    Uploaded
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfo {
+    pub id: Uuid,
+    pub name: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: NaiveDateTime,
+    pub status: FileStatus
 }

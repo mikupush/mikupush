@@ -3,7 +3,7 @@ name = "mikupush"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["MikuPush"]
-edition = "2021"
+edition = "2024"
 
 [profile.dev]
 incremental = true
