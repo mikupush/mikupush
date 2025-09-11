@@ -1,0 +1,11 @@
+notifications:
+  upload:
+    enqueued:
+      title: Uploading file %{name} 🚀
+      body: The file %{name} has been added to the upload queue
+    success:
+      title: ✅ File %{name} uploaded!
+      body: Now you can grab the link and share it
+    error:
+      title: ❌ Failed to upload file %{name}
+      body: An error occurred while uploading the file %{name}

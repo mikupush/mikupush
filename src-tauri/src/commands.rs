@@ -1,11 +1,13 @@
 use crate::events::*;
-use mikupush_common::{Progress, Upload, UploadRequest};
-use mikupush_client::{Client, ClientError, FileInfoError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
+use mikupush_common::{Progress, UploadRequest};
+use mikupush_client::{Client, ClientError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
 use crate::state::{SelectedServerState, UploadsState};
 use log::{debug, info, warn};
+use rust_i18n::t;
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_notification::NotificationExt;
 use uuid::Uuid;
 
 #[tauri::command]
@@ -48,6 +50,12 @@ pub async fn enqueue_upload(
     let in_progress_uploads = app_state.add_request(request.clone());
     let app_handle_clone = app_handle.clone();
     let client = server_state.clone().client();
+
+    show_notification(
+        app_handle.clone(),
+        t!("notifications.upload.enqueued.title", name = request.upload.name).to_string(),
+        t!("notifications.upload.enqueued.body", name = request.upload.name).to_string()
+    );
 
     tauri::async_runtime::spawn(async move {
         if let Err(error) = client.create(&request.clone().upload).await {
@@ -252,7 +260,12 @@ fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String
     let mut request = request.unwrap();
     request = request.finish();
     state.update_request(request.clone());
-    emit_uploads_changed(&window, state.get_all_in_progress())
+    emit_uploads_changed(&window, state.get_all_in_progress());
+    show_notification(
+        app_handle,
+        t!("notifications.upload.success.title", name = request.upload.name).to_string(),
+        t!("notifications.upload.success.body", name = request.upload.name).to_string()
+    );
 }
 
 fn handle_upload_failed(
@@ -280,12 +293,43 @@ fn handle_upload_failed(
     }
 
     state.update_request(request.clone());
-    emit_uploads_changed(&window, state.get_all_in_progress())
+    emit_uploads_changed(&window, state.get_all_in_progress());
+    show_notification(
+        app_handle,
+        t!("notifications.upload.error.title", name = request.upload.name).to_string(),
+        t!("notifications.upload.error.body", name = request.upload.name).to_string()
+    );
 }
 
 fn emit_uploads_changed(window: &Window, requests: Vec<UploadRequest>) {
     match window.emit(UPLOADS_CHANGED_EVENT, requests) {
         Ok(_) => debug!("event {} emited", UPLOADS_CHANGED_EVENT),
         Err(error) => warn!("event {} failed emited: {}", UPLOADS_CHANGED_EVENT, error),
+    }
+}
+
+fn show_notification(app_handle: AppHandle, title: String, body: String) {
+    debug!("showing notification: {} - {}", title, body);
+
+    let mut is_visible = false;
+    let window = app_handle.get_webview_window("main");
+
+    if let Some(window) = window {
+        is_visible = window.is_visible().unwrap_or(false);
+    }
+
+    if is_visible {
+        debug!("skipping notification because window is visible");
+        return;
+    }
+
+    let result = app_handle.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show();
+
+    if let Err(error) = result {
+        warn!("failed to show notification: {}", error.to_string());
     }
 }

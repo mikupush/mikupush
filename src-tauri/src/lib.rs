@@ -22,6 +22,8 @@ type GenericResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const MAIN_WINDOW_TITLE: &'static str = "MikuPush!";
 const MAIN_WINDOW: &'static str = "main";
 
+rust_i18n::i18n!("i18n", fallback = "en");
+
 // Initialize all plugins and set up the application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
