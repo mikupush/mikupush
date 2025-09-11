@@ -8,9 +8,10 @@ use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
 use state::{SelectedServerState, UploadsState};
 use std::sync::Mutex;
+use log::warn;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent};
 use tokio::runtime::Runtime;
 
 pub struct AppContext {
@@ -28,6 +29,26 @@ rust_i18n::i18n!("i18n", fallback = "en");
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                #[cfg(not(target_os = "macos"))]
+                {
+                    if let Err(err) = window.hide() {
+                        warn!("failed to hide window: {}", err)
+                    }
+                }
+
+                #[cfg(target_os = "macos")]
+                {
+                    if let Err(err) = AppHandle::hide(&window.app_handle()) {
+                        warn!("failed to hide window: {}", err)
+                    }
+                }
+
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -158,7 +179,8 @@ fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
         "quit" => app.exit(0),
         "show" => {
             let window = app.get_webview_window(MAIN_WINDOW).unwrap();
-            window.show().unwrap()
+            window.show().unwrap();
+            let _ = window.set_focus();
         }
         &_ => {}
     }
