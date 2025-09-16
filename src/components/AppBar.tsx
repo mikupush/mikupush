@@ -14,7 +14,7 @@ export default function AppBar() {
   const isDragArea = ['windows', 'macos'].includes(platform())
 
   return (
-    <div className="flex" data-tauri-drag-region={isDragArea}>
+    <div className="flex place-content-between" data-tauri-drag-region={isDragArea}>
       <div className={`flex items-center space-x-[10px] ${margins}`}>
         <SelectedServer/>
         <Button variant="outline" size="icon" hidden={true}>
