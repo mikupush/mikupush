@@ -22,10 +22,10 @@ use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
 use state::{SelectedServerState, UploadsState};
 use std::sync::Mutex;
-use log::{debug, warn};
+use log::{debug};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent, ActivationPolicy};
+use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent};
 use tokio::runtime::Runtime;
 
 pub struct AppContext {
@@ -112,7 +112,7 @@ pub fn run() {
                 if !state.allow_quit.load(Ordering::Relaxed) {
                     debug!("destroying window only and still run in background");
                     #[cfg(target_os = "macos")]
-                    let _ = app.set_activation_policy(ActivationPolicy::Accessory);
+                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
                     api.prevent_exit();
                 }
@@ -197,7 +197,7 @@ fn restore_main_window(app: &AppHandle) {
     debug!("attempting to restore {} window", MAIN_WINDOW);
 
     #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(ActivationPolicy::Regular);
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
     let mut window = app.get_webview_window(MAIN_WINDOW);
 
