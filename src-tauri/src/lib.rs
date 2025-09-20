@@ -26,6 +26,7 @@ use log::{debug};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent};
+use tauri::image::Image;
 use tokio::runtime::Runtime;
 
 pub struct AppContext {
@@ -137,8 +138,15 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         *app_db_connection = db;
     }
 
+    #[cfg(target_os = "macos")]
+    let icon = Image::from(tauri::include_image!("icons/tray_icon.png"));
+    #[cfg(target_os = "windows")]
+    let icon = Image::from(tauri::include_image!("icons/tray_icon.ico"));
+    #[cfg(target_os = "linux")]
+    let icon = Image::from(tauri::include_image!("icons/tray_icon.png"));
+
     TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(icon)
         .menu(&setup_tray_menu(&app))
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| execute_tray_event(app, event))

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import appIcon from '@/assets/app-icon.png'
+import appIcon from '@/assets/app-icon.svg'
 import { Small } from '@/components/Typography'
 
 export default function SelectedServer() {
