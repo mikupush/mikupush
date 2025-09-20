@@ -117,6 +117,7 @@ pub fn run() {
                     api.prevent_exit();
                 }
             }
+            #[cfg(target_os = "macos")]
             RunEvent::Reopen { .. } => {
                 debug!("reopen request");
                 restore_main_window(app);
