@@ -55,26 +55,6 @@ impl Default for AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // .on_window_event(|window, event| match event {
-        //     tauri::WindowEvent::CloseRequested { api, .. } => {
-        //         #[cfg(not(target_os = "macos"))]
-        //         {
-        //             if let Err(err) = window.hide() {
-        //                 warn!("failed to hide window: {}", err)
-        //             }
-        //         }
-        //
-        //         #[cfg(target_os = "macos")]
-        //         {
-        //             if let Err(err) = AppHandle::hide(&window.app_handle()) {
-        //                 warn!("failed to hide window: {}", err)
-        //             }
-        //         }
-        //
-        //         api.prevent_close();
-        //     }
-        //     _ => {}
-        // })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
