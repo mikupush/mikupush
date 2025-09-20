@@ -1,9 +1,12 @@
 [package]
 name = "mikupush"
 version = "0.1.0"
-description = "A Tauri App"
+description = "Simple, lightweight, and open-source WeTransfer alternative for desktop, with anonymous sharing by default and self-hosted server support"
 authors = ["MikuPush"]
 edition = "2024"
+license = "Apache-2.0"
+license-file = "../LICENSE"
+
 
 [profile.dev]
 incremental = true

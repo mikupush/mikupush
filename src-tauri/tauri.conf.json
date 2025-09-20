@@ -19,7 +19,7 @@
     "license": "Apache-2.0",
     "licenseFile": "../LICENSE",
     "homepage": "https://mikupush.io",
-    "shortDescription": "Simple, fast, and open-source WeTransfer alternative for desktop, with anonymous sharing by default and self-hosted server support",
+    "shortDescription": "Simple, lightweight, and open-source WeTransfer alternative for desktop, with anonymous sharing by default and self-hosted server support",
     "copyright": "Copyright 2025 Miku Push! Team",
     "publisher": "Miku Push! Team",
     "active": true,
@@ -41,6 +41,11 @@
     "windows": {
       "webviewInstallMode": {
         "type": "offlineInstaller"
+      }
+    },
+    "linux": {
+      "deb": {
+        "section": "net"
       }
     }
   }
