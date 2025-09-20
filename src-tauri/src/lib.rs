@@ -17,14 +17,15 @@ mod events;
 mod repository;
 mod state;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
 use state::{SelectedServerState, UploadsState};
 use std::sync::Mutex;
-use log::warn;
+use log::{debug, warn};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent};
+use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent, ActivationPolicy};
 use tokio::runtime::Runtime;
 
 pub struct AppContext {
@@ -38,30 +39,42 @@ const MAIN_WINDOW: &'static str = "main";
 
 rust_i18n::i18n!("i18n", fallback = "en");
 
+struct AppState {
+    allow_quit: AtomicBool
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            allow_quit: AtomicBool::new(false)
+        }
+    }
+}
+
 // Initialize all plugins and set up the application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                #[cfg(not(target_os = "macos"))]
-                {
-                    if let Err(err) = window.hide() {
-                        warn!("failed to hide window: {}", err)
-                    }
-                }
-
-                #[cfg(target_os = "macos")]
-                {
-                    if let Err(err) = AppHandle::hide(&window.app_handle()) {
-                        warn!("failed to hide window: {}", err)
-                    }
-                }
-
-                api.prevent_close();
-            }
-            _ => {}
-        })
+        // .on_window_event(|window, event| match event {
+        //     tauri::WindowEvent::CloseRequested { api, .. } => {
+        //         #[cfg(not(target_os = "macos"))]
+        //         {
+        //             if let Err(err) = window.hide() {
+        //                 warn!("failed to hide window: {}", err)
+        //             }
+        //         }
+        //
+        //         #[cfg(target_os = "macos")]
+        //         {
+        //             if let Err(err) = AppHandle::hide(&window.app_handle()) {
+        //                 warn!("failed to hide window: {}", err)
+        //             }
+        //         }
+        //
+        //         api.prevent_close();
+        //     }
+        //     _ => {}
+        // })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -69,9 +82,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            let window = app.get_webview_window(MAIN_WINDOW).unwrap();
-            window.show().unwrap();
-            window.set_focus().unwrap();
+            debug!("single instance event");
+            restore_main_window(app);
         }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
@@ -98,6 +110,7 @@ pub fn run() {
         })
         .manage(UploadsState::new())
         .manage(SelectedServerState::new())
+        .manage(AppState::default())
         .setup(|app| setup_app(app))
         // Register command handlers
         .invoke_handler(tauri::generate_handler![
@@ -109,12 +122,31 @@ pub fn run() {
             commands::copy_upload_link,
             commands::cancel_upload
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| match event {
+            RunEvent::ExitRequested { api, .. } => {
+                debug!("exit request");
+
+                let state = app.state::<AppState>();
+                if !state.allow_quit.load(Ordering::Relaxed) {
+                    debug!("destroying window only and still run in background");
+                    #[cfg(target_os = "macos")]
+                    let _ = app.set_activation_policy(ActivationPolicy::Accessory);
+
+                    api.prevent_exit();
+                }
+            }
+            RunEvent::Reopen { .. } => {
+                debug!("reopen request");
+                restore_main_window(app);
+            }
+            _ => {}
+        });
 }
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
-    initialize_main_window(app);
+    initialize_main_window(app.app_handle());
     let tokio_runtime = Runtime::new().unwrap();
     let db = tokio_runtime.block_on(setup_app_database_connection(app));
 
@@ -134,7 +166,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     Ok(())
 }
 
-fn initialize_main_window(app: &App) {
+fn initialize_main_window(app: &AppHandle) {
     let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
         .title(MAIN_WINDOW_TITLE)
         .inner_size(800.0, 600.0);
@@ -180,6 +212,27 @@ fn initialize_main_window(app: &App) {
     }
 }
 
+fn restore_main_window(app: &AppHandle) {
+    debug!("attempting to restore {} window", MAIN_WINDOW);
+
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(ActivationPolicy::Regular);
+
+    let mut window = app.get_webview_window(MAIN_WINDOW);
+
+    if window.is_none() {
+        debug!("creating a new {} window instance because it was closed", MAIN_WINDOW);
+        initialize_main_window(app);
+        window = app.get_webview_window(MAIN_WINDOW);
+    }
+
+    if let Some(window) = window {
+        debug!("restoring {} window instance", MAIN_WINDOW);
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 fn setup_tray_menu(app: &App) -> Menu<Wry> {
     let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>).unwrap();
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).unwrap();
@@ -189,11 +242,13 @@ fn setup_tray_menu(app: &App) -> Menu<Wry> {
 
 fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
     match event.id.as_ref() {
-        "quit" => app.exit(0),
+        "quit" => {
+            let state = app.state::<AppState>();
+            state.allow_quit.store(true, Ordering::Relaxed);
+            app.exit(0);
+        },
         "show" => {
-            let window = app.get_webview_window(MAIN_WINDOW).unwrap();
-            window.show().unwrap();
-            let _ = window.set_focus();
+            restore_main_window(app);
         }
         &_ => {}
     }

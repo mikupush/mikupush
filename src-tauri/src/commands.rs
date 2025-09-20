@@ -22,6 +22,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use uuid::Uuid;
+use crate::MAIN_WINDOW;
 
 #[tauri::command]
 pub async fn select_files_to_upload(
@@ -325,7 +326,7 @@ fn show_notification(app_handle: AppHandle, title: String, body: String) {
     debug!("showing notification: {} - {}", title, body);
 
     let mut is_visible = false;
-    let window = app_handle.get_webview_window("main");
+    let window = app_handle.get_webview_window(MAIN_WINDOW);
 
     if let Some(window) = window {
         is_visible = window.is_visible().unwrap_or(false);
