@@ -72,7 +72,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
         with:
           tagName: __VERSION__
-          releaseName: __VERSION__
+          releaseName: v__VERSION__
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
