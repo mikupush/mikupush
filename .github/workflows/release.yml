@@ -6,48 +6,47 @@ on:
       - main
 
 jobs:
-#  build-app-windows:
-#    runs-on: windows-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Install dependencies
-#        run: npm install
-#
-#      - name: Build
-#        working-directory: app
-#        run: |
-#          npm run build:prod
-#          npm run make
-#
-#      - name: List built artifacts
-#        working-directory: app
-#        run: Get-ChildItem -Path target -Recurse -Include *.exe,*.msi,*.zip
-#
-#      - name: Upload Artifacts
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: windows-artifacts
-#          path: |
-#            app/target/make/zip/win32/*/*.zip
-#            app/target/make/squirrel.windows/*/*.exe
-
-  build-macos:
-    runs-on: macos-latest
+  build:
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - args: '--target aarch64-apple-darwin'
-            arch: 'silicon'
-          - args: '--target x86_64-apple-darwin'
-            arch: 'intel'
+          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest' # for Intel based macs.
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
+    runs-on: ${{ matrix.platform }}
     env:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Import Apple Developer Certificate
+        if: matrix.platform == 'macos-latest'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -62,6 +61,9 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
+      - name: install frontend dependencies
+        run: npm install
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,76 +71,8 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
         with:
+          tagName: __VERSION__
+          releaseName: __VERSION__
+          releaseDraft: true
+          prerelease: true
           args: ${{ matrix.args }}
-
-      - name: List built artifacts
-        run: find target -name '*.dmg' -o -name '*.zip'
-
-      - uses: actions/upload-artifact@v4
-        name: Upload Artifacts
-        with:
-          name: macos-artifacts
-          path: |
-            target/release/bundle/dmg/*.dmg
-
-#  build-app-linux:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Install dependencies
-#        working-directory: app
-#        run: npm install
-#
-#      - name: Build
-#        working-directory: app
-#        run: |
-#          npm run build:prod
-#          npm run make
-#
-#      - name: List built artifacts
-#        working-directory: app
-#        run: find target -name '*.deb' -o -name '*.rpm' -o -name '*.zip'
-#
-#      - uses: actions/upload-artifact@v4
-#        name: Upload Artifacts
-#        with:
-#          name: linux-artifacts
-#          path: |
-#            app/target/make/zip/linux/*/*.zip
-#            app/target/make/deb/*/*.deb
-#            app/target/make/rpm/*/*.rpm
-
-  create-release:
-    permissions:
-      contents: write
-    needs:
-      - build-macos
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install required packages
-        run: sudo apt install -y tree
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-artifacts
-
-      - name: List downloaded artifacts
-        run: tree release-artifacts
-
-      - name: Resolve current version
-        id: version
-        run: |
-          export VERSION=$(cat VERSION)
-          echo "current=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          draft: true
-          name: ${{ steps.version.outputs.current }}
-          tag: ${{ steps.version.outputs.current }}
-          artifacts: 'release-artifacts/**/*.zip,release-artifacts/**/*.deb,release-artifacts/**/*.rpm,release-artifacts/**/*.exe,release-artifacts/**/*.dmg,release-artifacts/server-artifacts/*'
