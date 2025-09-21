@@ -22,12 +22,14 @@ use database::setup_app_database_connection;
 use sea_orm::DatabaseConnection;
 use state::{SelectedServerState, UploadsState};
 use std::sync::Mutex;
+use std::time::Duration;
 use log::{debug};
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent};
 use tauri::image::Image;
 use tokio::runtime::Runtime;
+use tokio::time::sleep;
 
 pub struct AppContext {
     db_connection: Mutex<DatabaseConnection>,
@@ -64,7 +66,13 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             debug!("single instance event");
-            restore_main_window(app);
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                debug!("restoring {} window from single instance event", MAIN_WINDOW);
+                #[cfg(target_os = "windows")]
+                sleep(Duration::from_millis(200)).await;
+                restore_main_window(&app);
+            });
         }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
