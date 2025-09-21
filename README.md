@@ -78,3 +78,13 @@ database schema.
 ```sh
 npm run make:entity
 ```
+
+### Bump to new versión
+
+Edit the `VERSION` file and run the following command
+
+```sh
+./scripts/apply-version.sh
+```
+
+Then commit the changes.

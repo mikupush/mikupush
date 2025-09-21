@@ -32,3 +32,6 @@ dist-ssr
 
 # Sqlite
 *.db
+
+# Sed Backups
+*.bak
