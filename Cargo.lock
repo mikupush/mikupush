@@ -3180,7 +3180,7 @@ dependencies = [
 
 [[package]]
 name = "mikupush"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-stream",
  "chrono",
