@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2025 Miku Push! Team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,5 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /// <reference types="vite/client" />
 /// <reference types="vite/types/importMeta.d.ts" />
