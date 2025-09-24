@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2025 Miku Push! Team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import { UploadRequest } from '@/model/upload'
 import { useUploadsStore } from '@/store/uploads'
 import { invoke } from '@tauri-apps/api/core'

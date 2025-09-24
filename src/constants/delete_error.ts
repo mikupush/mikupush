@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2025 Miku Push! Team
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 export const DELETE_ERROR_NOT_EXISTS = 'not_exists'
 export const DELETE_ERROR_INTERNAL_SERVER_ERROR = 'internal_server_error'
 export const DELETE_ERROR_CLIENT_ERROR = 'client_error'
