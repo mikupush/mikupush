@@ -1,0 +1,53 @@
+{
+  "fill" : {
+    "solid" : "display-p3:0.39896,0.76254,0.72947,1.00000"
+  },
+  "groups" : [
+    {
+      "blur-material" : null,
+      "hidden-specializations" : [
+        {
+          "idiom" : "macOS",
+          "value" : false
+        }
+      ],
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : false,
+          "hidden-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : false
+            }
+          ],
+          "image-name" : "Miku cloud.svg",
+          "name" : "Miku cloud",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              21.734375,
+              86.828125
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}
