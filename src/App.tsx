@@ -23,6 +23,7 @@ import { Toaster } from 'react-hot-toast'
 import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
 import { listen } from '@tauri-apps/api/event'
+import { ThemeProvider } from '@/components/ThemeProvider.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -49,11 +50,22 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
 
 function App() {
   return (
-    <div className={styles.app}>
-      <AppBar />
-      <Uploads />
-      <Toaster position="bottom-right" />
-    </div>
+    <ThemeProvider>
+      <div className={styles.app}>
+        <AppBar />
+        <Uploads />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'var(--background)',
+              color: 'var(--foreground)',
+              border: '1px solid var(--border)',
+            }
+          }}
+        />
+      </div>
+    </ThemeProvider>
   )
 }
 

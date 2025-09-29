@@ -76,7 +76,7 @@ function UploadProgressBody({ item }: UploadItemProps) {
 
   if (item.finished && item.error != null) {
     return (
-      <Small className="mt-[10px] text-red-600 line-clamp-1">
+      <Small className="mt-3 text-red-600 line-clamp-1">
         {t(`errors.upload.${item.error.code}`, {
           message: item.error.message
         })}
@@ -86,8 +86,8 @@ function UploadProgressBody({ item }: UploadItemProps) {
 
   return (
     <>
-      <Progress className="h-3 mt-[10px]" value={item.progress.progress * 100}></Progress>
-      <div className="flex place-content-between mt-[10px]">
+      <Progress className="h-3 mt-3" value={item.progress.progress * 100}></Progress>
+      <div className="flex place-content-between mt-3">
         <Small>{formatRate(item.progress.rateBytes)}</Small>
         <Small>{formatSizeBytes(item.progress.uploadedBytes)} / {formatSizeBytes(item.upload.size)}</Small>
       </div>
@@ -97,8 +97,8 @@ function UploadProgressBody({ item }: UploadItemProps) {
 
 function FinishedUploadBody({ item }: UploadItemProps) {
   return (
-    <Small className="mt-[10px] line-clamp-1">
-      {formatSizeBytes(item.upload.size)} Â· {formatDate(item.upload.createdAt)}
+    <Small className="mt-3 line-clamp-1">
+      {formatSizeBytes(item.upload.size)} · {formatDate(item.upload.createdAt)}
     </Small>
   )
 }
@@ -112,14 +112,14 @@ function UploadActions({ item }: UploadItemProps) {
     return (
       <>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           onClick={() => retryUpload(item.upload.id)}
         >
           <RotateCwIcon/>
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           onClick={() => cancelUpload(item.upload.id)}
         >
@@ -132,7 +132,7 @@ function UploadActions({ item }: UploadItemProps) {
   return (
     <>
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
         onClick={() => cancelUpload(item.upload.id)}
       >
@@ -153,7 +153,7 @@ function FinishedUploadActions({ item }: UploadItemProps) {
             .then(() => toast.success(t('uploads.link_copied.success')))
             .catch(() => toast.error(t('uploads.link_copied.error')))
         }}
-        variant="outline"
+        variant="ghost"
         size="icon"
       >
         <LinkIcon/>
@@ -170,13 +170,13 @@ interface UploadItemLayout extends UploadItemProps {
 
 function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
   return (
-    <div className="flex p-[10px]">
+    <div className="flex py-3 px-5">
       <FileIcon extension={extractExtension(item.upload.name)}/>
-      <div className="flex flex-1 flex-col mx-[10px]">
+      <div className="flex flex-1 flex-col mx-3">
         <Large className="line-clamp-1">{item.upload.name}</Large>
         {body}
       </div>
-      <div className="flex items-center space-x-[10px]">
+      <div className="flex items-center space-x-3">
         {actions}
       </div>
     </div>
@@ -199,7 +199,7 @@ function DeleteAction({ item }: UploadItemProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button variant="ghost" size="icon">
           <TrashIcon color="red"/>
         </Button>
       </DialogTrigger>

@@ -31,7 +31,7 @@ export default function AppBar() {
 
   return (
     <div className="flex place-content-between" data-tauri-drag-region={isDragArea}>
-      <div className={`flex items-center space-x-[10px] ${margins}`}>
+      <div className={`flex items-center space-x-3 ${margins}`}>
         <SelectedServer/>
         <Button variant="outline" size="icon" hidden={true}>
           <SidebarOpenIcon/>
@@ -84,7 +84,7 @@ export function WindowControls() {
           <div className="flex">
             <button
               onClick={minimize}
-              className="w-12 h-8 flex items-center justify-center hover:bg-gray-200 transition-colors text-[10px]"
+              className="w-12 h-8 flex items-center justify-center hover:bg-accent transition-colors text-[10px]"
               style={{ fontFamily: 'Segoe Fluent Icons' }}
             >
               {'\ue921'}
@@ -92,7 +92,7 @@ export function WindowControls() {
 
             <button
               onClick={toggleMaximize}
-              className="w-12 h-8 flex items-center justify-center hover:bg-gray-200 transition-colors text-[10px]"
+              className="w-12 h-8 flex items-center justify-center hover:bg-accent transition-colors text-[10px]"
               style={{ fontFamily: 'Segoe Fluent Icons' }}
             >
               {isMaximized ? '\ue923' : '\ue922'}

@@ -19,7 +19,7 @@ import { Small } from '@/components/Typography'
 
 export default function SelectedServer() {
   return (
-    <div className="flex items-center space-x-[10px]">
+    <div className="flex items-center space-x-3">
       <div className="flex items-center justify-center size-[30px] overflow-hidden">
         <img className="h-full" src={appIcon} alt="mikupush.io" />
       </div>
