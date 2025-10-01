@@ -32,3 +32,12 @@ export function retryUpload(uploadId: string) {
     .then(() => console.log('retry upload success'))
     .catch((error) => console.warn(error))
 }
+
+export function fetchCurrentUploads() {
+  const store = useUploadsStore.getState()
+
+  store.setIsLoading(true)
+  invoke<UploadRequest[]>('get_all_in_progress_uploads')
+    .then((requests) => store.setInProgressUploads(requests))
+    .finally(() => store.setIsLoading(false))
+}

@@ -22,14 +22,18 @@ import { selectFiles } from '@/helpers/file'
 import { UploadProgressList } from '@/components/UploadList'
 import { useUploadsStore } from '@/store/uploads'
 import UploadDropZone from '@/components/UploadDropZone'
+import LoadingSpinner from '@/components/LoadingSpinner.tsx'
 
 export default function Uploads() {
   const inProgressUploads = useUploadsStore(state => state.inProgressUploads)
   const activeDropZone = useUploadsStore(state => state.activeDropZone)
+  const isLoading = useUploadsStore(state => state.isLoading)
 
   return (
     <div className="relative flex flex-1">
-      {(inProgressUploads.length > 0) ? (
+      {(isLoading) ? (
+        <LoadingSpinner size={50} />
+      ) : (inProgressUploads.length > 0) ? (
         <UploadProgressList items={inProgressUploads} />
       ) : (
         <EmptyState />

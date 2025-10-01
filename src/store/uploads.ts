@@ -21,11 +21,13 @@ interface UploadsStoreState {
   inProgressUploads: UploadRequest[]
   archivedUploads: Upload[]
   activeDropZone: boolean
+  isLoading: boolean
 }
 
 interface UploadsStoreActions {
   setInProgressUploads(uploadsRequests: UploadRequest[]): void
   showDropZone(show: boolean): void
+  setIsLoading(loading: boolean): void
 }
 
 type UploadsStore = UploadsStoreState & UploadsStoreActions
@@ -34,11 +36,15 @@ export const useUploadsStore = create<UploadsStore>((set) => ({
   inProgressUploads: [],
   archivedUploads: [],
   activeDropZone: false,
+  isLoading: false,
 
   setInProgressUploads: (inProgressUploads: UploadRequest[]) => {
     set((state) => ({ ...state, inProgressUploads }))
   },
   showDropZone: (show: boolean) => {
     set((state) => ({ ...state, activeDropZone: show }))
+  },
+  setIsLoading: (loading: boolean) => {
+    set((state) => ({ ...state, isLoading: loading }))
   }
 }))

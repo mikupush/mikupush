@@ -18,17 +18,17 @@ mod events;
 mod repository;
 mod state;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use database::setup_app_database_connection;
+use log::{debug, warn};
 use sea_orm::DatabaseConnection;
 use state::{SelectedServerState, UploadsState};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
-use log::{debug};
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry, RunEvent};
-use tauri::image::Image;
+use tauri::{App, AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, Wry};
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
 
@@ -110,7 +110,8 @@ pub fn run() {
             commands::retry_upload,
             commands::delete_upload,
             commands::copy_upload_link,
-            commands::cancel_upload
+            commands::cancel_upload,
+            commands::get_all_in_progress_uploads
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

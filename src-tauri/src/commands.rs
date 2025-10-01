@@ -211,6 +211,14 @@ pub async fn copy_upload_link(
     Ok(())
 }
 
+#[tauri::command]
+pub fn get_all_in_progress_uploads(
+    uploads_state: State<'_, UploadsState>,
+) -> Vec<UploadRequest> {
+    debug!("get uploads");
+    uploads_state.get_all_in_progress()
+}
+
 async fn upload_file(
     window: Window,
     app_handle: AppHandle,

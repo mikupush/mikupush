@@ -24,6 +24,7 @@ import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
 import { listen } from '@tauri-apps/api/event'
 import { ThemeProvider } from '@/components/ThemeProvider.tsx'
+import { fetchCurrentUploads } from '@/helpers/upload.ts'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -47,6 +48,8 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
     store.setInProgressUploads(event.payload)
   }, 100)
 })
+
+fetchCurrentUploads()
 
 function App() {
   return (
