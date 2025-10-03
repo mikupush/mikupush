@@ -16,7 +16,6 @@
 
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { invoke } from '@tauri-apps/api/core'
-import TitleBar from '@/components/TitleBar.tsx'
 import { Toaster } from 'react-hot-toast'
 import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
@@ -53,7 +52,6 @@ fetchCurrentUploads()
 function App() {
   return (
     <ThemeProvider>
-      <TitleBar />
       <Router />
       <Toaster
         position="bottom-right"

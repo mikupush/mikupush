@@ -15,6 +15,10 @@
     },
     "drop": "Drop to upload"
   },
+  "sidebar": {
+    "upload": "Now uploading",
+    "settings": "Settings"
+  },
   "errors": {
     "upload": {
       "exists": "A file with the same id already exists on the server.",

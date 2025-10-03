@@ -15,15 +15,65 @@
  */
 
 import appIcon from '@/assets/app-icon.svg'
-import { Small } from '@/components/Typography'
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar.tsx'
+import {
+  DropdownMenu,
+  DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu.tsx'
+import { ChevronsUpDown, Plus } from 'lucide-react'
 
 export default function SelectedServer() {
+  const { isMobile } = useSidebar()
+
   return (
-    <div className="flex items-center space-x-3">
-      <div className="flex items-center justify-center size-[30px] overflow-hidden">
-        <img className="h-full" src={appIcon} alt="mikupush.io" />
-      </div>
-      <Small weight="semibold">mikupush.io</Small>
-    </div>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
+                <img className="h-full" src={appIcon} alt="mikupush.io" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">mikupush.io</span>
+                <span className="truncate text-xs">Premium</span>
+              </div>
+              <ChevronsUpDown className="ml-auto" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            align="start"
+            side={isMobile ? 'bottom' : 'right'}
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="text-muted-foreground text-xs">
+              Teams
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              className="gap-2 p-2"
+            >
+              <div className="flex size-6 items-center justify-center rounded-md border">
+
+              </div>
+              Other server
+              <DropdownMenuShortcut>⌘1</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2 p-2">
+              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                <Plus className="size-4" />
+              </div>
+              <div className="text-muted-foreground font-medium">Add team</div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }

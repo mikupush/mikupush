@@ -14,28 +14,28 @@
  * limitations under the License.
  */
 
-import SelectedServer from '@/components/SelectedServer'
 import { Button } from '@/components/ui/button'
 import { selectFiles } from '@/helpers/file'
 import { UploadIcon, SidebarOpenIcon } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
 import { useEffect, useState } from 'react'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar.tsx'
 
-export default function TitleBar() {
-  const margins = (platform() === 'macos')
-    ? 'ml-[90px] my-[10px]'
-    : 'm-[15px]'
+export default function AppTitleBar() {
+  const { open, isMobile } = useSidebar()
 
+  const leftSafeArea = ((!open || open && isMobile) && platform() === 'macos') ? 'ml-[90px]' : ''
+  const margin = (platform() === 'macos') ? 'm-[10px]' : 'm-[15px]'
   const isDragArea = ['windows', 'macos'].includes(platform())
 
   return (
-    <header className="flex place-content-between" data-tauri-drag-region={isDragArea}>
-      <div className={`flex items-center space-x-3 ${margins}`}>
-        <SelectedServer/>
+    <div className="flex place-content-between" data-tauri-drag-region={isDragArea}>
+      <div className={`flex items-center space-x-3 ${leftSafeArea} ${margin}`}>
         <Button variant="outline" size="icon" hidden={true}>
           <SidebarOpenIcon/>
         </Button>
+        <SidebarTrigger />
         <Button
           variant="outline"
           size="icon"
@@ -45,7 +45,7 @@ export default function TitleBar() {
         </Button>
       </div>
       <WindowControls/>
-    </header>
+    </div>
   )
 }
 
