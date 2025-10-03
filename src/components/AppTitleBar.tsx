@@ -21,6 +21,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
 import { useEffect, useState } from 'react'
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar.tsx'
+import { Separator } from '@/components/ui/separator.tsx'
+import { SelectedServerDropdown } from '@/components/SelectedServer.tsx'
 
 export default function AppTitleBar() {
   const { open, isMobile } = useSidebar()
@@ -36,6 +38,13 @@ export default function AppTitleBar() {
           <SidebarOpenIcon/>
         </Button>
         <SidebarTrigger />
+        <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
+        {(!open || isMobile) && (
+          <>
+            <SelectedServerDropdown />
+            <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
+          </>
+        )}
         <Button
           variant="outline"
           size="icon"

@@ -16,7 +16,8 @@
     "drop": "Drop to upload"
   },
   "sidebar": {
-    "upload": "Now uploading",
+    "uploads": "Now uploading",
+    "archived_uploads": "Archived uploads",
     "settings": "Settings"
   },
   "errors": {
