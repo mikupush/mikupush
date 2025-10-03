@@ -22,7 +22,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
 import { useEffect, useState } from 'react'
 
-export default function AppBar() {
+export default function TitleBar() {
   const margins = (platform() === 'macos')
     ? 'ml-[90px] my-[10px]'
     : 'm-[15px]'
@@ -30,7 +30,7 @@ export default function AppBar() {
   const isDragArea = ['windows', 'macos'].includes(platform())
 
   return (
-    <div className="flex place-content-between" data-tauri-drag-region={isDragArea}>
+    <header className="flex place-content-between" data-tauri-drag-region={isDragArea}>
       <div className={`flex items-center space-x-3 ${margins}`}>
         <SelectedServer/>
         <Button variant="outline" size="icon" hidden={true}>
@@ -45,7 +45,7 @@ export default function AppBar() {
         </Button>
       </div>
       <WindowControls/>
-    </div>
+    </header>
   )
 }
 

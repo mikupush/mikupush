@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-import styles from './App.module.css'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { invoke } from '@tauri-apps/api/core'
-import AppBar from '@/components/AppBar'
-import Uploads from '@/components/Uploads.tsx'
+import TitleBar from '@/components/TitleBar.tsx'
 import { Toaster } from 'react-hot-toast'
 import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
 import { listen } from '@tauri-apps/api/event'
 import { ThemeProvider } from '@/components/ThemeProvider.tsx'
 import { fetchCurrentUploads } from '@/helpers/upload.ts'
+import Router from '@/router.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -54,20 +53,18 @@ fetchCurrentUploads()
 function App() {
   return (
     <ThemeProvider>
-      <div className={styles.app}>
-        <AppBar />
-        <Uploads />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: 'var(--background)',
-              color: 'var(--foreground)',
-              border: '1px solid var(--border)',
-            }
-          }}
-        />
-      </div>
+      <TitleBar />
+      <Router />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: 'var(--background)',
+            color: 'var(--foreground)',
+            border: '1px solid var(--border)',
+          }
+        }}
+      />
     </ThemeProvider>
   )
 }

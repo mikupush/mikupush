@@ -15,16 +15,16 @@
  */
 
 import { useTranslation } from 'react-i18next'
-import { Paragraph } from '@/components/Typography'
-import { Button } from './ui/button'
+import { Paragraph } from '@/components/Typography.tsx'
+import { Button } from '../components/ui/button.tsx'
 import { FolderIcon } from 'lucide-react'
-import { selectFiles } from '@/helpers/file'
-import { UploadProgressList } from '@/components/UploadList'
-import { useUploadsStore } from '@/store/uploads'
-import UploadDropZone from '@/components/UploadDropZone'
+import { selectFiles } from '@/helpers/file.ts'
+import { UploadProgressList } from '@/components/UploadList.tsx'
+import { useUploadsStore } from '@/store/uploads.ts'
+import UploadDropZone from '@/components/UploadDropZone.tsx'
 import LoadingSpinner from '@/components/LoadingSpinner.tsx'
 
-export default function Uploads() {
+export default function UploadsPage() {
   const inProgressUploads = useUploadsStore(state => state.inProgressUploads)
   const activeDropZone = useUploadsStore(state => state.activeDropZone)
   const isLoading = useUploadsStore(state => state.isLoading)
