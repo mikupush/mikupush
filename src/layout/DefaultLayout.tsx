@@ -9,9 +9,9 @@ export default function DefaultLayout() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
-          <div className="flex flex-1 flex-col">
+          <div className="layout">
             <AppTitleBar />
-            <main>
+            <main className="content">
               <Outlet />
             </main>
           </div>

@@ -30,7 +30,7 @@ export default function UploadsPage() {
   const isLoading = useUploadsStore(state => state.isLoading)
 
   return (
-    <div className="relative flex flex-1">
+    <div className="flex flex-1">
       {(isLoading) ? (
         <LoadingSpinner size={50} />
       ) : (inProgressUploads.length > 0) ? (

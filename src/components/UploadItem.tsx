@@ -170,7 +170,7 @@ interface UploadItemLayout extends UploadItemProps {
 
 function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
   return (
-    <div className="flex py-3 px-5">
+    <li className="flex py-3 px-5">
       <FileIcon extension={extractExtension(item.upload.name)}/>
       <div className="flex flex-1 flex-col mx-3">
         <Large className="line-clamp-1">{item.upload.name}</Large>
@@ -179,7 +179,7 @@ function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
       <div className="flex items-center space-x-3">
         {actions}
       </div>
-    </div>
+    </li>
   )
 }
 
