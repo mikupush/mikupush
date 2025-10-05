@@ -1,4 +1,10 @@
 {
+  "common": {
+    "form": {
+      "danger_zone": "Danger Zone",
+      "save": "Save"
+    }
+  },
   "uploads": {
     "empty_state": "Looks like you haven't shared any files yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select a file to get started.",
     "select_file": "Select a file",
@@ -19,6 +25,34 @@
     "uploads": "Now uploading",
     "archived_uploads": "Archived uploads",
     "settings": "Settings"
+  },
+  "settings": {
+    "heading": "Settings",
+    "appearance": {
+      "heading": "Appearance",
+      "theme": {
+        "label": "Theme",
+        "placeholder": "Select a theme",
+        "option": {
+          "dark": "Dark",
+          "light": "Light",
+          "system": "System"
+        },
+        "error": {
+          "invalid": "The theme should be Dark, Light or System",
+          "required": "The theme is required"
+        }
+      }
+    },
+    "server": {
+      "label": "Server URL",
+      "description": "Change the target server URL for upload files. It may produce unexpected errors uploading new files. Change at your risk!",
+      "error": {
+        "invalid": "The server URL should be string",
+        "format": "The server URL should be a valid URL",
+        "required": "The server URL is required"
+      }
+    }
   },
   "errors": {
     "upload": {

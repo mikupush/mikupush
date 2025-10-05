@@ -15,64 +15,81 @@
  */
 
 import { cn } from '@/lib/utils'
-
-export type FontWeight = 'normal'
-  | 'medium'
-  | 'semibold'
-  | 'bold'
-
-export type TextAlign = 'left' | 'right' | 'center' | 'justify'
+import { JSX } from 'react/jsx-runtime'
+import * as React from 'react'
 
 export interface TypographyProps {
   children: string | string[]
-  weight?: FontWeight
-  align?: TextAlign
   className?: string
+  as?: keyof JSX.IntrinsicElements
 }
 
-export const fontWeightClass = (weight?: FontWeight) => `font-${weight ?? 'normal'}`
-export const textAlignClass = (align?: TextAlign) => `text-${align ?? 'left'}`
+export function Heading1(props: TypographyProps) {
+  const classes = cn(
+    'scroll-m-20 text-4xl tracking-tight text-balance font-extrabold text-center',
+    props.className
+  )
 
-export const withDefaultClasses = (props: TypographyProps, ...classes: string[]) => cn(
-  fontWeightClass(props.weight),
-  textAlignClass(props.align),
-  'whitespace-pre-line',
-  ...classes,
-  ...(props.className ?? '').split(' ')
-)
+  const Component = props.as ?? 'h1'
+  return React.createElement(Component, { className: classes }, props.children)
+}
+
+export function Heading2(props: TypographyProps) {
+  const classes = cn(
+    'scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0',
+    props.className
+  )
+
+  const Component = props.as ?? 'h2'
+  return React.createElement(Component, { className: classes }, props.children)
+}
+
+export function Heading3(props: TypographyProps) {
+  const classes = cn(
+    'scroll-m-20 text-2xl font-semibold tracking-tight',
+    props.className
+  )
+
+  const Component = props.as ?? 'h3'
+  return React.createElement(Component, { className: classes }, props.children)
+}
+
+export function Heading4(props: TypographyProps) {
+  const classes = cn(
+    'scroll-m-20 text-xl font-semibold tracking-tight',
+    props.className
+  )
+
+  const Component = props.as ?? 'h4'
+  return React.createElement(Component, { className: classes }, props.children)
+}
 
 export function Small(props: TypographyProps) {
-  const classes = withDefaultClasses(
-    props,
-    'text-sm',
-    'leading-none',
+  const classes = cn(
+    'text-sm leading-none font-medium',
+    props.className
   )
 
-  return (
-    <small className={classes}>{props.children}</small>
-  )
+  const Component = props.as ?? 'small'
+  return React.createElement(Component, { className: classes }, props.children)
 }
 
 export function Paragraph(props: TypographyProps) {
-  const classes = withDefaultClasses(
-    props,
-    'leading-7',
-    '[&:not(:first-child)]:mt-6',
+  const classes = cn(
+    'leading-7 [&:not(:first-child)]:mt-6',
+    props.className
   )
 
-  return (
-    <p className={classes}>{props.children}</p>
-  )
+  const Component = props.as ?? 'p'
+  return React.createElement(Component, { className: classes }, props.children)
 }
 
-export function Large(props: Omit<TypographyProps, 'weight'>) {
-  const classes = withDefaultClasses(
-    props,
-    'text-lg',
-    'font-semibold'
+export function Large(props: TypographyProps) {
+  const classes = cn(
+    'text-lg font-semibold',
+    props.className
   )
 
-  return (
-    <div className={classes}>{props.children}</div>
-  )
+  const Component = props.as ?? 'div'
+  return React.createElement(Component, { className: classes }, props.children)
 }

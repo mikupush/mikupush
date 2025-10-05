@@ -52,7 +52,7 @@ function EmptyState() {
   return (
     <div className="flex flex-1 flex-col justify-center items-center px-20">
       <FolderIcon width={60} height={60} />
-      <Paragraph align="center">{t('uploads.empty_state')}</Paragraph>
+      <Paragraph className="text-center">{t('uploads.empty_state')}</Paragraph>
       <Button
         className="mt-5"
         onClick={() => selectFiles()}
