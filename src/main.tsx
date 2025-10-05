@@ -21,14 +21,14 @@ import App from './App'
 import '@material/web/all'
 import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js'
 import '@/i18n'
-import { BrowserRouter } from 'react-router'
+import { MemoryRouter } from 'react-router'
 
 document.adoptedStyleSheets.push(typescaleStyles.styleSheet!)
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
-    <BrowserRouter>
+    <MemoryRouter>
       <App />
-    </BrowserRouter>
+    </MemoryRouter>
 	</StrictMode>,
 )
