@@ -20,7 +20,7 @@ mod settings;
 use log::{debug, warn};
 use state::{SelectedServerState, UploadsState};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
@@ -32,7 +32,7 @@ use tokio::time::sleep;
 use mikupush_database::{create_database_connection, DbPool};
 
 pub struct AppContext {
-    db_connection: Mutex<DbPool>,
+    db_connection: OnceLock<DbPool>,
 }
 
 type GenericResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -95,7 +95,7 @@ pub fn run() {
                 .build(),
         )
         .manage(AppContext {
-            db_connection: Mutex::default(),
+            db_connection: OnceLock::new(),
         })
         .manage(UploadsState::new())
         .manage(SelectedServerState::new())
@@ -142,8 +142,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     {
         let db = setup_app_database_connection(app);
         let app_context = app.state::<AppContext>();
-        let mut app_db_connection = app_context.db_connection.lock().unwrap();
-        *app_db_connection = db;
+        app_context.db_connection.set(db).unwrap();
     }
 
     #[cfg(target_os = "macos")]
