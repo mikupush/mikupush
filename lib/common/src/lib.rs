@@ -17,8 +17,11 @@ mod progress;
 mod request;
 mod upload;
 mod date_time;
+mod error;
 
 pub use status::*;
 pub use progress::*;
 pub use request::*;
 pub use upload::*;
+pub use date_time::*;
+pub use error::*;

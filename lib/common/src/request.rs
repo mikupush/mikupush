@@ -41,7 +41,7 @@ impl UploadRequest {
         Self {
             progress: Progress::new(size),
             error: None,
-            upload: Upload::new(id, name, size, mime_type, path),
+            upload: Upload::new(id, name, size, mime_type, path, Uuid::new_v4()),
             finished: false,
             canceled: false,
         }

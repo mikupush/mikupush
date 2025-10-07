@@ -1,0 +1,18 @@
+[package]
+name = "mikupush_database"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "mikupush_database"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+mikupush_common = { path = "../common" }
+diesel = { version = "2.2.0", features = ["sqlite", "r2d2", "uuid", "chrono"] }
+diesel_migrations = "2.2.0"
+r2d2 = "0.8.10"
+libsqlite3-sys = { version = "0.30", features = ["bundled"] }
+uuid = { version = "1.17.0", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+serial_test = "3.2.0"

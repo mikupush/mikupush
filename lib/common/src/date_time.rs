@@ -1,3 +1,5 @@
+use crate::ParseError;
+
 /// Copyright 2025 Miku Push! Team
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,3 +15,8 @@
 /// limitations under the License.
 
 pub type DateTimeUtc = chrono::DateTime<chrono::Utc>;
+
+pub fn datetime_from_timestamp(timestamp: i64) -> Result<DateTimeUtc, ParseError> {
+    DateTimeUtc::from_timestamp_millis(timestamp)
+        .ok_or(ParseError::new("Invalid timestamp"))
+}

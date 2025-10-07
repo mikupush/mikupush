@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS uploads (
+    id VARCHAR(36) PRIMARY KEY NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(255) NOT NULL,
+    path TEXT NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    server_id VARCHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL,
+    status VARCHAR(255) NOT NULL
+);

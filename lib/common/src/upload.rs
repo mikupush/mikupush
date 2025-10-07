@@ -26,20 +26,22 @@ pub struct Upload {
     pub size: u64,
     pub mime_type: String,
     pub path: String,
-    pub url: Option<String>,
+    pub url: String,
     pub created_at: DateTimeUtc,
     pub status: Status,
+    pub server_id: Uuid
 }
 
 impl Upload {
-    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String) -> Self {
+    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String, server_id: Uuid) -> Self {
         Self {
             id,
             name,
             size,
             mime_type,
             path,
-            url: None,
+            server_id,
+            url: "".to_string(),
             created_at: chrono::Utc::now(),
             status: Status::Pending,
         }
@@ -52,6 +54,7 @@ impl Upload {
             random(),
             "application/zip".to_string(),
             "/path/to/zip".to_string(),
+            Uuid::new_v4()
         )
     }
 }

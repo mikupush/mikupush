@@ -13,14 +13,11 @@
 /// limitations under the License.
 
 mod commands;
-mod database;
 mod events;
-mod repository;
 mod state;
+mod settings;
 
-use database::setup_app_database_connection;
 use log::{debug, warn};
-use sea_orm::DatabaseConnection;
 use state::{SelectedServerState, UploadsState};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -29,11 +26,13 @@ use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri_plugin_fs::FsExt;
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
+use mikupush_database::{create_database_connection, DbPool};
 
 pub struct AppContext {
-    db_connection: Mutex<DatabaseConnection>,
+    db_connection: Mutex<DbPool>,
 }
 
 type GenericResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -139,10 +138,9 @@ pub fn run() {
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
     initialize_main_window(app.app_handle());
-    let tokio_runtime = Runtime::new().unwrap();
-    let db = tokio_runtime.block_on(setup_app_database_connection(app));
 
     {
+        let db = setup_app_database_connection(app);
         let app_context = app.state::<AppContext>();
         let mut app_db_connection = app_context.db_connection.lock().unwrap();
         *app_db_connection = db;
@@ -251,4 +249,20 @@ fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
         }
         &_ => {}
     }
+}
+
+fn setup_app_database_connection(app: &App) -> DbPool {
+    let app_dir = app.path().app_data_dir().unwrap();
+    let database_file = app_dir.join("mikupush.db");
+    debug!("sqlite database file: {:?}", database_file);
+
+    if !database_file.exists() {
+        debug!("sqlite database file does not exist, creating file...");
+        std::fs::create_dir_all(app_dir).unwrap();
+        std::fs::File::create(&database_file).unwrap();
+        debug!("sqlite database file created on: {:?}", database_file);
+    }
+
+    let database_url = format!("sqlite://{}", database_file.to_str().unwrap());
+    create_database_connection(&database_url)
 }
