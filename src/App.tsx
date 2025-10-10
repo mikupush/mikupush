@@ -20,9 +20,11 @@ import { Toaster } from 'react-hot-toast'
 import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
 import { listen } from '@tauri-apps/api/event'
-import { ThemeProvider } from '@/components/ThemeProvider.tsx'
+import { ThemeProvider } from '@/context/ThemeProvider.tsx'
 import { fetchCurrentUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
+import { useUserTheme } from '@/hooks/use-configuration.ts'
+import { useEffect } from 'react'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -49,9 +51,15 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
 
 fetchCurrentUploads()
 
-function App() {
+function RouterWrapper() {
+  const { current } = useUserTheme()
+
+  useEffect(() => {
+    current()
+  }, [current])
+
   return (
-    <ThemeProvider>
+    <>
       <Router />
       <Toaster
         position="bottom-right"
@@ -63,6 +71,14 @@ function App() {
           }
         }}
       />
+    </>
+  )
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <RouterWrapper />
     </ThemeProvider>
   )
 }

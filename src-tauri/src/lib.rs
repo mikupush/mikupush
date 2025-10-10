@@ -15,7 +15,8 @@
 mod commands;
 mod events;
 mod state;
-mod settings;
+mod config;
+mod resources;
 
 use log::{debug, warn};
 use state::{SelectedServerState, UploadsState};
@@ -30,12 +31,13 @@ use tauri_plugin_fs::FsExt;
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
 use mikupush_database::{create_database_connection, DbPool};
+use crate::resources::unpack_resources;
 
 pub struct AppContext {
-    db_connection: OnceLock<DbPool>,
+    pub db_connection: OnceLock<DbPool>,
 }
 
-type GenericResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type GenericResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 const MAIN_WINDOW_TITLE: &'static str = "MikuPush!";
 const MAIN_WINDOW: &'static str = "main";
@@ -110,7 +112,9 @@ pub fn run() {
             commands::delete_upload,
             commands::copy_upload_link,
             commands::cancel_upload,
-            commands::get_all_in_progress_uploads
+            commands::get_all_in_progress_uploads,
+            config::get_config_value,
+            config::set_config_value
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -137,6 +141,7 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
+    unpack_resources(app.app_handle())?;
     initialize_main_window(app.app_handle());
 
     {

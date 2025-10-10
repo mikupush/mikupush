@@ -16,8 +16,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import * as React from 'react'
-
-type Theme = 'dark' | 'light' | 'system'
+import { Theme } from '@/model/config.ts'
 
 interface ThemeProviderProps {
   children: React.ReactNode
@@ -35,7 +34,7 @@ const initialState: ThemeProviderState = {
   setTheme: () => null,
 }
 
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
+export const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,

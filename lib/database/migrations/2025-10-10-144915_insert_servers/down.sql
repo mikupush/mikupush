@@ -1,0 +1,2 @@
+DELETE FROM servers WHERE id = '33e32eda-52e1-4892-a867-f513d489b965';
+DELETE FROM servers WHERE id = 'ea19a2b8-6c38-4926-911e-cd9b0117b456';

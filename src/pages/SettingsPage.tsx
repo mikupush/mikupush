@@ -14,9 +14,12 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select.tsx'
+import { Theme } from '@/model/config.ts'
+import { useUserTheme } from '@/hooks/use-configuration.ts'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
+  const { apply } = useUserTheme()
 
   const theme = zod.enum(
     ['light', 'dark', 'system'],
@@ -49,13 +52,14 @@ export default function SettingsPage() {
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      theme: 'system' as zod.infer<typeof theme>,
+      theme: 'system' as Theme,
       serverUrl: 'https://mikupush.io',
     },
   })
 
   const saveSettings = (data: zod.infer<typeof schema>) => {
     console.log(data)
+    apply(data.theme)
   }
 
   return (

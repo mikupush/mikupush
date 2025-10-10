@@ -3054,6 +3054,7 @@ dependencies = [
  "mimetype-detector",
  "rand 0.8.5",
  "serde",
+ "url",
  "uuid",
 ]
 

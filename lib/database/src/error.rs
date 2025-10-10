@@ -21,7 +21,11 @@ impl From<r2d2::Error> for DbError {
 
 impl Debug for DbError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        match self {
+            DbError::NotFound { message } => write!(f, "DbError::NotFound {{ message: {:?} }}", message),
+            DbError::Generic { message } => write!(f, "DbError::Generic {{ message: {:?} }}", message),
+            DbError::MapError { message } => write!(f, "DbError::MapError {{ message: {:?} }}", message),
+        }
     }
 }
 
