@@ -52,11 +52,11 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
 fetchCurrentUploads()
 
 function RouterWrapper() {
-  const { current } = useUserTheme()
+  const { currentTheme } = useUserTheme()
 
   useEffect(() => {
-    current()
-  }, [current])
+    currentTheme()
+  }, [currentTheme])
 
   return (
     <>

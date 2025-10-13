@@ -1,8 +1,5 @@
 import { Input } from '@/components/ui/input.tsx'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form.tsx'
-import zod from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button.tsx'
 import { Heading2, Heading3 } from '@/components/Typography.tsx'
@@ -14,12 +11,17 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select.tsx'
+import zod from 'zod'
 import { Theme } from '@/model/config.ts'
 import { useUserTheme } from '@/hooks/use-configuration.ts'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { getConfig } from '@/helpers/config.ts'
+import { CONFIG_THEME } from '@/constants/config.ts'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
-  const { apply } = useUserTheme()
+  const { applyTheme } = useUserTheme()
 
   const theme = zod.enum(
     ['light', 'dark', 'system'],
@@ -51,15 +53,15 @@ export default function SettingsPage() {
 
   const form = useForm({
     resolver: zodResolver(schema),
-    defaultValues: {
-      theme: 'system' as Theme,
+    defaultValues: async () => ({
+      theme: await getConfig(CONFIG_THEME) as Theme,
       serverUrl: 'https://mikupush.io',
-    },
+    }),
   })
 
   const saveSettings = (data: zod.infer<typeof schema>) => {
     console.log(data)
-    apply(data.theme)
+    applyTheme(data.theme)
   }
 
   return (
