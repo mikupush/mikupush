@@ -93,6 +93,22 @@ impl ServerRepository {
         Ok(entity)
     }
 
+    pub fn find_by_url(&self, url: String) -> Result<Vec<Server>, DbError> {
+        let mut connection = self.connection_pool.get()?;
+        let entities = servers_table::table
+            .filter(servers_table::url.eq(url))
+            .load::<ServerModel>(&mut connection)?;
+
+        let entities = entities
+            .into_iter()
+            .map(|entity| entity.try_into().ok())
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .collect();
+
+        Ok(entities)
+    }
+
     pub fn find_connected(&self) -> Result<Option<Server>, DbError> {
         let mut connection = self.connection_pool.get()?;
         let entity = servers_table::table
@@ -107,7 +123,7 @@ impl ServerRepository {
         Ok(entity)
     }
 
-    pub fn update_connected(&self, id: Uuid, connected: bool) -> Result<(), DbError> {
+    pub fn update_connected(&self, id: Uuid) -> Result<(), DbError> {
         let mut connection = self.connection_pool.get()?;
 
         diesel::update(servers_table::table)
@@ -116,7 +132,7 @@ impl ServerRepository {
 
         diesel::update(servers_table::table)
             .filter(servers_table::id.eq(&id.to_string()))
-            .set(servers_table::connected.eq(connected))
+            .set(servers_table::connected.eq(true))
             .execute(&mut connection)?;
 
         Ok(())
@@ -237,7 +253,7 @@ mod tests {
         let connected_server = insert_test_server(&db);
 
         repository
-            .update_connected(connected_server.id, true)
+            .update_connected(connected_server.id)
             .expect("update_connected failed");
 
         let connected = repository.find_connected().unwrap();
@@ -250,6 +266,66 @@ mod tests {
         assert_eq!(false, not_connected_model.connected);
     }
 
+    #[test]
+    #[serial]
+    fn server_repository_find_by_url_should_find_existing() {
+        let db = test_database_connection();
+        let mut connection = db.get().unwrap();
+        clean(&mut connection);
+
+        let repository = ServerRepository::new(db.clone());
+        let test_url = "https://example.com".to_string();
+        let expected = insert_test_server_with_url(&db, test_url.clone());
+
+        let actual = repository.find_by_url(test_url).unwrap();
+
+        assert_eq!(1, actual.len());
+        assert_eq!(expected.id, actual[0].id);
+        assert_eq!(expected.url, actual[0].url);
+    }
+
+    #[test]
+    #[serial]
+    fn server_repository_find_by_url_should_return_empty_when_not_found() {
+        let db = test_database_connection();
+        let mut connection = db.get().unwrap();
+        clean(&mut connection);
+
+        let repository = ServerRepository::new(db.clone());
+        insert_test_server(&db);
+
+        let actual = repository.find_by_url("https://nonexistent.com".to_string()).unwrap();
+
+        assert_eq!(0, actual.len());
+    }
+
+    #[test]
+    #[serial]
+    fn server_repository_find_by_url_should_find_multiple() {
+        let db = test_database_connection();
+        let mut connection = db.get().unwrap();
+        clean(&mut connection);
+
+        let repository = ServerRepository::new(db.clone());
+        let test_url = "https://example.com".to_string();
+        
+        let server1 = insert_test_server_with_url(&db, test_url.clone());
+        let server2 = insert_test_server_with_url(&db, test_url.clone());
+        let server3 = insert_test_server_with_url(&db, test_url.clone());
+        
+        // Insert a server with a different URL to ensure filtering works
+        insert_test_server_with_url(&db, "https://other.com".to_string());
+
+        let actual = repository.find_by_url(test_url).unwrap();
+
+        assert_eq!(3, actual.len());
+        
+        let ids: Vec<Uuid> = actual.iter().map(|s| s.id).collect();
+        assert!(ids.contains(&server1.id));
+        assert!(ids.contains(&server2.id));
+        assert!(ids.contains(&server3.id));
+    }
+
     fn insert_test_server(db: &DbPool) -> Server {
         let mut connection = db.get().unwrap();
         let model = Server::test();
@@ -257,6 +333,16 @@ mod tests {
             .values::<ServerModel>(model.clone().into())
             .execute(&mut connection);
         println!("insert test server result: {:?}", result);
+        model
+    }
+
+    fn insert_test_server_with_url(db: &DbPool, url: String) -> Server {
+        let mut connection = db.get().unwrap();
+        let model = Server::new(Uuid::new_v4(), url, "Test Server".to_string());
+        let result = diesel::insert_into(servers_table::table)
+            .values::<ServerModel>(model.clone().into())
+            .execute(&mut connection);
+        println!("insert test server with url result: {:?}", result);
         model
     }
 

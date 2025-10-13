@@ -12,11 +12,11 @@
 /// See the License for the specific language governing permissions and
 /// limitations under the License.
 
-use mikupush_common::UploadRequest;
+use mikupush_common::{Server, UploadRequest};
 use log::warn;
 use std::{collections::HashMap, sync::Mutex};
 use tokio_util::sync::CancellationToken;
-use mikupush_client::{Client, Server};
+use mikupush_client::Client;
 
 #[derive(Debug)]
 pub struct UploadsState {
@@ -137,6 +137,10 @@ impl SelectedServerState {
         Self {
             server: Mutex::new(Server::default()),
         }
+    }
+
+    pub fn set_server(&self, server: Server) {
+        *self.server.lock().unwrap() = server;
     }
 
     pub fn client(&self) -> Client {

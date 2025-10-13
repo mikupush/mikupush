@@ -196,7 +196,7 @@ pub async fn copy_upload_link(
     upload_id: String,
 ) -> Result<(), String> {
     let current_server = state.server.lock().unwrap().clone();
-    let link = format!("{}/u/{}", current_server.base_url, upload_id);
+    let link = format!("{}/u/{}", current_server.url, upload_id);
 
     let result = app_handle.clipboard().write_text(link);
     if let Err(error) = result {

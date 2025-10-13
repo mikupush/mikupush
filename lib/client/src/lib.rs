@@ -12,7 +12,6 @@
 /// See the License for the specific language governing permissions and
 /// limitations under the License.
 
-mod server;
 mod client;
 mod upload;
 mod progress;
@@ -22,6 +21,5 @@ mod response;
 pub use client::*;
 pub use upload::*;
 pub use progress::*;
-pub use server::*;
 pub use error::*;
 pub use response::*;

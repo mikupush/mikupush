@@ -12,7 +12,7 @@
 /// See the License for the specific language governing permissions and
 /// limitations under the License.
 
-use crate::server::Server;
+use mikupush_common::Server;
 use crate::upload::UploadTask;
 use log::debug;
 use mikupush_common::{Upload, UploadRequest};
@@ -29,9 +29,9 @@ pub struct Client {
 
 impl Client {
     pub fn new(server: Server) -> Self {
-        debug!("using server client with base url: {}", server.base_url);
+        debug!("using server client with base url: {}", server.url);
         Self {
-            base_url: server.base_url,
+            base_url: server.url,
             client: reqwest::Client::builder()
                 .user_agent("MikuPush/1.0.0")
                 .build()

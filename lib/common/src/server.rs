@@ -63,3 +63,13 @@ impl Server {
         )
     }
 }
+
+impl Default for Server {
+    fn default() -> Self {
+        Self::new(
+            Uuid::new_v4(),
+            "".to_string(),
+            "".to_string()
+        )
+    }
+}

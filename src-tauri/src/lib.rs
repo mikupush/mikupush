@@ -17,6 +17,7 @@ mod events;
 mod state;
 mod config;
 mod resources;
+mod server;
 
 use log::{debug, warn};
 use state::{SelectedServerState, UploadsState};
@@ -32,6 +33,7 @@ use tokio::runtime::Runtime;
 use tokio::time::sleep;
 use mikupush_database::{create_database_connection, DbPool};
 use crate::resources::unpack_resources;
+use crate::server::initialize_current_server_state;
 
 pub struct AppContext {
     pub db_connection: OnceLock<DbPool>,
@@ -114,7 +116,11 @@ pub fn run() {
             upload::cancel_upload,
             upload::get_all_in_progress_uploads,
             config::get_config_value,
-            config::set_config_value
+            config::set_config_value,
+            server::set_connected_server,
+            server::get_connected_server,
+            server::get_server_by_url,
+            server::create_server
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -142,13 +148,11 @@ pub fn run() {
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
     unpack_resources(app.app_handle())?;
+    let db = setup_app_database_connection(app);
+    let app_context = app.state::<AppContext>();
+    app_context.db_connection.set(db).unwrap();
+    initialize_current_server_state(app.app_handle())?;
     initialize_main_window(app.app_handle());
-
-    {
-        let db = setup_app_database_connection(app);
-        let app_context = app.state::<AppContext>();
-        app_context.db_connection.set(db).unwrap();
-    }
 
     #[cfg(target_os = "macos")]
     let icon = Image::from(tauri::include_image!("icons/tray_icon.png"));
