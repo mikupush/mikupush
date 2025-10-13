@@ -12,7 +12,7 @@
 /// See the License for the specific language governing permissions and
 /// limitations under the License.
 
-mod commands;
+mod upload;
 mod events;
 mod state;
 mod config;
@@ -105,14 +105,14 @@ pub fn run() {
         .setup(|app| setup_app(app))
         // Register command handlers
         .invoke_handler(tauri::generate_handler![
-            commands::select_files_to_upload,
-            commands::enqueue_upload,
-            commands::enqueue_many_uploads,
-            commands::retry_upload,
-            commands::delete_upload,
-            commands::copy_upload_link,
-            commands::cancel_upload,
-            commands::get_all_in_progress_uploads,
+            upload::select_files_to_upload,
+            upload::enqueue_upload,
+            upload::enqueue_many_uploads,
+            upload::retry_upload,
+            upload::delete_upload,
+            upload::copy_upload_link,
+            upload::cancel_upload,
+            upload::get_all_in_progress_uploads,
             config::get_config_value,
             config::set_config_value
         ])
