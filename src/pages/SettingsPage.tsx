@@ -114,7 +114,7 @@ function ServerField() {
   }
 
   const handleServerError = (error: unknown) => {
-    // TODO: handle server error
+    console.error(error)
   }
 
   const handleChangeServer = async () => {

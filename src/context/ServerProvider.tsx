@@ -35,7 +35,7 @@ export function ServerProvider({ children }: ServerProviderProps) {
 
     if (!server) {
       server = await invoke<Server>('create_server', {
-        new_server: createServerFromUrl(url)
+        newServer: createServerFromUrl(url)
       })
     }
 
