@@ -26,7 +26,7 @@ export default function FileIcon(props: FileIconProps) {
 
 	return (
     <div className="flex items-center justify-center rounded-xl bg-accent shadow-xs border w-[80px] h-[80px]">
-      <Large align="center" className="text-accent-foreground uppercase">{extension}</Large>
+      <Large className="text-accent-foreground uppercase">{extension}</Large>
     </div>
   )
 }
