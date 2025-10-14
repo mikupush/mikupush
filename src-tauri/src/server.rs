@@ -53,8 +53,11 @@ pub fn set_connected_server(
 
 #[tauri::command]
 pub fn get_connected_server(current_server_state: State<SelectedServerState>) -> Result<Server, String> {
+    debug!("get current connected server");
     let connected_server = current_server_state.server.lock()
         .map_err(|err| format!("can't get connected server: {}", err))?;
+
+    debug!("got current connected server {} - {}", connected_server.id, connected_server.name);
     Ok(connected_server.clone())
 }
 
@@ -68,14 +71,32 @@ pub fn get_server_by_url(app_context: State<AppContext>, url: String) -> Result<
 
     let server_repository = ServerRepository::new(connection_pool.unwrap().clone());
     let servers = server_repository.find_by_url(url.clone())
-        .map_err(|err| format!("can't save server: {}", err))?;
+        .map_err(|err| format!("can't find server by url: {}", err))?;
     let server = servers.first().map(|server| server.clone());
 
     Ok(server)
 }
 
 #[tauri::command]
+pub fn get_server_by_id(app_context: State<AppContext>, id: String) -> Result<Option<Server>, String> {
+    let connection_pool = app_context.db_connection.get();
+    if connection_pool.is_none() {
+        warn!("can't set connected server because database connection pool is not initialized");
+        return Err("connection pool is not initialized".to_string());
+    }
+
+    let server_repository = ServerRepository::new(connection_pool.unwrap().clone());
+    let id = Uuid::parse_str(&id)
+        .map_err(|err| format!("invalid server id: {}", err))?;
+    let server = server_repository.find_by_id(id)
+        .map_err(|err| format!("can't find server by id: {}", err))?;
+
+    Ok(server)
+}
+
+#[tauri::command]
 pub fn create_server(app_context: State<AppContext>, new_server: Server) -> Result<Server, String> {
+    debug!("creating new server: {:?}", new_server);
     let connection_pool = app_context.db_connection.get();
     if connection_pool.is_none() {
         warn!("can't set connected server because database connection pool is not initialized");
@@ -87,6 +108,7 @@ pub fn create_server(app_context: State<AppContext>, new_server: Server) -> Resu
     server_repository.save(new_server.clone())
         .map_err(|err| format!("can't save server: {}", err))?;
 
+    debug!("server with id {} created", new_server.id);
     Ok(new_server)
 }
 
@@ -116,7 +138,7 @@ pub fn initialize_current_server_state(app_handle: &AppHandle) -> Result<(), Str
 
     let connected_server = connected_server.unwrap();
     current_server.set_server(connected_server.clone());
-    debug!("current server set to {} - {}", connected_server.id, connected_server.name);
+    debug!("server initialization complete, current server is {} - {}", connected_server.id, connected_server.name);
 
     Ok(())
 }

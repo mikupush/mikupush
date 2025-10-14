@@ -25,6 +25,7 @@ import { fetchCurrentUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
 import { useUserTheme } from '@/hooks/use-configuration.ts'
 import { useEffect } from 'react'
+import { ServerProvider } from '@/context/ServerProvider.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -78,7 +79,9 @@ function RouterWrapper() {
 function App() {
   return (
     <ThemeProvider>
-      <RouterWrapper />
+      <ServerProvider>
+        <RouterWrapper />
+      </ServerProvider>
     </ThemeProvider>
   )
 }

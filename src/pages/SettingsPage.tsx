@@ -15,10 +15,9 @@
  */
 
 import { Input } from '@/components/ui/input.tsx'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form.tsx'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button.tsx'
-import { Heading2, Heading3 } from '@/components/Typography.tsx'
+import { Heading2 } from '@/components/Typography.tsx'
 import {
   Select,
   SelectContent,
@@ -27,114 +26,123 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select.tsx'
-import zod from 'zod'
 import { Theme } from '@/model/config.ts'
 import { useUserTheme } from '@/hooks/use-configuration.ts'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { getConfig } from '@/helpers/config.ts'
-import { CONFIG_THEME } from '@/constants/config.ts'
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet
+} from '@/components/ui/field.tsx'
+import { useServer } from '@/context/ServerProvider.tsx'
+import { useState } from 'react'
+import zod from 'zod'
+import toast from 'react-hot-toast'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
-  const { applyTheme } = useUserTheme()
-
-  const theme = zod.enum(
-    ['light', 'dark', 'system'],
-    {
-      error: issue => {
-        if (issue.input === undefined) return t('settings.appearance.theme.error.required')
-        if (issue.code === 'invalid_value') return t('settings.appearance.theme.error.invalid')
-        return undefined
-      }
-    }
-  )
-
-  const schema = zod.object({
-    theme: theme,
-    serverUrl: zod.url({
-      error: issue => {
-        if (issue.input === undefined) return t('settings.server.error.required')
-        if (issue.code === 'invalid_type') return t('settings.server.error.invalid')
-        if (issue.code === 'invalid_format') return t('settings.server.error.format')
-        return undefined
-      }
-    }).nonempty({
-      error: issue => {
-        if (issue.code === 'too_small') return t('settings.server.error.required')
-        return undefined
-      }
-    }),
-  })
-
-  const form = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: async () => ({
-      theme: await getConfig(CONFIG_THEME) as Theme,
-      serverUrl: 'https://mikupush.io',
-    }),
-  })
-
-  const saveSettings = (data: zod.infer<typeof schema>) => {
-    console.log(data)
-    applyTheme(data.theme)
-  }
 
   return (
     <div className="p-5 max-w-lg">
-      <Heading2>{t('settings.heading')}</Heading2>
-      <Form {...form}>
-        <form className="py-5 space-y-6" onSubmit={form.handleSubmit(saveSettings)}>
-          <fieldset className="space-y-6">
-            <Heading3 as="legend">{t('settings.appearance.heading')}</Heading3>
-            <FormField
-              name="theme"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('settings.appearance.theme.label')}</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full sm:w-56">
-                        <SelectValue placeholder={t('settings.appearance.theme.placeholder')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="light">{t('settings.appearance.theme.option.light')}</SelectItem>
-                        <SelectItem value="dark">{t('settings.appearance.theme.option.dark')}</SelectItem>
-                        <SelectItem value="system">{t('settings.appearance.theme.option.system')}</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </fieldset>
-          <fieldset className="space-y-6">
-            <Heading3 as="legend" className="text-red-500">{t('common.form.danger_zone')}</Heading3>
-            <FormField
-              name="serverUrl"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('settings.server.label')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://mikupush.io" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('settings.server.description')}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </fieldset>
-          <Button type="submit">{t('common.form.save')}</Button>
-        </form>
-      </Form>
+      <Heading2 className="mb-6">{t('settings.heading')}</Heading2>
+      <div className="space-y-6">
+        <FieldSet className="space-y-6">
+          <FieldLegend>{t('settings.appearance.heading')}</FieldLegend>
+          <FieldGroup>
+            <ThemeField />
+          </FieldGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend className="text-red-500">{t('common.form.danger_zone')}</FieldLegend>
+          <FieldGroup>
+            <ServerField />
+          </FieldGroup>
+        </FieldSet>
+      </div>
     </div>
+  )
+}
+
+function ThemeField() {
+  const { t } = useTranslation()
+  const { applyTheme, theme } = useUserTheme()
+
+  return (
+    <Field>
+      <FieldLabel>{t('settings.appearance.theme.label')}</FieldLabel>
+      <Select
+        value={theme}
+        onValueChange={(value) => applyTheme(value as Theme)}
+      >
+        <SelectTrigger className="w-full max-w-56">
+          <SelectValue placeholder={t('settings.appearance.theme.placeholder')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="light">{t('settings.appearance.theme.option.light')}</SelectItem>
+            <SelectItem value="dark">{t('settings.appearance.theme.option.dark')}</SelectItem>
+            <SelectItem value="system">{t('settings.appearance.theme.option.system')}</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <FieldError></FieldError>
+    </Field>
+  )
+}
+
+function ServerField() {
+  const { t } = useTranslation()
+  const { setCurrentByUrl, current } = useServer()
+  const [url, setUrl] = useState(current.url)
+  const [errors, setErrors] = useState<string[]>([])
+
+  const handleValidationError = (error: unknown) => {
+    if (error instanceof zod.ZodError) {
+      setErrors(
+        error.issues.map(issue => {
+          if (issue.code === 'invalid_type') return t('settings.server.error.invalid')
+          if (issue.code === 'invalid_format') return t('settings.server.error.format')
+          if (issue.code === 'too_small') return t('settings.server.error.required')
+          if (issue.input === undefined) return t('settings.server.error.required')
+          return ''
+        }).filter(error => error !== '')
+      )
+    }
+  }
+
+  const handleServerError = (error: unknown) => {
+    // TODO: handle server error
+  }
+
+  const handleChangeServer = async () => {
+    try {
+      setErrors([])
+      zod.url().nonempty().parse(url)
+      await setCurrentByUrl(url)
+      toast.success(t('settings.server.success'))
+    } catch (error) {
+      handleValidationError(error)
+      handleServerError(error)
+    }
+  }
+
+  return (
+    <Field>
+      <FieldLabel>{t('settings.server.label')}</FieldLabel>
+      <div className="flex w-full max-w-lg items-center gap-2">
+        <Input
+          name="serverUrl"
+          placeholder="https://mikupush.io"
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+        />
+        <Button onClick={handleChangeServer}>{t('settings.server.apply')}</Button>
+      </div>
+      <FieldDescription>{t('settings.server.description')}</FieldDescription>
+      <FieldError errors={errors.map(error => ({ message: error }))} />
+    </Field>
   )
 }

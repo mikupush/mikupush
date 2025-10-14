@@ -21,7 +21,7 @@ import { applyConfig, getConfig } from '@/helpers/config.ts'
 import { CONFIG_THEME } from '@/constants/config.ts'
 
 export function useUserTheme() {
-  const { setTheme } = useContext(ThemeProviderContext)
+  const { setTheme, theme } = useContext(ThemeProviderContext)
 
   const applyTheme = (theme: Theme) => {
     applyConfig(CONFIG_THEME, theme).then(() => setTheme(theme))
@@ -33,6 +33,7 @@ export function useUserTheme() {
 
   return {
     applyTheme,
-    currentTheme
+    currentTheme,
+    theme
   }
 }

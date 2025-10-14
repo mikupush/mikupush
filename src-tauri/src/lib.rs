@@ -120,6 +120,7 @@ pub fn run() {
             server::set_connected_server,
             server::get_connected_server,
             server::get_server_by_url,
+            server::get_server_by_id,
             server::create_server
         ])
         .build(tauri::generate_context!())

@@ -47,6 +47,8 @@
     "server": {
       "label": "Server URL",
       "description": "Change the target server URL for upload files. It may produce unexpected errors uploading new files. Change at your risk!",
+      "apply": "Change server",
+      "success": "Server URL changed successfully",
       "error": {
         "invalid": "The server URL should be string",
         "format": "The server URL should be a valid URL",
@@ -69,6 +71,9 @@
       "not_exists": "The file you are trying to delete does not exist on the server.",
       "internal_server_error": "An internal server error occurred while deleting the file: {{message}}",
       "client_error": "A client error occurred while deleting the file."
+    },
+    "server": {
+      "not_available": "There is no server available to upload files. Please check your server configuration."
     }
   },
   "dialog": {
