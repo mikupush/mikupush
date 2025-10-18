@@ -18,7 +18,6 @@ mod state;
 mod config;
 mod resources;
 mod server;
-mod error;
 
 use log::{debug, warn};
 use state::{SelectedServerState, UploadsState};

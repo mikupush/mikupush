@@ -74,7 +74,8 @@
     },
     "server": {
       "not_available": "There is no server available to upload files. Please check your server configuration."
-    }
+    },
+    "unknown": "An unknown error occurred."
   },
   "dialog": {
     "heading": {

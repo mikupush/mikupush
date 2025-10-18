@@ -12,79 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::state::SelectedServerState;
+use crate::AppContext;
 use log::{debug, warn};
-use tauri::{AppHandle, Manager, State};
-use uuid::Uuid;
 use mikupush_common::Server;
 use mikupush_database::ServerRepository;
-use crate::AppContext;
-use crate::state::SelectedServerState;
-use crate::error::CommandError;
-use std::fmt::{Display, Formatter};
+use rust_i18n::t;
+use tauri::{AppHandle, Manager, State};
+use uuid::Uuid;
 
-#[derive(Debug)]
-pub enum ServerError {
-    InvalidServerId { input: String, source: uuid::Error },
-    ServerNotFound { id: Uuid },
-    InternalError { message: String },
-}
-
-impl Display for ServerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ServerError::InvalidServerId { input, source } => {
-                write!(f, "invalid server id '{}': {}", input, source)
-            }
-            ServerError::ServerNotFound { id } => {
-                write!(f, "server with id {} not found", id)
-            }
-            ServerError::InternalError { message } => {
-                write!(f, "internal error: {}", message)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ServerError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ServerError::InvalidServerId { source, .. } => Some(source),
-            _ => None,
-        }
-    }
-}
-
-type ServerResult<T> = Result<T, CommandError>;
-
-pub const SERVER_ERROR_INVALID_SERVER_ID: &str = "invalid_server_id";
-pub const SERVER_ERROR_SERVER_NOT_FOUND: &str = "server_not_found";
-pub const SERVER_ERROR_INTERNAL_ERROR: &str = "internal_error";
-
-impl ServerError {
-    pub fn code(&self) -> String {
-        match self {
-            ServerError::InvalidServerId { .. } => SERVER_ERROR_INVALID_SERVER_ID.to_string(),
-            ServerError::ServerNotFound { .. } => SERVER_ERROR_SERVER_NOT_FOUND.to_string(),
-            ServerError::InternalError { .. } => SERVER_ERROR_INTERNAL_ERROR.to_string(),
-        }
-    }
-
-    pub fn to_command_error(&self) -> CommandError {
-        let code = self.code();
-        let message = match self {
-            ServerError::InternalError { message } => message.clone(),
-            _ => self.to_string(),
-        };
-
-        CommandError::new(code, message)
-    }
-}
-
-impl From<ServerError> for CommandError {
-    fn from(error: ServerError) -> Self {
-        error.to_command_error()
-    }
-}
+type ServerResult<T> = Result<T, String>;
 
 #[tauri::command]
 pub fn set_connected_server(
@@ -93,31 +30,37 @@ pub fn set_connected_server(
     id: String,
 ) -> ServerResult<()> {
     let parsed_id = Uuid::parse_str(&id)
-        .map_err(|err| ServerError::InvalidServerId { input: id.clone(), source: err })?;
+        .map_err(|_| t!("errors.server.invalid_server_id"))?;
     let connection_pool = app_context
         .db_connection
         .get()
         .cloned()
         .ok_or_else(|| {
             warn!("can't set connected server because database connection pool is not initialized");
-            ServerError::InternalError { message: "database connection pool is not initialized".to_string() }
+            t!("errors.database.internal_error")
         })?;
 
     let server_repository = ServerRepository::new(connection_pool);
     let server = server_repository
         .find_by_id(parsed_id)
-        .map_err(|err| ServerError::InternalError { message: err.to_string() }.to_command_error())?;
+        .map_err(|err| {
+            warn!("unable to find server by id: {}", err);
+            t!("errors.database.internal_error")
+        })?;
     let server = match server {
         Some(server) => server,
         None => {
             debug!("server with id {} not found", parsed_id);
-            return Err(ServerError::ServerNotFound { id: parsed_id }.to_command_error());
+            return Err(t!("errors.server.server_not_found").to_string());
         }
     };
 
     server_repository
         .update_connected(server.id)
-        .map_err(|err| ServerError::InternalError { message: err.to_string() }.to_command_error())?;
+        .map_err(|err| {
+            warn!("unable to update connected server: {}", err);
+            t!("errors.server.change_server")
+        })?;
     current_server_state.set_server(server.clone());
     debug!("current server set to {} - {}", server.id, server.name);
 
@@ -133,7 +76,7 @@ pub fn get_connected_server(current_server_state: State<SelectedServerState>) ->
         .map_err(|err| {
             let message = err.to_string();
             warn!("can't get connected server: {}", message);
-            ServerError::InternalError { message }.to_command_error()
+            t!("errors.database.internal_error")
         })?;
 
     debug!(
@@ -154,13 +97,16 @@ pub fn get_server_by_url(
         .cloned()
         .ok_or_else(|| {
             warn!("can't get server by url because database connection pool is not initialized");
-            ServerError::InternalError { message: "database connection pool is not initialized".to_string() }.to_command_error()
+            t!("errors.database.internal_error")
         })?;
 
     let server_repository = ServerRepository::new(connection_pool);
     let servers = server_repository
         .find_by_url(url)
-        .map_err(|err| ServerError::InternalError { message: err.to_string() }.to_command_error())?;
+        .map_err(|err| {
+            warn!("unable to find server by url: {}", err);
+            t!("errors.server.get_server")
+        })?;
     let server = servers.into_iter().next();
 
     Ok(server)
@@ -174,15 +120,18 @@ pub fn get_server_by_id(app_context: State<AppContext>, id: String) -> ServerRes
         .cloned()
         .ok_or_else(|| {
             warn!("can't get server by id because database connection pool is not initialized");
-            ServerError::InternalError { message: "database connection pool is not initialized".to_string() }.to_command_error()
+            t!("errors.database.internal_error")
         })?;
 
     let parsed_id = Uuid::parse_str(&id)
-        .map_err(|err| ServerError::InvalidServerId { input: id.clone(), source: err }.to_command_error())?;
+        .map_err(|_| t!("errors.server.invalid_server_id"))?;
     let server_repository = ServerRepository::new(connection_pool);
     let server = server_repository
         .find_by_id(parsed_id)
-        .map_err(|err| ServerError::InternalError { message: err.to_string() }.to_command_error())?;
+        .map_err(|err| {
+            warn!("unable to find server by id: {}", err);
+            t!("errors.server.get_server")
+        })?;
 
     Ok(server)
 }
@@ -196,14 +145,17 @@ pub fn create_server(app_context: State<AppContext>, new_server: Server) -> Serv
         .cloned()
         .ok_or_else(|| {
             warn!("can't create server because database connection pool is not initialized");
-            ServerError::InternalError { message: "database connection pool is not initialized".to_string() }.to_command_error()
+            t!("errors.database.internal_error")
         })?;
 
     let server_repository = ServerRepository::new(connection_pool);
 
     server_repository
         .save(new_server.clone())
-        .map_err(|err| ServerError::InternalError { message: err.to_string() }.to_command_error())?;
+        .map_err(|err| {
+            warn!("unable to create new server: {}", err);
+            t!("errors.server.create_server")
+        })?;
 
     debug!("server with id {} created", new_server.id);
     Ok(new_server)
@@ -219,7 +171,7 @@ pub fn initialize_current_server_state(app_handle: &AppHandle) -> ServerResult<(
         .cloned()
         .ok_or_else(|| {
             warn!("can't initialize current server because database connection pool is not initialized");
-            ServerError::InternalError { message: "database connection pool is not initialized".to_string() }.to_command_error()
+            t!("errors.database.internal_error")
         })?;
 
     let server_repository = ServerRepository::new(connection_pool);
@@ -227,14 +179,14 @@ pub fn initialize_current_server_state(app_handle: &AppHandle) -> ServerResult<(
         .find_connected()
         .map_err(|err| {
             warn!("unable to find connected server: {}", err);
-            ServerError::InternalError { message: err.to_string() }.to_command_error()
+            t!("errors.server.get_current_server").to_string()
         })?;
 
     let connected_server = match connected_server {
         Some(server) => server,
         None => {
             warn!("connected server not found");
-            return Err(ServerError::InternalError { message: "connected server not found".to_string() }.to_command_error());
+            return Err(t!("errors.server.server_not_found").to_string());
         }
     };
 

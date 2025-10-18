@@ -9,3 +9,14 @@ notifications:
     error:
       title: ❌ Failed to upload file %{name}
       body: An error occurred while uploading the file %{name}
+
+errors:
+  database:
+    internal_error: An unexpected error occurred while accessing the database
+  server:
+    invalid_server_id: The provided server identifier is invalid
+    server_not_found: The requested server could not be found
+    change_server: An unexpected error occurred while changing the server
+    create_server: An unexpected error occurred while creating the server
+    get_server: An unexpected error occurred while getting the server
+    get_current_server: An unexpected error occurred while getting the current server

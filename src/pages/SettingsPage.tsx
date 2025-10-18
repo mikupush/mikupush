@@ -114,7 +114,11 @@ function ServerField() {
   }
 
   const handleServerError = (error: unknown) => {
-    console.error(error)
+    if (typeof error === 'string') {
+      toast.error(error)
+    } else {
+      toast.error(t('errors.unknown'))
+    }
   }
 
   const handleChangeServer = async () => {
