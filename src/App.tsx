@@ -24,7 +24,7 @@ import { ThemeProvider } from '@/context/ThemeProvider.tsx'
 import { fetchCurrentUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
 import { useUserTheme } from '@/hooks/use-configuration.ts'
-import { useEffect } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { ServerProvider } from '@/context/ServerProvider.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
@@ -52,35 +52,33 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
 
 fetchCurrentUploads()
 
-function RouterWrapper() {
+function UserThemeLoader({ children }: { children: ReactNode}) {
   const { currentTheme } = useUserTheme()
 
   useEffect(() => {
     currentTheme()
   }, [currentTheme])
 
-  return (
-    <>
-      <Router />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: 'var(--background)',
-            color: 'var(--foreground)',
-            border: '1px solid var(--border)',
-          }
-        }}
-      />
-    </>
-  )
+  return children
 }
 
 function App() {
   return (
     <ThemeProvider>
       <ServerProvider>
-        <RouterWrapper />
+        <UserThemeLoader>
+          <Router />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: 'var(--background)',
+                color: 'var(--foreground)',
+                border: '1px solid var(--border)',
+              }
+            }}
+          />
+        </UserThemeLoader>
       </ServerProvider>
     </ThemeProvider>
   )

@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { useContext } from 'react'
-import { ThemeProviderContext } from '@/context/ThemeProvider.tsx'
+import { useTheme } from '@/context/ThemeProvider.tsx'
 import { Theme } from '@/model/config.ts'
 import { applyConfig, getConfig } from '@/helpers/config.ts'
 import { CONFIG_THEME } from '@/constants/config.ts'
 
 export function useUserTheme() {
-  const { setTheme, theme } = useContext(ThemeProviderContext)
+  const { setTheme, theme } = useTheme()
 
   const applyTheme = (theme: Theme) => {
     applyConfig(CONFIG_THEME, theme).then(() => setTheme(theme))
