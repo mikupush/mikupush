@@ -11,6 +11,8 @@ notifications:
       body: An error occurred while uploading the file %{name}
 
 errors:
+  file_system:
+    server_icon_access: An unexpected error occurred while accessing the server icons on application data directory
   database:
     internal_error: An unexpected error occurred while accessing the database
   server:
@@ -20,3 +22,5 @@ errors:
     create_server: An unexpected error occurred while creating the server
     get_server: An unexpected error occurred while getting the server
     get_current_server: An unexpected error occurred while getting the current server
+    server_icon_not_found: Server icon not found
+    server_icon_encoding: An unexpected error occurred while encoding the server icon to base64

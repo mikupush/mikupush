@@ -121,7 +121,8 @@ pub fn run() {
             server::get_connected_server,
             server::get_server_by_url,
             server::get_server_by_id,
-            server::create_server
+            server::create_server,
+            resources::server_icon_url
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

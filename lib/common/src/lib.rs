@@ -21,6 +21,8 @@ mod error;
 mod server;
 mod config;
 mod theme;
+mod encoder;
+mod mime_type;
 
 pub use status::*;
 pub use progress::*;
@@ -31,3 +33,4 @@ pub use error::*;
 pub use server::*;
 pub use config::*;
 pub use theme::*;
+pub use encoder::*;

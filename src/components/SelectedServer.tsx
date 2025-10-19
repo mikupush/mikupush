@@ -14,20 +14,24 @@
  * limitations under the License.
  */
 
-import appIcon from '@/assets/app-icon.svg'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
   DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
+  DropdownMenuLabel, DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { ChevronsUpDown, Plus } from 'lucide-react'
+import { ChevronsUpDown, Server } from 'lucide-react'
 import { Small } from '@/components/Typography.tsx'
+import { useServer } from '@/context/ServerProvider.tsx'
+import { useServerIcon } from '@/hooks/server.ts'
+import { useTranslation } from 'react-i18next'
 
 export function SelectedServerSidebarMenu() {
   const { isMobile } = useSidebar()
+  const { current } = useServer()
+  const icon = useServerIcon(current)
 
   return (
     <SidebarMenu>
@@ -39,10 +43,10 @@ export function SelectedServerSidebarMenu() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
-                <img className="h-full" src={appIcon} alt="mikupush.io" />
+                <img className="h-full" src={icon} alt="" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">mikupush.io</span>
+                <span className="truncate font-medium">{current.alias ?? current.name}</span>
                 {/*<span className="truncate text-xs">Premium</span>*/}
               </div>
               <ChevronsUpDown className="ml-auto" />
@@ -56,12 +60,15 @@ export function SelectedServerSidebarMenu() {
 }
 
 export function SelectedServerDropdown() {
+  const { current } = useServer()
+  const icon = useServerIcon(current)
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost">
-          <img className="h-full" src={appIcon} alt="mikupush.io" />
-          <Small>mikupush.io</Small>
+          <img className="h-full" src={icon} alt="" />
+          <Small>{current.alias ?? current.name}</Small>
           <ChevronsUpDown className="ml-auto" />
         </Button>
       </DropdownMenuTrigger>
@@ -75,6 +82,8 @@ interface DropdownProps {
 }
 
 function DropdownMenuItems({ side = 'bottom' }: DropdownProps) {
+  const { t } = useTranslation()
+
   return (
     <DropdownMenuContent
       className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
@@ -83,23 +92,22 @@ function DropdownMenuItems({ side = 'bottom' }: DropdownProps) {
       sideOffset={4}
     >
       <DropdownMenuLabel className="text-muted-foreground text-xs">
-        Teams
+        {t('server.recent')} 🚧
       </DropdownMenuLabel>
       <DropdownMenuItem
         className="gap-2 p-2"
       >
-        <div className="flex size-6 items-center justify-center rounded-md border">
-
+        <div className="flex size-6 items-center justify-center rounded-md">
+          <Server className="size-4" />
         </div>
-        Other server
-        <DropdownMenuShortcut>⌘1</DropdownMenuShortcut>
+        Example server
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem className="gap-2 p-2">
-        <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-          <Plus className="size-4" />
+        <div className="flex size-6 items-center justify-center bg-transparent">
+          <Server className="size-4" />
         </div>
-        <div className="text-muted-foreground font-medium">Add team</div>
+        <div className="font-medium">{t('server.manage')} 🚧</div>
       </DropdownMenuItem>
     </DropdownMenuContent>
   )

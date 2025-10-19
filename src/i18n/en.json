@@ -21,6 +21,10 @@
     },
     "drop": "Drop to upload"
   },
+  "server": {
+    "recent": "Recently used servers",
+    "manage": "Manage servers"
+  },
   "sidebar": {
     "uploads": "Now uploading",
     "archived_uploads": "Archived uploads",
