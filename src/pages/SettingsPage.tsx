@@ -99,26 +99,35 @@ function ServerField() {
   const [url, setUrl] = useState(current.url)
   const [errors, setErrors] = useState<string[]>([])
 
-  const handleValidationError = (error: unknown) => {
-    if (error instanceof zod.ZodError) {
-      setErrors(
-        error.issues.map(issue => {
-          if (issue.code === 'invalid_type') return t('settings.server.error.invalid')
-          if (issue.code === 'invalid_format') return t('settings.server.error.format')
-          if (issue.code === 'too_small') return t('settings.server.error.required')
-          if (issue.input === undefined) return t('settings.server.error.required')
-          return ''
-        }).filter(error => error !== '')
-      )
+  const handleValidationError = (error: unknown): boolean => {
+    if (!(error instanceof zod.ZodError)) {
+      return false
     }
+
+    setErrors(
+      error.issues.map(issue => {
+        if (issue.code === 'invalid_type') return t('settings.server.error.invalid')
+        if (issue.code === 'invalid_format') return t('settings.server.error.format')
+        if (issue.code === 'too_small') return t('settings.server.error.required')
+        if (issue.input === undefined) return t('settings.server.error.required')
+        return ''
+      }).filter(error => error !== '')
+    )
+    return true
   }
 
   const handleServerError = (error: unknown) => {
     if (typeof error === 'string') {
-      toast.error(error)
-    } else {
-      toast.error(t('errors.unknown'))
+      setErrors([error])
+      return
     }
+
+    if (error instanceof Error && error.message) {
+      setErrors([error.message])
+      return
+    }
+
+    toast.error(t('errors.unknown'))
   }
 
   const handleChangeServer = async () => {
@@ -128,7 +137,7 @@ function ServerField() {
       await setCurrentByUrl(url)
       toast.success(t('settings.server.success'))
     } catch (error) {
-      handleValidationError(error)
+      if (handleValidationError(error)) return
       handleServerError(error)
     }
   }
