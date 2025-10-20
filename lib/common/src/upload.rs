@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::status::Status;
 use crate::date_time::DateTimeUtc;
+use crate::Server;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -33,15 +34,15 @@ pub struct Upload {
 }
 
 impl Upload {
-    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String, server_id: Uuid) -> Self {
+    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String, server: Server) -> Self {
         Self {
             id,
             name,
             size,
             mime_type,
             path,
-            server_id,
-            url: "".to_string(),
+            server_id: server.id,
+            url: format!("{}/u/{}", server.url, id),
             created_at: chrono::Utc::now(),
             status: Status::Pending,
         }
@@ -54,7 +55,7 @@ impl Upload {
             random(),
             "application/zip".to_string(),
             "/path/to/zip".to_string(),
-            Uuid::new_v4()
+            Server::test(),
         )
     }
 }

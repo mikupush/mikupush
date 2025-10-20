@@ -150,7 +150,7 @@ function ServerField() {
           name="serverUrl"
           placeholder="https://mikupush.io"
           value={url}
-          onChange={(event) => setUrl(event.target.value)}
+          onChange={(event) => setUrl(event.target.value.toLowerCase().trim())}
         />
         <Button onClick={handleChangeServer}>{t('settings.server.apply')}</Button>
       </div>

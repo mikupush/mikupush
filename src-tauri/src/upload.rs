@@ -60,7 +60,8 @@ pub async fn enqueue_upload(
     server_state: State<'_, SelectedServerState>,
     file_path: String,
 ) -> Result<Vec<UploadRequest>, String> {
-    let request = UploadRequest::from_file_path(file_path)?;
+    let server = server_state.current_server();
+    let request = UploadRequest::from_file_path(file_path, server)?;
     let upload_id = request.upload.id.clone().to_string();
     let in_progress_uploads = app_state.add_request(request.clone());
     let app_handle_clone = app_handle.clone();
@@ -192,20 +193,25 @@ pub fn cancel_upload(
 #[tauri::command]
 pub async fn copy_upload_link(
     app_handle: AppHandle,
-    state: State<'_, SelectedServerState>,
+    uploads_state: State<'_, UploadsState>,
     upload_id: String,
 ) -> Result<(), String> {
-    let current_server = state.server.lock().unwrap().clone();
-    let link = format!("{}/u/{}", current_server.url, upload_id);
+    let upload = uploads_state.get_request(upload_id.clone());
+    if upload.is_none() {
+        warn!("upload with id {} not found", upload_id);
+        return Err(t!("errors.upload.not_found").to_string());
+    }
 
-    let result = app_handle.clipboard().write_text(link);
+    let upload = upload.unwrap();
+    let upload = upload.upload;
+    let result = app_handle.clipboard().write_text(upload.url);
     if let Err(error) = result {
         warn!(
             "failed to copy link to the clipboard for upload id {}: {}",
             upload_id,
             error.to_string()
         );
-        return Err(format!("failed copy to clipboard: {}", error.to_string()));
+        return Err(t!("errors.upload.copy_link").to_string());
     }
 
     Ok(())

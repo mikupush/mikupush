@@ -11,6 +11,9 @@ notifications:
       body: An error occurred while uploading the file %{name}
 
 errors:
+  upload:
+    copy_link: An unexpected error occurred while copying the link
+    not_found: Upload not found
   file_system:
     server_icon_access: An unexpected error occurred while accessing the server icons on application data directory
   database:

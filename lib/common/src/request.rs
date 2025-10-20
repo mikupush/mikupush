@@ -17,6 +17,7 @@ use mimetype_detector::detect_file;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::progress::Progress;
+use crate::Server;
 use crate::upload::Upload;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,11 +38,11 @@ pub struct UploadRequest {
 }
 
 impl UploadRequest {
-    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String) -> Self {
+    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String, server: Server) -> Self {
         Self {
             progress: Progress::new(size),
             error: None,
-            upload: Upload::new(id, name, size, mime_type, path, Uuid::new_v4()),
+            upload: Upload::new(id, name, size, mime_type, path, server),
             finished: false,
             canceled: false,
         }
@@ -75,7 +76,7 @@ impl UploadRequest {
         this
     }
 
-    pub fn from_file_path(path: String) -> Result<Self, String> {
+    pub fn from_file_path(path: String, server: Server) -> Result<Self, String> {
         let path = Path::new(&path);
         let file_name = path
             .file_name()
@@ -96,6 +97,7 @@ impl UploadRequest {
             size,
             mime_type,
             path.to_str().unwrap().to_string(),
+            server,
         ))
     }
 }

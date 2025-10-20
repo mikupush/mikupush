@@ -143,7 +143,11 @@ impl SelectedServerState {
         *self.server.lock().unwrap() = server;
     }
 
+    pub fn current_server(&self) -> Server {
+        self.server.lock().unwrap().clone()
+    }
+
     pub fn client(&self) -> Client {
-        Client::new(self.server.lock().unwrap().clone())
+        Client::new(self.current_server())
     }
 }
