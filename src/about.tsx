@@ -19,12 +19,9 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import MainWindow from './MainWindow.tsx'
 import '@/i18n'
-import { MemoryRouter } from 'react-router'
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
-    <MemoryRouter>
-      <MainWindow />
-    </MemoryRouter>
+    <MainWindow />
 	</StrictMode>,
 )

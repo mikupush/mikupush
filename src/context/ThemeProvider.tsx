@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 import * as React from 'react'
 import { Theme } from '@/model/config.ts'
+import { useUserTheme } from '@/hooks/use-configuration.ts'
 
 interface ThemeProviderProps {
   children: React.ReactNode
@@ -80,7 +81,9 @@ export function ThemeProvider({
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>
-      {children}
+      <UserThemeLoader>
+        {children}
+      </UserThemeLoader>
     </ThemeProviderContext.Provider>
   )
 }
@@ -92,4 +95,14 @@ export const useTheme = () => {
     throw new Error('useTheme must be used within a ThemeProvider')
 
   return context
+}
+
+function UserThemeLoader({ children }: { children: ReactNode}) {
+  const { currentTheme } = useUserTheme()
+
+  useEffect(() => {
+    currentTheme()
+  }, [currentTheme])
+
+  return children
 }

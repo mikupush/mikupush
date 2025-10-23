@@ -23,8 +23,6 @@ import { listen } from '@tauri-apps/api/event'
 import { ThemeProvider } from '@/context/ThemeProvider.tsx'
 import { fetchCurrentUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
-import { useUserTheme } from '@/hooks/use-configuration.ts'
-import { ReactNode, useEffect } from 'react'
 import { ServerProvider } from '@/context/ServerProvider.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
@@ -52,36 +50,24 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
 
 fetchCurrentUploads()
 
-function UserThemeLoader({ children }: { children: ReactNode}) {
-  const { currentTheme } = useUserTheme()
-
-  useEffect(() => {
-    currentTheme()
-  }, [currentTheme])
-
-  return children
-}
-
-function App() {
+function MainWindow() {
   return (
     <ThemeProvider>
       <ServerProvider>
-        <UserThemeLoader>
-          <Router />
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              style: {
-                background: 'var(--background)',
-                color: 'var(--foreground)',
-                border: '1px solid var(--border)',
-              }
-            }}
-          />
-        </UserThemeLoader>
+        <Router />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'var(--background)',
+              color: 'var(--foreground)',
+              border: '1px solid var(--border)',
+            }
+          }}
+        />
       </ServerProvider>
     </ThemeProvider>
   )
 }
 
-export default App
+export default MainWindow
