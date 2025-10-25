@@ -17,11 +17,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import MainWindow from './MainWindow.tsx'
 import '@/i18n'
+import AboutWindow from '@/AboutWindow.tsx'
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
-    <MainWindow />
+    <AboutWindow />
 	</StrictMode>,
 )

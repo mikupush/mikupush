@@ -78,7 +78,8 @@ pub fn initialize_about_window(app: &AppHandle) -> Result<(), String> {
     debug!("attempting to create {} window", ABOUT_WINDOW);
     let win_builder = WebviewWindowBuilder::new(app, ABOUT_WINDOW, WebviewUrl::App("about.html".into()))
         .title(ABOUT_WINDOW_TITLE)
-        .inner_size(800.0, 600.0);
+        .inner_size(800.0, 600.0)
+        .min_inner_size(480.0, 600.0);
 
     if let Err(err) = win_builder.build() {
         warn!("error creating {} window: {}", ABOUT_WINDOW, err);

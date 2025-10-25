@@ -5,6 +5,15 @@
       "save": "Save"
     }
   },
+  "about": {
+    "version": "Version {{version}}",
+    "copyright": "Copyright © 2025 Miku Push! Team",
+    "licensed": "Licensed under The GNU General Public License v3.0",
+    "hatsune_miku_copyright": "The mascot of Miku Push! is Hatsune Miku, a character created by\nCrypton Future Media, INC. © Crypton Future Media, INC. 2007.",
+    "not_affiliated": "This project is not affiliated with or endorsed by Crypton Future Media, INC.",
+    "why_hatsune_miku": "We chose Hatsune Miku as the mascot of Miku Push! simply because we appreciate her, we love her music, and because she’s very cute.",
+    "see_third_party_licenses": "See license and all third-party licenses"
+  },
   "uploads": {
     "empty_state": "Looks like you haven't shared any files yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select a file to get started.",
     "select_file": "Select a file",

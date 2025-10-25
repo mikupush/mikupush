@@ -14,27 +14,45 @@
  * limitations under the License.
  */
 
-import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/context/ThemeProvider.tsx'
-import Router from '@/router.tsx'
-import { ServerProvider } from '@/context/ServerProvider.tsx'
+import appIcon from '@/assets/app-icon.svg'
+import { getName, getVersion } from '@tauri-apps/api/app'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Large, Heading2, Paragraph } from '@/components/Typography.tsx'
+import { Button } from '@/components/ui/button.tsx'
 
 function AboutWindow() {
+  const [appName, setAppName] = useState('')
+  const [appVersion, setAppVersion] = useState('')
+  const { t } = useTranslation()
+
+  useEffect(() => {
+    getName().then(name => setAppName(name))
+    getVersion().then(version => setAppVersion(version))
+  }, [])
+
   return (
     <ThemeProvider>
-      <ServerProvider>
-        <Router />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: 'var(--background)',
-              color: 'var(--foreground)',
-              border: '1px solid var(--border)',
-            }
-          }}
-        />
-      </ServerProvider>
+      <div className="py-6 px-20 space-y-6 overflow-auto">
+        <div className="flex w-full place-content-center">
+          <img src={appIcon} alt="logo" className="h-16" />
+        </div>
+        <div className="space-y-2">
+          <Heading2 as="h1" className="text-center py-0 border-none">{appName}</Heading2>
+          <Large className="text-center">{t('about.version', { version: appVersion })}</Large>
+          <Large className="text-center">{t('about.copyright')}</Large>
+          <Large className="text-center">{t('about.licensed')}</Large>
+        </div>
+        <div>
+          <Paragraph className="text-center">{t('about.hatsune_miku_copyright')}</Paragraph>
+          <Paragraph className="text-center">{t('about.not_affiliated')}</Paragraph>
+          <Paragraph className="text-center">{t('about.why_hatsune_miku')}</Paragraph>
+        </div>
+        <div className="flex justify-center">
+          <Button asChild><a href="#">{t('about.see_third_party_licenses')}</a></Button>
+        </div>
+      </div>
     </ThemeProvider>
   )
 }

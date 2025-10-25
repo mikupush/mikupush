@@ -40,8 +40,6 @@ use tokio::runtime::Runtime;
 use tokio::time::sleep;
 use crate::menu::setup_app_menu;
 
-pub const APP_NAME: &str = "Miku Push!";
-
 pub struct AppContext {
     pub db_connection: OnceLock<DbPool>,
 }
