@@ -1,0 +1,96 @@
+use log::{debug, warn};
+use rust_i18n::t;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+
+pub const MAIN_WINDOW_TITLE: &'static str = "Miku Push!";
+pub const ABOUT_WINDOW_TITLE: &'static str = "About Miku Push!";
+pub const MAIN_WINDOW: &'static str = "main";
+pub const ABOUT_WINDOW: &'static str = "about";
+
+pub fn initialize_main_window(app: &AppHandle) {
+    let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
+        .title(MAIN_WINDOW_TITLE)
+        .inner_size(800.0, 600.0);
+
+    #[cfg(target_os = "windows")]
+    {
+        let window = win_builder.build().unwrap();
+        window.set_decorations(false).unwrap();
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::rc::Retained;
+        use objc2_app_kit::{NSWindow, NSWindowTitleVisibility, NSWindowToolbarStyle};
+        use tauri::TitleBarStyle;
+
+        let window = win_builder.build().unwrap();
+        let ns_window_ptr = window.ns_window().unwrap();
+        let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
+        let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
+
+        window.set_title_bar_style(TitleBarStyle::Overlay).unwrap();
+
+        unsafe {
+            use objc2::{MainThreadMarker, MainThreadOnly};
+            use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
+            use objc2_foundation::NSString;
+
+            let toolbar_id = NSString::from_str("MainToolbar");
+            let mtm = MainThreadMarker::new().expect("must be on the main thread");
+            let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
+
+            ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+            ns_window.setToolbar(Some(&toolbar));
+            ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
+            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = win_builder.build().unwrap();
+    }
+}
+
+pub fn restore_main_window(app: &AppHandle) {
+    debug!("attempting to restore {} window", MAIN_WINDOW);
+
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+
+    let mut window = app.get_webview_window(MAIN_WINDOW);
+
+    if window.is_none() {
+        debug!("creating a new {} window instance because it was closed", MAIN_WINDOW);
+        initialize_main_window(app);
+        window = app.get_webview_window(MAIN_WINDOW);
+    }
+
+    if let Some(window) = window {
+        debug!("restoring {} window instance", MAIN_WINDOW);
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+pub fn initialize_about_window(app: &AppHandle) -> Result<(), String> {
+    debug!("attempting to create {} window", ABOUT_WINDOW);
+    let win_builder = WebviewWindowBuilder::new(app, ABOUT_WINDOW, WebviewUrl::App("about.html".into()))
+        .title(ABOUT_WINDOW_TITLE)
+        .inner_size(800.0, 600.0);
+
+    if let Err(err) = win_builder.build() {
+        warn!("error creating {} window: {}", ABOUT_WINDOW, err);
+        return Err(t!("errors.window.open_about").to_string());
+    }
+
+    debug!("{} window created", ABOUT_WINDOW);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_about_window(app_handle: AppHandle) -> Result<(), String> {
+    initialize_about_window(&app_handle)?;
+    Ok(())
+}

@@ -18,9 +18,16 @@ mod state;
 mod config;
 mod resources;
 mod server;
+mod window;
+mod menu;
 
+use crate::resources::unpack_resources;
+use crate::server::initialize_current_server_state;
+use crate::window::{initialize_main_window, restore_main_window, MAIN_WINDOW};
 use log::{debug, warn};
+use mikupush_database::{create_database_connection, DbPool};
 use state::{SelectedServerState, UploadsState};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
@@ -31,18 +38,15 @@ use tauri::{App, AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindo
 use tauri_plugin_fs::FsExt;
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
-use mikupush_database::{create_database_connection, DbPool};
-use crate::resources::unpack_resources;
-use crate::server::initialize_current_server_state;
+use crate::menu::setup_app_menu;
+
+pub const APP_NAME: &str = "Miku Push!";
 
 pub struct AppContext {
     pub db_connection: OnceLock<DbPool>,
 }
 
 type GenericResult<T> = Result<T, Box<dyn std::error::Error>>;
-
-const MAIN_WINDOW_TITLE: &'static str = "MikuPush!";
-const MAIN_WINDOW: &'static str = "main";
 
 rust_i18n::i18n!("i18n", fallback = "en");
 
@@ -122,7 +126,8 @@ pub fn run() {
             server::get_server_by_url,
             server::get_server_by_id,
             server::create_server,
-            resources::server_icon_url
+            resources::server_icon_url,
+            window::open_about_window
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
@@ -149,6 +154,7 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
+    setup_app_menu(app.app_handle())?;
     unpack_resources(app.app_handle())?;
     let db = setup_app_database_connection(app);
     let app_context = app.state::<AppContext>();
@@ -171,73 +177,6 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         .build(app)?;
 
     Ok(())
-}
-
-fn initialize_main_window(app: &AppHandle) {
-    let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
-        .title(MAIN_WINDOW_TITLE)
-        .inner_size(800.0, 600.0);
-
-    #[cfg(target_os = "windows")]
-    {
-        let window = win_builder.build().unwrap();
-        window.set_decorations(false).unwrap();
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        use objc2::rc::Retained;
-        use objc2_app_kit::{NSWindow, NSWindowTitleVisibility, NSWindowToolbarStyle};
-        use tauri::TitleBarStyle;
-
-        let window = win_builder.build().unwrap();
-        let ns_window_ptr = window.ns_window().unwrap();
-        let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
-        let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
-
-        window.set_title_bar_style(TitleBarStyle::Overlay).unwrap();
-
-        unsafe {
-            use objc2::{MainThreadMarker, MainThreadOnly};
-            use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
-            use objc2_foundation::NSString;
-
-            let toolbar_id = NSString::from_str("MainToolbar");
-            let mtm = MainThreadMarker::new().expect("must be on the main thread");
-            let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
-
-            ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
-            ns_window.setToolbar(Some(&toolbar));
-            ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
-            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let _ = win_builder.build().unwrap();
-    }
-}
-
-fn restore_main_window(app: &AppHandle) {
-    debug!("attempting to restore {} window", MAIN_WINDOW);
-
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-
-    let mut window = app.get_webview_window(MAIN_WINDOW);
-
-    if window.is_none() {
-        debug!("creating a new {} window instance because it was closed", MAIN_WINDOW);
-        initialize_main_window(app);
-        window = app.get_webview_window(MAIN_WINDOW);
-    }
-
-    if let Some(window) = window {
-        debug!("restoring {} window instance", MAIN_WINDOW);
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
 }
 
 fn setup_tray_menu(app: &App) -> Menu<Wry> {
