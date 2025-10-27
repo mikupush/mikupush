@@ -6,6 +6,12 @@
   "permissions": [
     "core:default",
     "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "file://*/THIRD_PARTY_LICENSES.html" }
+      ]
+    },
     "dialog:default",
     "core:window:default",
     "core:window:allow-start-dragging",

@@ -17,10 +17,12 @@ use std::path::PathBuf;
 use log::{debug, warn};
 use rust_i18n::t;
 use tauri::{AppHandle, Manager};
+use tauri::utils::platform::resource_dir;
 use mikupush_common::encode_image_base64;
 
 pub enum ResourceType {
-    ServerIcon
+    ServerIcon,
+    Document
 }
 
 impl ResourceType {
@@ -33,31 +35,49 @@ impl ResourceType {
         };
 
         Ok(match self {
-            Self::ServerIcon => app_data_dir.join("server-icon")
+            Self::ServerIcon => app_data_dir.join("server-icon"),
+            Self::Document => app_data_dir
         })
     }
 }
 
 pub enum Resource {
-    MikupushSvg
+    MikupushSvg,
+    ThirdPartyLicenses
 }
 
 impl Resource {
     pub fn file_name(&self) -> String {
         match self {
-            Self::MikupushSvg => "mikupush.svg".to_string()
+            Self::MikupushSvg => "mikupush.svg".to_string(),
+            Self::ThirdPartyLicenses => "THIRD_PARTY_LICENSES.html".to_string()
         }
     }
 
     pub fn bytes(&self) -> Vec<u8> {
         match self {
-            Self::MikupushSvg => include_bytes!("../assets/mikupush.svg").to_vec()
+            Self::MikupushSvg => include_bytes!("../assets/mikupush.svg").to_vec(),
+            Self::ThirdPartyLicenses => include_bytes!("../assets/THIRD_PARTY_LICENSES.html").to_vec()
         }
     }
 
     pub fn resource_type(&self) -> ResourceType {
         match self {
-            Self::MikupushSvg => ResourceType::ServerIcon
+            Self::MikupushSvg => ResourceType::ServerIcon,
+            Self::ThirdPartyLicenses => ResourceType::Document
+        }
+    }
+
+    pub fn path(&self, app_handle: &AppHandle) -> Result<PathBuf, String> {
+        let dir = self.resource_type().dir_path(app_handle)?;
+        Ok(dir.join(self.file_name()))
+    }
+
+    pub fn from_string(string: String) -> Option<Self> {
+        match string.to_lowercase().as_str() {
+            "mikupush_svg" => Some(Self::MikupushSvg),
+            "third_party_licenses" => Some(Self::ThirdPartyLicenses),
+            _ => None
         }
     }
 }
@@ -70,7 +90,12 @@ pub fn unpack_resource(app_handle: &AppHandle, resource: Resource) -> Result<(),
             .map_err(|err| format!("failed to create resource dir: {}", err))?;
     }
 
-    let file_path = resource_dir.join(resource.file_name());
+    let file_path = resource.path(app_handle)?;
+    if file_path.exists() {
+        debug!("resource file already unpacked: {}", file_path.display());
+        return Ok(());
+    }
+
     std::fs::write(file_path, resource.bytes())
         .map_err(|err| format!("failed to write resource: {}", err))?;
     Ok(())
@@ -78,6 +103,7 @@ pub fn unpack_resource(app_handle: &AppHandle, resource: Resource) -> Result<(),
 
 pub fn unpack_resources(app_handle: &AppHandle) -> Result<(), String> {
     unpack_resource(app_handle, Resource::MikupushSvg)?;
+    unpack_resource(app_handle, Resource::ThirdPartyLicenses)?;
     Ok(())
 }
 
@@ -101,4 +127,22 @@ pub fn server_icon_url(app_handle: AppHandle, icon: String) -> Result<String, St
     })?;
 
     Ok(base64)
+}
+
+#[tauri::command]
+pub fn resource_path(app_handle: AppHandle, resource: String) -> Result<String, String> {
+    match Resource::from_string(resource.clone()) {
+        Some(resource) => {
+            let resource_dir = resource.path(&app_handle).map_err(|err| {
+                warn!("unable to get resource directory path: {}", err);
+                t!("errors.resource.path_not_resolved").to_string()
+            })?;
+
+            Ok(resource_dir.to_string_lossy().to_string())
+        },
+        None => {
+            warn!("invalid resource: {}", resource);
+            Err(t!("errors.resource.not_found").to_string())
+        }
+    }
 }

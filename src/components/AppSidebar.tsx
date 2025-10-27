@@ -22,11 +22,13 @@ import {
   SidebarHeader,
   SidebarMenu,
 } from '@/components/ui/sidebar.tsx'
-import { ArchiveIcon, SettingsIcon, UploadIcon } from 'lucide-react'
+import { ArchiveIcon, InfoIcon, SettingsIcon, UploadIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SelectedServerSidebarMenu } from '@/components/SelectedServer.tsx'
 import { platform } from '@tauri-apps/plugin-os'
 import SidebarLinkMenuItem from '@/components/SidebarLinkMenuItem.tsx'
+import SidebarButtonMenuItem from '@/components/SidebarButtonMenuItem.tsx'
+import { openAboutWindow } from '@/helpers/open.ts'
 
 export default function AppSidebar() {
   const { t } = useTranslation()
@@ -53,6 +55,10 @@ export default function AppSidebar() {
       <SidebarFooter>
         <SidebarGroup>
           <SidebarMenu>
+            <SidebarButtonMenuItem onClick={() => openAboutWindow()}>
+              <InfoIcon />
+              <span>{t('sidebar.about')}</span>
+            </SidebarButtonMenuItem>
             <SidebarLinkMenuItem to="/settings">
               <SettingsIcon />
               <span>{t('sidebar.settings')}</span>

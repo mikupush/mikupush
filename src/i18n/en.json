@@ -37,6 +37,7 @@
   "sidebar": {
     "uploads": "Now uploading",
     "archived_uploads": "Archived uploads",
+    "about": "About",
     "settings": "Settings"
   },
   "settings": {
@@ -87,6 +88,9 @@
     },
     "server": {
       "not_available": "There is no server available to upload files. Please check your server configuration."
+    },
+    "about": {
+      "third_party_licenses_open": "Failed to open the third-party licenses file"
     },
     "unknown": "An unknown error occurred."
   },

@@ -76,6 +76,14 @@ pub fn restore_main_window(app: &AppHandle) {
 
 pub fn initialize_about_window(app: &AppHandle) -> Result<(), String> {
     debug!("attempting to create {} window", ABOUT_WINDOW);
+    let window = app.get_webview_window(ABOUT_WINDOW);
+    if let Some(window) = window {
+        let _ = window.show();
+        let _ = window.set_focus();
+        debug!("{} window is created and visible", ABOUT_WINDOW);
+        return Ok(());
+    }
+
     let win_builder = WebviewWindowBuilder::new(app, ABOUT_WINDOW, WebviewUrl::App("about.html".into()))
         .title(ABOUT_WINDOW_TITLE)
         .inner_size(800.0, 600.0)

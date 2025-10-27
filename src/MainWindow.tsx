@@ -16,7 +16,6 @@
 
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { invoke } from '@tauri-apps/api/core'
-import { Toaster } from 'react-hot-toast'
 import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
 import { listen } from '@tauri-apps/api/event'
@@ -24,6 +23,7 @@ import { ThemeProvider } from '@/context/ThemeProvider.tsx'
 import { fetchCurrentUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
 import { ServerProvider } from '@/context/ServerProvider.tsx'
+import { ToastContainer } from '@/components/ToastContainer.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -55,16 +55,7 @@ function MainWindow() {
     <ThemeProvider>
       <ServerProvider>
         <Router />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: 'var(--background)',
-              color: 'var(--foreground)',
-              border: '1px solid var(--border)',
-            }
-          }}
-        />
+        <ToastContainer />
       </ServerProvider>
     </ThemeProvider>
   )

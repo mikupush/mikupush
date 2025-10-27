@@ -32,3 +32,6 @@ errors:
     get_current_server: An unexpected error occurred while getting the current server
     server_icon_not_found: Server icon not found
     server_icon_encoding: An unexpected error occurred while encoding the server icon to base64
+  resource:
+    path_not_resolved: An unexpected error occurred while resolving the resource path
+    not_found: Resource not found

@@ -35,3 +35,5 @@ dist-ssr
 
 # Sed Backups
 *.bak
+
+.cache

@@ -21,6 +21,10 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Large, Heading2, Paragraph } from '@/components/Typography.tsx'
 import { Button } from '@/components/ui/button.tsx'
+import { resourcePath } from '@/helpers/resource.ts'
+import { openUrl } from '@tauri-apps/plugin-opener'
+import toast from 'react-hot-toast'
+import { ToastContainer } from '@/components/ToastContainer.tsx'
 
 function AboutWindow() {
   const [appName, setAppName] = useState('')
@@ -31,6 +35,17 @@ function AboutWindow() {
     getName().then(name => setAppName(name))
     getVersion().then(version => setAppVersion(version))
   }, [])
+
+  const openThirdPartyLicenses = async () => {
+    try {
+      const path = await resourcePath('third_party_licenses')
+      const url = encodeURI(`file://${path}`)
+      await openUrl(url)
+    } catch (error) {
+      console.error('Error opening third-party licenses file:', error)
+      toast.error(t('errors.about.third_party_licenses_open'))
+    }
+  }
 
   return (
     <ThemeProvider>
@@ -50,9 +65,10 @@ function AboutWindow() {
           <Paragraph className="text-center">{t('about.why_hatsune_miku')}</Paragraph>
         </div>
         <div className="flex justify-center">
-          <Button asChild><a href="#">{t('about.see_third_party_licenses')}</a></Button>
+          <Button onClick={openThirdPartyLicenses}>{t('about.see_third_party_licenses')}</Button>
         </div>
       </div>
+      <ToastContainer />
     </ThemeProvider>
   )
 }
