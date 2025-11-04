@@ -78,6 +78,14 @@ impl UploadRequest {
         this
     }
 
+    pub fn reset_progress(&self) -> Self {
+        let mut this = self.clone();
+        this.progress = Progress::new(this.upload.size);
+        this.finished = false;
+        this.error = None;
+        this
+    }
+
     pub fn from_file_path(path: String, server: Server) -> Result<Self, String> {
         let path = Path::new(&path);
         let file_name = path

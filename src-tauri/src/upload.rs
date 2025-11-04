@@ -120,33 +120,43 @@ pub async fn enqueue_many_uploads(
 pub async fn retry_upload(
     window: Window,
     app_handle: AppHandle,
-    app_state: State<'_, UploadsState>,
+    uploads_state: State<'_, UploadsState>,
     server_state: State<'_, SelectedServerState>,
     upload_id: String,
 ) -> Result<(), String> {
     debug!("retrying upload with id {}", upload_id);
 
     let client = server_state.client();
-    let upload_request = app_state.get_request(upload_id.clone());
+    let upload_request = uploads_state.get_request(upload_id.clone());
     if let None = upload_request {
         warn!("can't retry upload request with id {}: not found", upload_id);
         return Ok(());
     }
 
     let upload_request = upload_request.unwrap();
+    update_upload_request_state(
+        &window,
+        app_handle.clone(),
+        upload_request.reset_progress()
+    );
 
     tauri::async_runtime::spawn(async move {
         let info = client.info(upload_request.upload.id).await;
         if let Err(error) = info.clone() {
             if error.code() != FILE_INFO_ERROR_NOT_EXISTS {
                 debug!("error retrieving file info during upload retry: {}", error);
+                update_upload_request_state(
+                    &window,
+                    app_handle.clone(),
+                    upload_request.finish_with_error(error.code(), error.to_string())
+                );
                 return;
             }
 
             debug!("upload with id {} is not registered, registering again", upload_request.upload.id);
             if let Err(error) = client.create(&upload_request.clone().upload).await {
                 warn!("error registering file {:?}", error);
-                handle_upload_failed(window.clone(), app_handle, error.into(), upload_id);
+                handle_upload_failed(window.clone(), app_handle, error, upload_id);
                 return;
             }
         }
@@ -363,4 +373,14 @@ fn show_notification(app_handle: AppHandle, title: String, body: String) {
     if let Err(error) = result {
         warn!("failed to show notification: {}", error.to_string());
     }
+}
+
+fn update_upload_request_state(
+    window: &Window,
+    app_handle: AppHandle,
+    upload_request: UploadRequest
+) {
+    let state = app_handle.state::<UploadsState>();
+    state.update_request(upload_request.clone());
+    emit_uploads_changed(&window, state.get_all_in_progress());
 }
