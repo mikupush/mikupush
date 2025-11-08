@@ -27,3 +27,4 @@ chrono = { version = "0.4", features = ["serde"] }
 log = "0.4.27"
 bytes = "1.10.1"
 mikupush_common = { path = "../common" }
+futures-core = "0.3.31"

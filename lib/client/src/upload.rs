@@ -17,13 +17,14 @@
 use crate::progress::ProgressTrack;
 use crate::response::ErrorResponse;
 use crate::FileUploadError;
-use async_stream::__private::AsyncStream;
 use bytes::Bytes;
+use futures_core::Stream;
 use log::debug;
 use mikupush_common::Upload;
 use std::cmp::min;
-use std::future::Future;
 use std::io::Result as IoResult;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::select;
@@ -31,14 +32,12 @@ use tokio::sync::watch;
 use tokio::sync::watch::Receiver;
 use tokio::sync::watch::Sender;
 use tokio::task::JoinHandle;
-use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct UploadStream {
-    path: String,
     upload_id: String,
     total_size: u64,
     uploaded_bytes: u64,
@@ -47,6 +46,7 @@ pub struct UploadStream {
     progress_sender: Sender<ProgressTrack>,
     progress: ProgressTrack,
     last_measured_rate: Instant,
+    reader_stream: ReaderStream<File>
 }
 
 impl UploadStream {
@@ -60,7 +60,6 @@ impl UploadStream {
         progress_sender: Sender<ProgressTrack>,
     ) -> Result<Self, std::io::Error> {
         Ok(Self {
-            path,
             upload_id: upload_id.to_string(),
             total_size,
             uploaded_bytes: 0,
@@ -68,11 +67,12 @@ impl UploadStream {
             progress_sender,
             progress,
             last_measured_rate: Instant::now(),
-            stop_token
+            stop_token,
+            reader_stream: ReaderStream::new(File::open(path).await?)
         })
     }
 
-    async fn emit_progress(&mut self, chunk: &IoResult<Bytes>) {
+    fn emit_progress(&mut self, chunk: &IoResult<Bytes>) {
         if let Ok(chunk) = chunk {
             self.uploaded_bytes = min(self.uploaded_bytes + (chunk.len() as u64), self.total_size);
             let elapsed = self.last_measured_rate.elapsed();
@@ -85,43 +85,47 @@ impl UploadStream {
 
             #[cfg(test)]
             {
-                tokio::time::sleep(Duration::from_millis(5)).await;
+                std::thread::sleep(Duration::from_millis(5));
             }
         }
     }
+}
 
-    pub async fn to_async_stream(&self) -> Result<AsyncStream<IoResult<Bytes>, impl Future<Output=()>>, std::io::Error> {
-        let mut upload_stream = self.clone();
-        let mut reader = ReaderStream::new(File::open(self.path.clone()).await?);
+impl Stream for UploadStream {
+    type Item = IoResult<Bytes>;
 
-        Ok(async_stream::stream! {
-            while let Some(chunk) = reader.next().await {
-                if upload_stream.stop_token.is_cancelled() {
-                    debug!("upload stopped because maybe server returned an error for id: {}", upload_stream.upload_id);
-                    break;
-                }
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.stop_token.is_cancelled() {
+            debug!("upload stopped because maybe server returned an error for id: {}", self.upload_id);
+            return Poll::Ready(None);
+        }
 
-                if upload_stream.cancellation_token.is_cancelled() {
-                    debug!("upload canceled for: {}", upload_stream.upload_id);
-                    break;
-                }
+        if self.cancellation_token.is_cancelled() {
+            debug!("upload canceled for: {}", self.upload_id);
+            return Poll::Ready(None);
+        }
 
-                upload_stream.emit_progress(&chunk).await;
-                yield chunk;
-            }
-        })
+        match Pin::new(&mut self.reader_stream).poll_next(cx) {
+            Poll::Ready(Some(chunk)) => {
+                self.emit_progress(&chunk);
+                Poll::Ready(Some(chunk))
+            },
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct UploadTask {
     url: String,
-    stream: UploadStream,
+    progress_sender: Sender<ProgressTrack>,
     pub progress_receiver: Receiver<ProgressTrack>,
     pub cancellation_token: CancellationToken,
     stop_token: CancellationToken,
     client: reqwest::Client,
     upload: Upload,
+    progress: ProgressTrack
 }
 
 impl UploadTask {
@@ -139,29 +143,32 @@ impl UploadTask {
             progress_receiver
         ) = watch::channel(progress.clone());
 
-        let stream = UploadStream::new(
-            upload.path.clone(),
-            upload.id.clone(),
-            cancellation_token.clone(),
-            stop_token.clone(),
-            upload.size,
-            progress,
-            progress_sender,
-        ).await?;
-
         Ok(Self {
             url,
-            stream,
+            progress_sender,
             progress_receiver,
             cancellation_token,
             client,
             upload,
             stop_token,
+            progress
         })
     }
 
+    async fn create_stream(&self) -> Result<UploadStream, std::io::Error>  {
+         UploadStream::new(
+             self.upload.path.clone(),
+             self.upload.id.clone(),
+             self.cancellation_token.clone(),
+             self.stop_token.clone(),
+             self.upload.size,
+             self.progress,
+             self.progress_sender.clone(),
+        ).await
+    }
+
     async fn perform_upload(&self) -> Result<(), FileUploadError> {
-        let stream = self.stream.to_async_stream().await
+        let stream = self.create_stream().await
             .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
         let body = reqwest::Body::wrap_stream(stream);
         let send_future = self.client

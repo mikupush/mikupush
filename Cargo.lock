@@ -3035,6 +3035,7 @@ dependencies = [
  "async-stream",
  "bytes",
  "chrono",
+ "futures-core",
  "log",
  "mikupush_common",
  "reqwest 0.11.27",
