@@ -24,7 +24,7 @@ import AppTitleBar from '@/components/AppTitleBar.tsx'
 export default function DefaultLayout() {
   return (
     <>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <AppSidebar />
         <SidebarInset>
           <div className="layout">
