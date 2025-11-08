@@ -175,7 +175,7 @@ function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
     <li className="flex py-3 px-5">
       <FileIcon extension={extractExtension(item.upload.name)}/>
       <div className="flex flex-1 flex-col mx-3">
-        <Large className="line-clamp-1">{item.upload.name}</Large>
+        <Large className="line-clamp-1 break-all">{item.upload.name}</Large>
         {body}
       </div>
       <div className="flex items-center space-x-3">

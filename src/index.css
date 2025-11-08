@@ -92,8 +92,12 @@
   -webkit-user-select: none;
 }
 
-p, span, h1, h2, h3, h4, small {
+p, span, h1, h2, h3, h4, small, div {
   cursor: default;
+}
+
+a span {
+  cursor: inherit;
 }
 
 html, body {
@@ -114,6 +118,7 @@ html, body {
   flex: 1;
   flex-direction: column;
   overflow: hidden;
+  width: 100%;
 }
 
 .content {
