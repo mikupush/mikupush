@@ -248,9 +248,9 @@ async fn upload_file(
     debug!("launching file upload for upload with id {}", upload_id);
     let task = client.upload(&request).await?;
 
-    state.add_cancellation_token(upload_id.clone(), task.cancellation_token.clone());
+    state.add_cancellation_token(upload_id.clone(), task.get_cancellation_token());
 
-    let mut progress_receiver = task.progress_receiver.clone();
+    let mut progress_receiver = task.get_progress_receiver();
     let app_handle_clone = app_handle.clone();
     let upload_id_clone = upload_id.clone();
     let handle = task.start();

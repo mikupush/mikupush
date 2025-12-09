@@ -14,15 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use mikupush_common::Server;
-use crate::upload::UploadTask;
+use crate::error::{FileDeleteError, FileUploadError};
+use crate::response::{ErrorResponse, FileInfo, HealthCheckStatus};
+use crate::upload::SingleUploadTask;
+use crate::{ChunkedUploadTask, FileInfoError, HealthCheckError, UploadTask};
+use futures_core::future::BoxFuture;
 use log::debug;
+use mikupush_common::Server;
 use mikupush_common::{Upload, UploadRequest};
 use serde_json::{json, Value};
+use tokio::fs::File;
 use uuid::Uuid;
-use crate::error::{FileDeleteError, FileUploadError};
-use crate::{FileInfoError, HealthCheckError};
-use crate::response::{ErrorResponse, FileInfo, HealthCheckStatus};
+
+const SINGLE_UPLOAD_MAX_SIZE_BYTES: u64 = 20971520; // 20MB
 
 pub struct Client {
     base_url: String,
@@ -105,16 +109,25 @@ impl Client {
         Ok(())
     }
 
-    pub async fn upload(&self, request: &UploadRequest) -> Result<UploadTask, FileUploadError> {
+    pub async fn upload(&self, request: &UploadRequest) -> Result<Box<dyn UploadTask + Send + Sync>, FileUploadError> {
         if request.upload.mime_type.is_empty() {
             return Err(FileUploadError::UnknownMimeType);
         }
 
         let client = self.client.clone();
-        let url = format!("{}/api/file/{}/upload", self.base_url, request.upload.id);
+        let size = request.upload.size;
 
-        UploadTask::new(url, request.upload.clone(), client).await
-            .map_err(|err| FileUploadError::ClientError { message: err.to_string() })
+        if size < SINGLE_UPLOAD_MAX_SIZE_BYTES {
+            debug!("uploading file {} with size {} as single upload", request.upload.id, size);
+            let task = SingleUploadTask::new(self.base_url.clone(), request.upload.clone(), client).await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+            Ok(Box::new(task))
+        } else {
+            debug!("uploading file {} with size {} as chunked upload", request.upload.id, size);
+            let task = ChunkedUploadTask::new(self.base_url.clone(), request.upload.clone(), client).await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+            Ok(Box::new(task))
+        }
     }
 
     pub async fn check_health(&self) -> Result<HealthCheckStatus, HealthCheckError> {

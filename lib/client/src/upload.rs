@@ -27,11 +27,13 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use tokio::select;
 use tokio::sync::watch;
 use tokio::sync::watch::Receiver;
 use tokio::sync::watch::Sender;
 use tokio::task::JoinHandle;
+use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -116,21 +118,27 @@ impl Stream for UploadStream {
     }
 }
 
+pub trait UploadTask {
+    fn get_progress_receiver(&self) -> Receiver<ProgressTrack>;
+    fn get_cancellation_token(&self) -> CancellationToken;
+    fn start(&self) -> JoinHandle<Result<(), FileUploadError>>;
+}
+
 #[derive(Debug, Clone)]
-pub struct UploadTask {
-    url: String,
+pub struct SingleUploadTask {
+    base_url: String,
     progress_sender: Sender<ProgressTrack>,
-    pub progress_receiver: Receiver<ProgressTrack>,
-    pub cancellation_token: CancellationToken,
+    progress_receiver: Receiver<ProgressTrack>,
+    cancellation_token: CancellationToken,
     stop_token: CancellationToken,
     client: reqwest::Client,
     upload: Upload,
     progress: ProgressTrack
 }
 
-impl UploadTask {
+impl SingleUploadTask {
     pub async fn new (
-        url: String,
+        base_url: String,
         upload: Upload,
         client: reqwest::Client,
     ) -> Result<Self, std::io::Error> {
@@ -144,7 +152,7 @@ impl UploadTask {
         ) = watch::channel(progress.clone());
 
         Ok(Self {
-            url,
+            base_url,
             progress_sender,
             progress_receiver,
             cancellation_token,
@@ -171,8 +179,9 @@ impl UploadTask {
         let stream = self.create_stream().await
             .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
         let body = reqwest::Body::wrap_stream(stream);
+        let url = format!("{}/api/file/{}/upload", self.base_url, self.upload.id);
         let send_future = self.client
-            .post(&self.url)
+            .post(&url)
             .header("Content-Type", &self.upload.mime_type)
             .header("Content-Length", self.upload.size)
             .body(body)
@@ -187,13 +196,126 @@ impl UploadTask {
             }
         };
         let status = response.status().clone();
-        debug!("POST {}: {}",  self.url, status);
+        debug!("POST {}: {}", url, status);
 
         if status != 200 {
             self.stop_token.cancel();
             let response_body = response.text().await
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
-            debug!("POST {}: {} - {} (after stop file content stream)",  self.url, status, response_body);
+            debug!("POST {}: {} - {} (after stop file content stream)",  url, status, response_body);
+            let error_response = ErrorResponse::from_string(response_body)
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+            return Err(error_response.into());
+        }
+
+        Ok(())
+    }
+}
+
+impl UploadTask for SingleUploadTask {
+    fn get_progress_receiver(&self) -> Receiver<ProgressTrack> {
+        self.progress_receiver.clone()
+    }
+
+    fn get_cancellation_token(&self) -> CancellationToken {
+        self.cancellation_token.clone()
+    }
+
+    fn start(&self) -> JoinHandle<Result<(), FileUploadError>> {
+        let task = self.clone();
+
+        tokio::spawn(async move {
+            task.perform_upload().await
+        })
+    }
+}
+
+const FILE_UPLOAD_CHUNK_SIZE: usize = 10485760; // 10MB
+
+#[derive(Debug, Clone)]
+pub struct ChunkedUploadTask {
+    base_url: String,
+    progress_sender: Sender<ProgressTrack>,
+    progress_receiver: Receiver<ProgressTrack>,
+    cancellation_token: CancellationToken,
+    progress: ProgressTrack,
+    client: reqwest::Client,
+    upload: Upload,
+    total_size: u64,
+    uploaded_bytes: u64,
+    last_measured_rate: Instant,
+}
+
+impl ChunkedUploadTask {
+    pub async fn new (
+        base_url: String,
+        upload: Upload,
+        client: reqwest::Client,
+    ) -> Result<Self, std::io::Error> {
+        let progress = ProgressTrack::new(upload.id.clone(), upload.size);
+        let cancellation_token = CancellationToken::new();
+
+        let (
+            progress_sender,
+            progress_receiver
+        ) = watch::channel(progress.clone());
+
+        Ok(Self {
+            base_url,
+            progress_sender,
+            progress_receiver,
+            cancellation_token,
+            client,
+            upload,
+            progress,
+            total_size: 0,
+            uploaded_bytes: 0,
+            last_measured_rate: Instant::now(),
+        })
+    }
+
+    fn emit_progress(&mut self, bytes_sent: u64) {
+        self.uploaded_bytes = min(self.uploaded_bytes + bytes_sent, self.upload.size);
+        let elapsed = self.last_measured_rate.elapsed();
+
+        if elapsed >= Duration::from_secs(1) {
+            let updated_progress = self.progress.update(self.uploaded_bytes);
+            let _ = self.progress_sender.send(updated_progress);
+            self.last_measured_rate = Instant::now();
+        }
+
+        #[cfg(test)]
+        {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    async fn perform_chunk_upload(&self, data: Vec<u8>, index: u64) -> Result<(), FileUploadError> {
+        debug!("uploading chunk {} for file {}", index, self.upload.id);
+        let bytes = Bytes::from(data);
+        let url = format!("{}/api/file/{}/upload/part/{}", self.base_url, self.upload.id, index);
+        let send_future = self.client
+            .post(&url)
+            .header("Content-Type", &self.upload.mime_type)
+            .header("Content-Length", self.upload.size)
+            .body(bytes)
+            .send();
+
+        let response = select! {
+            res = send_future => res.map_err(|err| {
+                FileUploadError::ClientError { message: err.to_string() }
+            })?,
+            _ = self.cancellation_token.cancelled() => {
+                return Err(FileUploadError::Canceled);
+            }
+        };
+        let status = response.status().clone();
+        debug!("POST {}: {}", url, status);
+
+        if status != 200 {
+            let response_body = response.text().await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string()})?;
+            debug!("POST {}: {} - {} (after stop file content stream)", url, status, response_body);
             let error_response = ErrorResponse::from_string(response_body)
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
             return Err(error_response.into());
@@ -202,8 +324,44 @@ impl UploadTask {
         Ok(())
     }
 
-    pub fn start(&self) -> JoinHandle<Result<(), FileUploadError>> {
-        let task = self.clone();
+    async fn perform_upload(&mut self) -> Result<(), FileUploadError> {
+        let mut file = File::open(self.upload.path.clone()).await
+            .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+        let mut buffer = [0u8; FILE_UPLOAD_CHUNK_SIZE];
+        let mut index: u64 = 0;
+
+        loop {
+            if self.cancellation_token.is_cancelled() {
+                debug!("upload canceled for: {}", self.upload.id);
+                return Ok(());
+            }
+
+            let bytes_read = file.read(&mut buffer).await
+                .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+
+            if bytes_read == 0 {
+                return Ok(())
+            }
+
+            let chunk = &buffer[..bytes_read];
+            self.perform_chunk_upload(Vec::from(chunk), index).await?;
+            self.emit_progress(bytes_read as u64);
+            index += 1;
+        }
+    }
+}
+
+impl UploadTask for ChunkedUploadTask {
+    fn get_progress_receiver(&self) -> Receiver<ProgressTrack> {
+        self.progress_receiver.clone()
+    }
+
+    fn get_cancellation_token(&self) -> CancellationToken {
+        self.cancellation_token.clone()
+    }
+
+    fn start(&self) -> JoinHandle<Result<(), FileUploadError>> {
+        let mut task = self.clone();
 
         tokio::spawn(async move {
             task.perform_upload().await
