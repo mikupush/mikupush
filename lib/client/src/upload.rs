@@ -230,7 +230,7 @@ impl UploadTask for SingleUploadTask {
     }
 }
 
-const FILE_UPLOAD_CHUNK_SIZE: usize = 10485760; // 10MB
+const FILE_UPLOAD_CHUNK_SIZE: usize = 10 * 1024 * 1024; // 10MB
 
 #[derive(Debug, Clone)]
 pub struct ChunkedUploadTask {
@@ -291,13 +291,12 @@ impl ChunkedUploadTask {
     }
 
     async fn perform_chunk_upload(&self, data: Vec<u8>, index: u64) -> Result<(), FileUploadError> {
-        debug!("uploading chunk {} for file {}", index, self.upload.id);
+        debug!("uploading chunk {} for file {} ({} bytes)", index, self.upload.id, data.len());
         let bytes = Bytes::from(data);
         let url = format!("{}/api/file/{}/upload/part/{}", self.base_url, self.upload.id, index);
         let send_future = self.client
             .post(&url)
-            .header("Content-Type", &self.upload.mime_type)
-            .header("Content-Length", self.upload.size)
+            .header("Content-Type", "application/octet-stream")
             .body(bytes)
             .send();
 
@@ -327,8 +326,10 @@ impl ChunkedUploadTask {
     async fn perform_upload(&mut self) -> Result<(), FileUploadError> {
         let mut file = File::open(self.upload.path.clone()).await
             .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
-        let mut buffer = [0u8; FILE_UPLOAD_CHUNK_SIZE];
+        let mut buffer = vec![0u8; FILE_UPLOAD_CHUNK_SIZE];
         let mut index: u64 = 0;
+
+        file.set_max_buf_size(FILE_UPLOAD_CHUNK_SIZE);
 
         loop {
             if self.cancellation_token.is_cancelled() {
@@ -340,10 +341,12 @@ impl ChunkedUploadTask {
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
 
             if bytes_read == 0 {
+                debug!("finish uploading file chunks");
                 return Ok(())
             }
 
             let chunk = &buffer[..bytes_read];
+            debug!("attempting to upload chunk of {} bytes ({} bytes read by the reader)", chunk.len(), bytes_read);
             self.perform_chunk_upload(Vec::from(chunk), index).await?;
             self.emit_progress(bytes_read as u64);
             index += 1;
