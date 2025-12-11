@@ -3,7 +3,8 @@
     "form": {
       "danger_zone": "Danger Zone",
       "save": "Save"
-    }
+    },
+    "in_development": "Coming Soon! This feature is currently in development 🚧"
   },
   "about": {
     "version": "Version {{version}}",
