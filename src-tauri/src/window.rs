@@ -65,7 +65,8 @@ pub fn initialize_main_window(app: &AppHandle) {
 
     #[cfg(target_os = "linux")]
     {
-        let _ = win_builder.build().unwrap();
+        let window = win_builder.build().unwrap();
+        let _ = window.remove_menu();
     }
 }
 
@@ -105,10 +106,15 @@ pub fn initialize_about_window(app: &AppHandle) -> Result<(), String> {
         .inner_size(800.0, 600.0)
         .min_inner_size(480.0, 600.0);
 
-    if let Err(err) = win_builder.build() {
-        warn!("error creating {} window: {}", ABOUT_WINDOW, err);
-        return Err(t!("errors.window.open_about").to_string());
-    }
+    let window = match win_builder.build() {
+        Ok(window) => window,
+        Err(err) => {
+            warn!("error creating {} window: {}", ABOUT_WINDOW, err);
+            return Err(t!("errors.window.open_about").to_string());
+        }
+    };
+
+    let _ = window.remove_menu();
 
     debug!("{} window created", ABOUT_WINDOW);
     Ok(())
@@ -116,6 +122,11 @@ pub fn initialize_about_window(app: &AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn open_about_window(app_handle: AppHandle) -> Result<(), String> {
-    initialize_about_window(&app_handle)?;
+    tauri::async_runtime::spawn(async move {
+        if let Err(err) = initialize_about_window(&app_handle) {
+            warn!("error opening about window: {}", err);
+        }
+    });
+
     Ok(())
 }
