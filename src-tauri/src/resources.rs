@@ -182,7 +182,9 @@ pub fn openable_resource_path(app_handle: AppHandle, resource: String) -> Result
         }
 
         let path = temp_path.to_string_lossy().to_string();
+        return Ok(path);
     }
 
+    #[cfg(not(target_os = "linux"))]
     Ok(path)
 }
