@@ -176,7 +176,7 @@ pub fn openable_resource_path(app_handle: AppHandle, resource: String) -> Result
             }
         };
 
-        if let Err(err) = std::fs::copy(path, &temp_path) {
+        if let Err(err) = std::fs::copy(&path, &temp_path) {
             warn!("unable to copy resource to temp dir: {}", err);
             return Err(t!("errors.resource.path_not_resolved").to_string());
         }
