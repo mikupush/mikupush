@@ -164,24 +164,31 @@ pub fn openable_resource_path(app_handle: AppHandle, resource: String) -> Result
 
     let path = resource_dir.to_string_lossy().to_string();
 
-    // On Linux we need to copy the resource to a temporary directory
+    // On Linux we need to copy the resource to user public directory
     // so sandboxed apps can access it. For example, the web browser.
     #[cfg(target_os = "linux")]
     {
-        let temp_path = match app_handle.path().temp_dir() {
-            Ok(temp_dir) => temp_dir.join(resource.file_name()),
+        let app_public_path = match app_handle.path().public_dir() {
+            Ok(path) => path.join("io.mikupush.client"),
             Err(err) => {
-                warn!("unable to get temp dir: {}", err);
+                warn!("unable to get user public dir: {}", err);
                 return Err(t!("errors.resource.path_not_resolved").to_string());
             }
         };
 
-        if let Err(err) = std::fs::copy(&path, &temp_path) {
-            warn!("unable to copy resource to temp dir: {}", err);
+        if !app_public_path.exists() && let Err(err) = std::fs::create_dir_all(&app_public_path) {
+            warn!("unable to create application public dir: {}", err);
             return Err(t!("errors.resource.path_not_resolved").to_string());
         }
 
-        let path = temp_path.to_string_lossy().to_string();
+        let public_path = app_public_path.join(resource.file_name());
+
+        if let Err(err) = std::fs::copy(&path, &public_path) {
+            warn!("unable to copy resource to public dir: {}", err);
+            return Err(t!("errors.resource.path_not_resolved").to_string());
+        }
+
+        let path = public_path.to_string_lossy().to_string();
         return Ok(path);
     }
 
