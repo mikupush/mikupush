@@ -128,6 +128,7 @@ pub fn run() {
             server::create_server,
             resources::server_icon_url,
             resources::resource_path,
+            resources::openable_resource_path,
             window::open_about_window
         ])
         .build(tauri::generate_context!())

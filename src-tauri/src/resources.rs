@@ -15,11 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use log::{debug, warn};
 use rust_i18n::t;
 use tauri::{AppHandle, Manager};
 use tauri::utils::platform::resource_dir;
+use tauri_plugin_fs::FsExt;
 use mikupush_common::encode_image_base64;
 
 pub enum ResourceType {
@@ -147,4 +148,50 @@ pub fn resource_path(app_handle: AppHandle, resource: String) -> Result<String, 
             Err(t!("errors.resource.not_found").to_string())
         }
     }
+}
+
+#[tauri::command]
+pub fn openable_resource_path(app_handle: AppHandle, resource: String) -> Result<String, String> {
+    let Some(resource) = Resource::from_string(resource.clone()) else {
+        warn!("invalid resource: {}", resource);
+        return Err(t!("errors.resource.not_found").to_string())
+    };
+
+    let resource_dir = resource.path(&app_handle).map_err(|err| {
+        warn!("unable to get resource directory path: {}", err);
+        t!("errors.resource.path_not_resolved").to_string()
+    })?;
+
+    let path = resource_dir.to_string_lossy().to_string();
+
+    // On Linux we need to copy the resource to user public directory
+    // so sandboxed apps can access it. For example, the web browser.
+    #[cfg(target_os = "linux")]
+    {
+        let app_public_path = match app_handle.path().public_dir() {
+            Ok(path) => path.join("io.mikupush.client"),
+            Err(err) => {
+                warn!("unable to get user public dir: {}", err);
+                return Err(t!("errors.resource.path_not_resolved").to_string());
+            }
+        };
+
+        if !app_public_path.exists() && let Err(err) = std::fs::create_dir_all(&app_public_path) {
+            warn!("unable to create application public dir: {}", err);
+            return Err(t!("errors.resource.path_not_resolved").to_string());
+        }
+
+        let public_path = app_public_path.join(resource.file_name());
+
+        if let Err(err) = std::fs::copy(&path, &public_path) {
+            warn!("unable to copy resource to public dir: {}", err);
+            return Err(t!("errors.resource.path_not_resolved").to_string());
+        }
+
+        let path = public_path.to_string_lossy().to_string();
+        return Ok(path);
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    Ok(path)
 }

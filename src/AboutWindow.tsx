@@ -23,7 +23,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Large, Heading2, Paragraph } from '@/components/Typography.tsx'
 import { Button } from '@/components/ui/button.tsx'
-import { resourcePath } from '@/helpers/resource.ts'
+import { openableResourcePath } from '@/helpers/resource.ts'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import toast from 'react-hot-toast'
 import { ToastContainer } from '@/components/ToastContainer.tsx'
@@ -40,8 +40,8 @@ function AboutWindow() {
 
   const openThirdPartyLicenses = async () => {
     try {
-      const path = await resourcePath('third_party_licenses')
-      const url = encodeURI(`file://${path}`)
+      const path = await openableResourcePath('third_party_licenses')
+      const url = `file://${path}`
       await openUrl(url)
     } catch (error) {
       console.error('Error opening third-party licenses file:', error)
