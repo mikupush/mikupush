@@ -36,7 +36,8 @@ use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri::{App, AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_fs::FsExt;
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
@@ -71,9 +72,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_sql::Builder::default().build())
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             debug!("single instance event");
+            debug!("single instance arguments: {:?}", argv);
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
                 debug!("restoring {} window from single instance event", MAIN_WINDOW);
@@ -82,6 +83,7 @@ pub fn run() {
                 restore_main_window(&app);
             });
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
@@ -156,6 +158,12 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut App) -> GenericResult<()> {
+    #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+    {
+        use tauri_plugin_deep_link::DeepLinkExt;
+        app.deep_link().register_all()?;
+    }
+
     setup_app_menu(app.app_handle())?;
     unpack_resources(app.app_handle())?;
     let db = setup_app_database_connection(app);
@@ -177,6 +185,18 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| execute_tray_event(app, event))
         .build(app)?;
+
+    let deep_link = app.deep_link();
+    let app_handle_clone = app.app_handle().clone();
+    deep_link.on_open_url(move |event| {
+        process_deep_links(&app_handle_clone, event.urls())
+    });
+
+    if let Some(current_deep_links) = deep_link.get_current()? {
+        debug!("found current deep-link");
+        let app_handle_clone = app.app_handle().clone();
+        process_deep_links(&app_handle_clone, current_deep_links)
+    }
 
     Ok(())
 }
@@ -216,4 +236,18 @@ fn setup_app_database_connection(app: &App) -> DbPool {
 
     let database_url = format!("sqlite://{}", database_file.to_str().unwrap());
     create_database_connection(&database_url)
+}
+
+fn process_deep_links(app_handle: &AppHandle, urls: Vec<Url>) {
+    for url in urls {
+        debug!("deep-link handled: {:?}", url);
+        let path = url.path();
+
+        if path.starts_with("/share") {
+            upload::handle_upload_deep_link(
+                app_handle,
+                path.replace("/share/", "").as_str()
+            );
+        }
+    }
 }

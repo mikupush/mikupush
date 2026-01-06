@@ -23,12 +23,7 @@
     "copyright": "Copyright 2025 Miku Push! Team",
     "publisher": "Miku Push! Team",
     "active": true,
-    "targets": [
-      "deb",
-      "rpm",
-      "msi",
-      "dmg"
-    ],
+    "targets": ["deb", "rpm", "msi", "dmg"],
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
@@ -46,6 +41,20 @@
     "linux": {
       "deb": {
         "section": "net"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "15.6",
+      "entitlements": "./macOS/Entitlements.plist",
+      "files": {
+        "PlugIns/share.appex": "../helpers/macos-helpers/Build/Products/Release/share.appex"
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["mikupush"]
       }
     }
   }
