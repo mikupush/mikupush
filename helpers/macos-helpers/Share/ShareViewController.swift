@@ -92,29 +92,7 @@ class ShareViewController: NSViewController {
             return nil
         }
 
-        try self.saveCopyToAppGroup(
-            url: originalUrl,
-            container: sharedContainerURL
-        )
-
         return originalUrl
-    }
-
-    func saveCopyToAppGroup(url: URL, container: URL) throws {
-        self.logger.info("saving file item to app group")
-        let destinationUrl = container.appendingPathComponent(url.lastPathComponent)
-
-        do {
-            if FileManager.default.fileExists(atPath: destinationUrl.path) {
-                try FileManager.default.removeItem(at: destinationUrl)
-            }
-
-            try FileManager.default.copyItem(at: url, to: destinationUrl)
-            self.logger.info("File copied to: \(destinationUrl.path)")
-        } catch {
-            self.logger.error("Error copying file: \(error.localizedDescription)")
-            throw error
-        }
     }
 
     func finalizeAndSend(fileUrls: [String], encoder: JSONEncoder, container: URL) {

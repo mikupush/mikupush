@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::borrow::Cow;
 use std::fs::File;
 use crate::events::*;
 use mikupush_common::{Progress, UploadRequest};
@@ -66,6 +67,7 @@ fn start_upload(
     app_handle: AppHandle,
     file_path: String
 ) -> Result<Vec<UploadRequest>, String> {
+    debug!("starting upload for path: {}", file_path);
     let server_state = app_handle.state::<SelectedServerState>();
     let upload_state = app_handle.state::<UploadsState>();
 
@@ -402,6 +404,7 @@ fn update_upload_request_state(
 pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
     debug!("handling share deep-link: {}", request_file);
 
+    #[cfg(target_os = "macos")]
     let directory = match app_handle.path().home_dir() {
         Ok(path) => {
             path
@@ -415,7 +418,8 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
         },
     };
 
-    let file = match File::open(directory.join(request_file)) {
+    let request_file_path = directory.join(request_file);
+    let file = match File::open(&request_file_path) {
         Ok(file) => file,
         Err(err) => {
             warn!("failed to open share request paths file: {}", err);
@@ -424,16 +428,29 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
     };
 
     let paths: Vec<String> = match serde_json::from_reader(file) {
-        Ok(paths) => paths,
+        Ok(paths) => {
+            debug!("deleting share request paths file");
+            if let Err(err) = std::fs::remove_file(&request_file_path) {
+                warn!("failed to delete share request paths file: {}", err);
+            }
+
+            paths
+        },
         Err(err) => {
             warn!("failed to parse share requests paths: {}", err);
             return;
         }
     };
 
-    // TODO: borrar del app group el fichero una vez subido
     debug!("launching enqueue uploads task");
     for path in paths {
+        #[cfg(target_os = "macos")]
+        let path = {
+            let original = path.as_str();
+            let decoded = urlencoding::decode(original).unwrap_or(Cow::from(original));
+            String::from(decoded)
+        };
+
         let window = app_handle.get_window(MAIN_WINDOW);
         let result = start_upload(
             window,
