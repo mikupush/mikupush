@@ -80,7 +80,7 @@ pub fn run() {
                 debug!("restoring {} window from single instance event", MAIN_WINDOW);
                 #[cfg(target_os = "windows")]
                 sleep(Duration::from_millis(200)).await;
-                restore_main_window(&app);
+                restore_main_window(&app, false);
             });
         }))
         .plugin(tauri_plugin_deep_link::init())
@@ -151,7 +151,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             RunEvent::Reopen { .. } => {
                 debug!("reopen request");
-                restore_main_window(app);
+                restore_main_window(app, false);
             }
             _ => {}
         });
@@ -164,13 +164,17 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         app.deep_link().register_all()?;
     }
 
+    let deep_link = app.deep_link();
+    let current_deep_link = deep_link.get_current()?;
     setup_app_menu(app.app_handle())?;
     unpack_resources(app.app_handle())?;
     let db = setup_app_database_connection(app);
     let app_context = app.state::<AppContext>();
     app_context.db_connection.set(db).unwrap();
     initialize_current_server_state(app.app_handle())?;
-    initialize_main_window(app.app_handle());
+
+    let hidden = current_deep_link.is_some();
+    initialize_main_window(app.app_handle(), hidden);
 
     #[cfg(target_os = "macos")]
     let icon = Image::from(tauri::include_image!("icons/tray_icon.png"));
@@ -186,16 +190,20 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         .on_menu_event(|app, event| execute_tray_event(app, event))
         .build(app)?;
 
-    let deep_link = app.deep_link();
-    let app_handle_clone = app.app_handle().clone();
+    let app_handle = app.app_handle().clone();
     deep_link.on_open_url(move |event| {
-        process_deep_links(&app_handle_clone, event.urls())
+        process_deep_links(&app_handle, event.urls());
+
+        let app_handle = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            restore_main_window(&app_handle, true);
+        });
     });
 
     if let Some(current_deep_links) = deep_link.get_current()? {
         debug!("found current deep-link");
-        let app_handle_clone = app.app_handle().clone();
-        process_deep_links(&app_handle_clone, current_deep_links)
+        let app_handle = app.app_handle().clone();
+        process_deep_links(&app_handle, current_deep_links)
     }
 
     Ok(())
@@ -216,7 +224,7 @@ fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
             app.exit(0);
         },
         "show" => {
-            restore_main_window(app);
+            restore_main_window(app, false);
         }
         &_ => {}
     }

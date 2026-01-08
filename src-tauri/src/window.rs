@@ -16,22 +16,25 @@
 
 use log::{debug, warn};
 use rust_i18n::t;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const MAIN_WINDOW_TITLE: &'static str = "Miku Push!";
 pub const ABOUT_WINDOW_TITLE: &'static str = "About Miku Push!";
 pub const MAIN_WINDOW: &'static str = "main";
 pub const ABOUT_WINDOW: &'static str = "about";
 
-pub fn initialize_main_window(app: &AppHandle) {
+pub fn initialize_main_window(app: &AppHandle, hidden: bool) -> WebviewWindow {
+    debug!("creating {} window visible: {}", MAIN_WINDOW, !hidden);
     let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
         .title(MAIN_WINDOW_TITLE)
-        .inner_size(800.0, 600.0);
+        .inner_size(800.0, 600.0)
+        .visible(!hidden);
 
     #[cfg(target_os = "windows")]
     {
         let window = win_builder.build().unwrap();
         window.set_decorations(false).unwrap();
+        return window;
     }
 
     #[cfg(target_os = "macos")]
@@ -61,16 +64,19 @@ pub fn initialize_main_window(app: &AppHandle) {
             ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
             ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
         }
+
+        return window;
     }
 
     #[cfg(target_os = "linux")]
     {
         let window = win_builder.build().unwrap();
         let _ = window.remove_menu();
+        return window;
     }
 }
 
-pub fn restore_main_window(app: &AppHandle) {
+pub fn restore_main_window(app: &AppHandle, hidden: bool) {
     debug!("attempting to restore {} window", MAIN_WINDOW);
 
     #[cfg(target_os = "macos")]
@@ -80,11 +86,10 @@ pub fn restore_main_window(app: &AppHandle) {
 
     if window.is_none() {
         debug!("creating a new {} window instance because it was closed", MAIN_WINDOW);
-        initialize_main_window(app);
-        window = app.get_webview_window(MAIN_WINDOW);
+        window = Some(initialize_main_window(app, hidden));
     }
 
-    if let Some(window) = window {
+    if let Some(window) = window && !hidden {
         debug!("restoring {} window instance", MAIN_WINDOW);
         let _ = window.show();
         let _ = window.set_focus();
