@@ -4,7 +4,7 @@ import process from 'node:process'
 import { globSync } from 'glob'
 import ignore from 'ignore'
 
-const licenseHeaderRust = `
+const licenseHeader = `
 // Miku Push! is a simple, lightweight, and open-source WeTransfer alternative for desktop.
 // Copyright (C) 2025  Miku Push! Team
 //
@@ -47,6 +47,10 @@ const rustSourcePatterns = [
   'lib/**/*.rs'
 ]
 
+const swiftSourcePatterns = [
+  'helpers/macos-helpers/Share/*.swift',
+]
+
 const typescriptSourcePatterns = [
   'src/**/*.ts',
   'src/**/*.tsx',
@@ -62,7 +66,7 @@ const excludePatterns = [
 ]
 
 const ignoredFiles = ignore().add(excludePatterns)
-const rustRegex = /^\/\/ Miku Push! is a simple, lightweight, and open-source WeTransfer alternative for desktop\./
+const regex = /^\/\/ Miku Push! is a simple, lightweight, and open-source WeTransfer alternative for desktop\./
 const typescriptRegex = /^\/\*\*\n \* Miku Push! is a simple, lightweight, and open-source WeTransfer alternative for desktop\./
 
 const rootDir = process.cwd()
@@ -120,6 +124,7 @@ function removeLicense(sourceFiles: string[], licenseHeader: string): void {
 }
 
 const rustSourceFiles = collectFiles(rustSourcePatterns)
+const swiftSourceFiles = collectFiles(swiftSourcePatterns)
 const typescriptSourceFiles = collectFiles(typescriptSourcePatterns)
 
 const args = process.argv.slice(2)
@@ -127,12 +132,14 @@ const shouldRemove = args.includes('--remove')
 
 if (shouldRemove) {
   console.log('removing license header from source code')
-  removeLicense(rustSourceFiles, licenseHeaderRust)
+  removeLicense(rustSourceFiles, licenseHeader)
+  removeLicense(swiftSourceFiles, licenseHeader)
   removeLicense(typescriptSourceFiles, licenseHeaderTypescript)
   console.log('removed license header from source code')
 } else {
   console.log('adding license header to source code')
-  addLicense(rustSourceFiles, licenseHeaderRust, rustRegex)
+  addLicense(rustSourceFiles, licenseHeader, regex)
+  addLicense(swiftSourceFiles, licenseHeader, regex)
   addLicense(typescriptSourceFiles, licenseHeaderTypescript, typescriptRegex)
   console.log('added license header to all source code')
 }
