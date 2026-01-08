@@ -87,7 +87,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Error)
@@ -165,7 +164,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     }
 
     let deep_link = app.deep_link();
-    let current_deep_link = deep_link.get_current()?;
+    let current_deep_links = deep_link.get_current()?;
     setup_app_menu(app.app_handle())?;
     unpack_resources(app.app_handle())?;
     let db = setup_app_database_connection(app);
@@ -173,7 +172,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     app_context.db_connection.set(db).unwrap();
     initialize_current_server_state(app.app_handle())?;
 
-    let hidden = current_deep_link.is_some();
+    let hidden = current_deep_links.is_some();
     initialize_main_window(app.app_handle(), hidden);
 
     #[cfg(target_os = "macos")]
@@ -200,10 +199,14 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         });
     });
 
-    if let Some(current_deep_links) = deep_link.get_current()? {
-        debug!("found current deep-link");
+    if let Some(links) = current_deep_links {
+        debug!("found current deep-link, launching processing task");
         let app_handle = app.app_handle().clone();
-        process_deep_links(&app_handle, current_deep_links)
+        tauri::async_runtime::spawn(async move {
+            // wait to ensure windows is initialized
+            sleep(Duration::from_millis(200)).await;
+            process_deep_links(&app_handle, links);
+        });
     }
 
     Ok(())
@@ -253,7 +256,7 @@ fn process_deep_links(app_handle: &AppHandle, urls: Vec<Url>) {
 
         if path.starts_with("/share") {
             upload::handle_upload_deep_link(
-                app_handle,
+                &app_handle,
                 path.replace("/share/", "").as_str()
             );
         }
