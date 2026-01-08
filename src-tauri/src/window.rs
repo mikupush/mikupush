@@ -44,26 +44,29 @@ pub fn initialize_main_window(app: &AppHandle, hidden: bool) -> WebviewWindow {
         use tauri::TitleBarStyle;
 
         let window = win_builder.build().unwrap();
-        let ns_window_ptr = window.ns_window().unwrap();
-        let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
-        let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
-
         window.set_title_bar_style(TitleBarStyle::Overlay).unwrap();
 
-        unsafe {
-            use objc2::{MainThreadMarker, MainThreadOnly};
-            use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
-            use objc2_foundation::NSString;
+        let closure_window = window.clone();
+        let _ = app.run_on_main_thread(move || {
+            let ns_window_ptr = closure_window.ns_window().unwrap();
+            let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
+            let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
 
-            let toolbar_id = NSString::from_str("MainToolbar");
-            let mtm = MainThreadMarker::new().expect("must be on the main thread");
-            let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
+            unsafe {
+                use objc2::{MainThreadMarker, MainThreadOnly};
+                use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
+                use objc2_foundation::NSString;
 
-            ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
-            ns_window.setToolbar(Some(&toolbar));
-            ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
-            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
-        }
+                let toolbar_id = NSString::from_str("MainToolbar");
+                let mtm = MainThreadMarker::new().expect("must be on the main thread");
+                let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
+
+                ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+                ns_window.setToolbar(Some(&toolbar));
+                ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
+                ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
+            }
+        });
 
         return window;
     }
