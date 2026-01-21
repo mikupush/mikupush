@@ -50,12 +50,22 @@ pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadR
     Ok(in_progress_uploads)
 }
 
-#[tauri::command]
-pub async fn enqueue_upload(app_handle: AppHandle, file_path: String) -> Result<Vec<UploadRequest>, String> {
-    start_upload(&app_handle, file_path, false)
+pub fn start_upload_for_collection(
+    app_handle: &AppHandle,
+    file_paths: Vec<String>,
+    always_notify: bool
+) -> Result<Vec<UploadRequest>, String> {
+    debug!("enqueue many files to uploads: {}", file_paths.join(";"));
+    let mut in_progress_uploads: Vec<UploadRequest> = vec![];
+
+    for path in file_paths {
+        in_progress_uploads = start_upload(&app_handle, path, always_notify)?;
+    }
+
+    Ok(in_progress_uploads)
 }
 
-fn start_upload(
+pub fn start_upload(
     app_handle: &AppHandle,
     file_path: String,
     always_notify: bool
@@ -96,14 +106,12 @@ fn start_upload(
 
 #[tauri::command]
 pub async fn enqueue_many_uploads(app_handle: AppHandle, paths: Vec<String>) -> Result<Vec<UploadRequest>, String> {
-    debug!("enqueue many files to uploads: {}", paths.join(";"));
-    let mut in_progress_uploads: Vec<UploadRequest> = vec![];
+    start_upload_for_collection(&app_handle, paths, false)
+}
 
-    for path in paths {
-        in_progress_uploads = enqueue_upload(app_handle.clone(), path).await?;
-    }
-
-    Ok(in_progress_uploads)
+#[tauri::command]
+pub async fn enqueue_upload(app_handle: AppHandle, file_path: String) -> Result<Vec<UploadRequest>, String> {
+    start_upload(&app_handle, file_path, false)
 }
 
 #[tauri::command]
@@ -390,6 +398,15 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
         },
         Err(err) => {
             warn!("failed to get home directory: {}", err);
+            return;
+        },
+    };
+
+    #[cfg(target_os = "windows")]
+    let directory = match app_handle.path().temp_dir() {
+        Ok(path) => path.join("io.mikupush.client"),
+        Err(err) => {
+            warn!("failed to get local data directory: {}", err);
             return;
         },
     };

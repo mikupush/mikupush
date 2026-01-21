@@ -21,7 +21,6 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
 
 
@@ -67,3 +66,4 @@ DerivedData/
 # Environment
 .env
 !.env.example
+

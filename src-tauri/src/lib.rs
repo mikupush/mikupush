@@ -23,6 +23,7 @@ mod server;
 mod window;
 mod menu;
 
+use std::env;
 use crate::resources::unpack_resources;
 use crate::server::initialize_current_server_state;
 use crate::window::{initialize_main_window, restore_main_window, MAIN_WINDOW};
@@ -42,6 +43,7 @@ use tauri_plugin_fs::FsExt;
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
 use crate::menu::setup_app_menu;
+use crate::upload::start_upload_for_collection;
 
 pub struct AppContext {
     pub db_connection: OnceLock<DbPool>,
@@ -72,17 +74,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            debug!("single instance event");
-            debug!("single instance arguments: {:?}", argv);
-            let app = app.clone();
-            tauri::async_runtime::spawn(async move {
-                debug!("restoring {} window from single instance event", MAIN_WINDOW);
-                #[cfg(target_os = "windows")]
-                sleep(Duration::from_millis(200)).await;
-                restore_main_window(&app, false);
-            });
-        }))
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| on_single_instance(&app, argv)))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
@@ -202,14 +194,28 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     if let Some(links) = current_deep_links {
         debug!("found current deep-link, launching processing task");
         let app_handle = app.app_handle().clone();
-        tauri::async_runtime::spawn(async move {
-            // wait to ensure windows is initialized
-            sleep(Duration::from_millis(200)).await;
-            process_deep_links(&app_handle, links);
-        });
+        launch_process_deep_link(&app_handle, links);
+    }
+
+    let app_handle = app.app_handle().clone();
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 1 {
+        if let Err(err) = start_upload_for_collection(&app_handle, Vec::from(&args[1..]), true) {
+            warn!("error starting upload from program args: {:?}", err);
+        }
     }
 
     Ok(())
+}
+
+fn launch_process_deep_link(app_handle: &AppHandle, deep_links: Vec<Url>) {
+    let app_handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        // wait to ensure windows is initialized
+        sleep(Duration::from_millis(200)).await;
+        process_deep_links(&app_handle, deep_links);
+    });
 }
 
 fn setup_tray_menu(app: &App) -> Menu<Wry> {
@@ -250,6 +256,8 @@ fn setup_app_database_connection(app: &App) -> DbPool {
 }
 
 fn process_deep_links(app_handle: &AppHandle, urls: Vec<Url>) {
+    debug!("processing deep-links: {:?}", urls);
+
     for url in urls {
         debug!("deep-link handled: {:?}", url);
         let path = url.path();
@@ -260,5 +268,26 @@ fn process_deep_links(app_handle: &AppHandle, urls: Vec<Url>) {
                 path.replace("/share/", "").as_str()
             );
         }
+    }
+}
+
+fn on_single_instance(app_handle: &AppHandle, argv: Vec<String>) {
+    debug!("on single instance event arguments: {:?}", &argv);
+    let launch_restore_main_window = |app_handle: &AppHandle, hidden: bool| {
+        let app_handle = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            debug!("restoring {} window from single instance event", MAIN_WINDOW);
+            #[cfg(target_os = "windows")]
+            sleep(Duration::from_millis(200)).await;
+            restore_main_window(&app_handle, hidden);
+        });
+    };
+
+    if argv.len() > 1 {
+        if let Err(err) = start_upload_for_collection(app_handle, Vec::from(&argv[1..]), true) {
+            warn!("error starting upload from single instance event: {:?}", err);
+        }
+    } else {
+        launch_restore_main_window(app_handle, false);
     }
 }

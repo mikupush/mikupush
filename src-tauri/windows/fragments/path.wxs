@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- these registry entries should be installed
+     to the target user's machine -->
+    <DirectoryRef Id="INSTALLDIR">
+      <!-- groups together the registry entries to be installed -->
+      <!-- Note the unique `Id` we provide here -->
+      <Component Id="PathEntries" Guid="*">
+        <!-- Usamos una clave de registro para que WiX rastree este componente -->
+        <RegistryValue Root="HKCU" Key="Software\Miku Push! Team\Miku Push!" Name="AddToPath" Type="integer" Value="1" KeyPath="yes" />
+        <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Permanent="no" Part="last" Action="set" System="no" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>
