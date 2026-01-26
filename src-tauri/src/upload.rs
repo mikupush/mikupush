@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::borrow::Cow;
+use std::fs::File;
 use crate::events::*;
 use mikupush_common::{Progress, UploadRequest};
 use mikupush_client::{Client, ClientError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
 use crate::state::{SelectedServerState, UploadsState};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use rust_i18n::t;
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -28,12 +30,7 @@ use uuid::Uuid;
 use crate::MAIN_WINDOW;
 
 #[tauri::command]
-pub async fn select_files_to_upload(
-    window: Window,
-    app_state: State<'_, UploadsState>,
-    server_state: State<'_, SelectedServerState>,
-    app_handle: AppHandle,
-) -> Result<Vec<UploadRequest>, String> {
+pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadRequest>, String> {
     let files = app_handle
         .dialog()
         .file()
@@ -44,8 +41,7 @@ pub async fn select_files_to_upload(
         .collect();
 
     debug!("attempting to upload files {:?}", files);
-    let in_progress_uploads =
-        enqueue_many_uploads(window, app_handle.clone(), app_state, server_state, files).await?;
+    let in_progress_uploads = enqueue_many_uploads(app_handle, files).await?;
 
     debug!(
         "returning in progress equeued uploads: {:?}",
@@ -54,37 +50,54 @@ pub async fn select_files_to_upload(
     Ok(in_progress_uploads)
 }
 
-#[tauri::command]
-pub async fn enqueue_upload(
-    window: Window,
-    app_handle: AppHandle,
-    app_state: State<'_, UploadsState>,
-    server_state: State<'_, SelectedServerState>,
-    file_path: String,
+pub fn start_upload_for_collection(
+    app_handle: &AppHandle,
+    file_paths: Vec<String>,
+    always_notify: bool
 ) -> Result<Vec<UploadRequest>, String> {
+    debug!("enqueue many files to uploads: {}", file_paths.join(";"));
+    let mut in_progress_uploads: Vec<UploadRequest> = vec![];
+
+    for path in file_paths {
+        in_progress_uploads = start_upload(&app_handle, path, always_notify)?;
+    }
+
+    Ok(in_progress_uploads)
+}
+
+pub fn start_upload(
+    app_handle: &AppHandle,
+    file_path: String,
+    always_notify: bool
+) -> Result<Vec<UploadRequest>, String> {
+    debug!("starting upload for path: {}", file_path);
+    let server_state = app_handle.state::<SelectedServerState>();
+    let upload_state = app_handle.state::<UploadsState>();
+
     let server = server_state.current_server();
     let request = UploadRequest::from_file_path(file_path, server)?;
     let upload_id = request.upload.id.clone().to_string();
-    let in_progress_uploads = app_state.add_request(request.clone());
-    let app_handle_clone = app_handle.clone();
+    let in_progress_uploads = upload_state.add_request(request.clone());
     let client = server_state.clone().client();
 
     show_notification(
-        app_handle.clone(),
+        &app_handle,
         t!("notifications.upload.enqueued.title", name = request.upload.name).to_string(),
-        t!("notifications.upload.enqueued.body", name = request.upload.name).to_string()
+        t!("notifications.upload.enqueued.body", name = request.upload.name).to_string(),
+        always_notify
     );
 
+    let app_handle = app_handle.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = client.create(&request.clone().upload).await {
             warn!("error registering file {:?}", error);
-            handle_upload_failed(window.clone(), app_handle, error.into(), upload_id);
+            handle_upload_failed(&app_handle, error.into(), upload_id, always_notify);
             return;
         }
 
-        match upload_file(window.clone(), app_handle, client, request.clone()).await {
-            Ok(_) => handle_upload_finish(window, app_handle_clone, upload_id),
-            Err(error) => handle_upload_failed(window, app_handle_clone, error, upload_id),
+        match upload_file(&app_handle, client, request.clone()).await {
+            Ok(_) => handle_upload_finish(&app_handle, upload_id, always_notify),
+            Err(error) => handle_upload_failed(&app_handle, error, upload_id, always_notify),
         }
     });
 
@@ -92,33 +105,17 @@ pub async fn enqueue_upload(
 }
 
 #[tauri::command]
-pub async fn enqueue_many_uploads(
-    window: Window,
-    app_handle: AppHandle,
-    app_state: State<'_, UploadsState>,
-    server_state: State<'_, SelectedServerState>,
-    paths: Vec<String>,
-) -> Result<Vec<UploadRequest>, String> {
-    debug!("enqueue many files to uploads: {}", paths.join(";"));
-    let mut in_progress_uploads: Vec<UploadRequest> = vec![];
+pub async fn enqueue_many_uploads(app_handle: AppHandle, paths: Vec<String>) -> Result<Vec<UploadRequest>, String> {
+    start_upload_for_collection(&app_handle, paths, false)
+}
 
-    for path in paths {
-        in_progress_uploads = enqueue_upload(
-            window.clone(),
-            app_handle.clone(),
-            app_state.clone(),
-            server_state.clone(),
-            path,
-        )
-        .await?;
-    }
-
-    Ok(in_progress_uploads)
+#[tauri::command]
+pub async fn enqueue_upload(app_handle: AppHandle, file_path: String) -> Result<Vec<UploadRequest>, String> {
+    start_upload(&app_handle, file_path, false)
 }
 
 #[tauri::command]
 pub async fn retry_upload(
-    window: Window,
     app_handle: AppHandle,
     uploads_state: State<'_, UploadsState>,
     server_state: State<'_, SelectedServerState>,
@@ -134,20 +131,16 @@ pub async fn retry_upload(
     }
 
     let upload_request = upload_request.unwrap();
-    update_upload_request_state(
-        &window,
-        app_handle.clone(),
-        upload_request.reset_progress()
-    );
+    update_upload_request_state(&app_handle, upload_request.reset_progress());
 
+    let app_handle = app_handle.clone();
     tauri::async_runtime::spawn(async move {
         let info = client.info(upload_request.upload.id).await;
         if let Err(error) = info.clone() {
             if error.code() != FILE_INFO_ERROR_NOT_EXISTS {
                 debug!("error retrieving file info during upload retry: {}", error);
                 update_upload_request_state(
-                    &window,
-                    app_handle.clone(),
+                    &app_handle,
                     upload_request.finish_with_error(error.code(), error.to_string())
                 );
                 return;
@@ -156,7 +149,7 @@ pub async fn retry_upload(
             debug!("upload with id {} is not registered, registering again", upload_request.upload.id);
             if let Err(error) = client.create(&upload_request.clone().upload).await {
                 warn!("error registering file {:?}", error);
-                handle_upload_failed(window.clone(), app_handle, error, upload_id);
+                handle_upload_failed(&app_handle, error, upload_id, false);
                 return;
             }
         }
@@ -166,9 +159,9 @@ pub async fn retry_upload(
             return;
         }
 
-        match upload_file(window.clone(), app_handle.clone(), client, upload_request.clone()).await {
-            Ok(_) => handle_upload_finish(window, app_handle, upload_id),
-            Err(error) => handle_upload_failed(window, app_handle, error, upload_id),
+        match upload_file(&app_handle, client, upload_request.clone()).await {
+            Ok(_) => handle_upload_finish(&app_handle, upload_id, false),
+            Err(error) => handle_upload_failed(&app_handle, error, upload_id, false),
         }
     });
 
@@ -230,16 +223,13 @@ pub async fn copy_upload_link(
 }
 
 #[tauri::command]
-pub fn get_all_in_progress_uploads(
-    uploads_state: State<'_, UploadsState>,
-) -> Vec<UploadRequest> {
+pub fn get_all_in_progress_uploads(uploads_state: State<'_, UploadsState>) -> Vec<UploadRequest> {
     debug!("get uploads");
     uploads_state.get_all_in_progress()
 }
 
 async fn upload_file(
-    window: Window,
-    app_handle: AppHandle,
+    app_handle: &AppHandle,
     client: Client,
     request: UploadRequest,
 ) -> Result<(), FileUploadError> {
@@ -273,7 +263,8 @@ async fn upload_file(
 
             request = request.update_progress(progress);
             state.update_request(request.clone());
-            emit_uploads_changed(&window, state.get_all_in_progress())
+
+            emit_uploads_changed(&app_handle_clone, state.get_all_in_progress())
         }
     });
 
@@ -286,7 +277,7 @@ async fn upload_file(
     result
 }
 
-fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String) {
+fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify: bool) {
     info!("upload with id {} finished", upload_id);
     let state = app_handle.state::<UploadsState>();
     let request = state.get_request(upload_id.clone());
@@ -301,19 +292,22 @@ fn handle_upload_finish(window: Window, app_handle: AppHandle, upload_id: String
     let mut request = request.unwrap();
     request = request.finish();
     state.update_request(request.clone());
-    emit_uploads_changed(&window, state.get_all_in_progress());
+
+    emit_uploads_changed(&app_handle, state.get_all_in_progress());
+
     show_notification(
-        app_handle,
+        &app_handle,
         t!("notifications.upload.success.title", name = request.upload.name).to_string(),
-        t!("notifications.upload.success.body", name = request.upload.name).to_string()
+        t!("notifications.upload.success.body", name = request.upload.name).to_string(),
+        always_notify
     );
 }
 
 fn handle_upload_failed(
-    window: Window,
-    app_handle: AppHandle,
+    app_handle: &AppHandle,
     error: FileUploadError,
     upload_id: String,
+    always_notify: bool,
 ) {
     info!("upload with id {} failed: {}", upload_id, error);
     let state = app_handle.state::<UploadsState>();
@@ -334,53 +328,126 @@ fn handle_upload_failed(
     }
 
     state.update_request(request.clone());
-    emit_uploads_changed(&window, state.get_all_in_progress());
+    emit_uploads_changed(&app_handle, state.get_all_in_progress());
+
     show_notification(
         app_handle,
         t!("notifications.upload.error.title", name = request.upload.name).to_string(),
-        t!("notifications.upload.error.body", name = request.upload.name).to_string()
+        t!("notifications.upload.error.body", name = request.upload.name).to_string(),
+        always_notify
     );
 }
 
-fn emit_uploads_changed(window: &Window, requests: Vec<UploadRequest>) {
-    match window.emit(UPLOADS_CHANGED_EVENT, requests) {
-        Ok(_) => debug!("event {} emited", UPLOADS_CHANGED_EVENT),
-        Err(error) => warn!("event {} failed emited: {}", UPLOADS_CHANGED_EVENT, error),
+fn emit_uploads_changed(app_handle: &AppHandle, requests: Vec<UploadRequest>) {
+    if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW) {
+        match window.emit(UPLOADS_CHANGED_EVENT, requests) {
+            Ok(_) => debug!("event {} emited", UPLOADS_CHANGED_EVENT),
+            Err(error) => warn!("event {} failed emited: {}", UPLOADS_CHANGED_EVENT, error),
+        }
     }
 }
 
-fn show_notification(app_handle: AppHandle, title: String, body: String) {
-    debug!("showing notification: {} - {}", title, body);
+fn show_notification(app_handle: &AppHandle, title: String, body: String, always: bool) {
+    let app_handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        debug!("showing notification: {} - {}", title, body);
 
-    let mut is_visible = false;
-    let window = app_handle.get_webview_window(MAIN_WINDOW);
+        let is_main_window_visible = || -> bool {
+            let window = app_handle.get_webview_window(MAIN_WINDOW);
 
-    if let Some(window) = window {
-        is_visible = window.is_visible().unwrap_or(false);
-    }
+            if let Some(window) = window {
+                window.is_visible().unwrap_or(false)
+            } else {
+                false
+            }
+        };
 
-    if is_visible {
-        debug!("skipping notification because window is visible");
-        return;
-    }
+        if !always && is_main_window_visible() {
+            debug!("skipping notification because window is visible");
+            return;
+        }
 
-    let result = app_handle.notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show();
+        let result = app_handle.notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show();
 
-    if let Err(error) = result {
-        warn!("failed to show notification: {}", error.to_string());
-    }
+        if let Err(error) = result {
+            warn!("failed to show notification: {}", error.to_string());
+        }
+    });
 }
 
-fn update_upload_request_state(
-    window: &Window,
-    app_handle: AppHandle,
-    upload_request: UploadRequest
-) {
+fn update_upload_request_state(app_handle: &AppHandle, upload_request: UploadRequest) {
     let state = app_handle.state::<UploadsState>();
     state.update_request(upload_request.clone());
-    emit_uploads_changed(&window, state.get_all_in_progress());
+    emit_uploads_changed(&app_handle, state.get_all_in_progress());
+}
+
+pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
+    debug!("handling share deep-link: {}", request_file);
+
+    #[cfg(target_os = "macos")]
+    let directory = match app_handle.path().home_dir() {
+        Ok(path) => {
+            path
+                .join("Library")
+                .join("Group Containers")
+                .join("group.io.mikupush.client")
+        },
+        Err(err) => {
+            warn!("failed to get home directory: {}", err);
+            return;
+        },
+    };
+
+    #[cfg(target_os = "windows")]
+    let directory = match app_handle.path().temp_dir() {
+        Ok(path) => path.join("io.mikupush.client"),
+        Err(err) => {
+            warn!("failed to get local data directory: {}", err);
+            return;
+        },
+    };
+
+    let request_file_path = directory.join(request_file);
+    let file = match File::open(&request_file_path) {
+        Ok(file) => file,
+        Err(err) => {
+            warn!("failed to open share request paths file: {}", err);
+            return;
+        }
+    };
+
+    let paths: Vec<String> = match serde_json::from_reader(file) {
+        Ok(paths) => {
+            debug!("deleting share request paths file");
+            if let Err(err) = std::fs::remove_file(&request_file_path) {
+                warn!("failed to delete share request paths file: {}", err);
+            }
+
+            paths
+        },
+        Err(err) => {
+            warn!("failed to parse share requests paths: {}", err);
+            return;
+        }
+    };
+
+    debug!("launching enqueue uploads task");
+    for path in paths {
+        #[cfg(target_os = "macos")]
+        let path = {
+            let original = path.as_str();
+            let decoded = urlencoding::decode(original).unwrap_or(Cow::from(original));
+            String::from(decoded)
+        };
+
+        let result = start_upload(app_handle, path, true);
+
+        if let Err(err) = result {
+            warn!("failed handling share deep-link: {}", err)
+        }
+    }
 }

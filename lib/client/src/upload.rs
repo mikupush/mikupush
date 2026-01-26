@@ -182,6 +182,7 @@ impl SingleUploadTask {
         let url = format!("{}/api/file/{}/upload", self.base_url, self.upload.id);
         let send_future = self.client
             .post(&url)
+            .header("Connection", "keep-alive")
             .header("Content-Type", &self.upload.mime_type)
             .header("Content-Length", self.upload.size)
             .body(body)
@@ -292,10 +293,12 @@ impl ChunkedUploadTask {
 
     async fn perform_chunk_upload(&self, data: Vec<u8>, index: u64) -> Result<(), FileUploadError> {
         debug!("uploading chunk {} for file {} ({} bytes)", index, self.upload.id, data.len());
+        let now = Instant::now();
         let bytes = Bytes::from(data);
         let url = format!("{}/api/file/{}/upload/part/{}", self.base_url, self.upload.id, index);
         let send_future = self.client
             .post(&url)
+            .header("Connection", "keep-alive")
             .header("Content-Type", "application/octet-stream")
             .body(bytes)
             .send();
@@ -320,6 +323,7 @@ impl ChunkedUploadTask {
             return Err(error_response.into());
         }
 
+        debug!("uploaded chunk {} for file {} took {} ms", index, self.upload.id, now.elapsed().as_millis());
         Ok(())
     }
 

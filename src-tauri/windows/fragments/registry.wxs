@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- these registry entries should be installed
+     to the target user's machine -->
+    <DirectoryRef Id="INSTALLDIR">
+      <!-- groups together the registry entries to be installed -->
+      <!-- Note the unique `Id` we provide here -->
+      <Component Id="ContextMenuRegistryEntries" Guid="*">
+        
+        <RegistryKey Root="HKCU" Key="Software\Classes\*\shell\MikuPush" Action="createAndRemoveOnUninstall">
+          <RegistryValue Type="string" Value="Upload with Miku Push!" KeyPath="yes" />
+          <RegistryValue Type="string" Name="Icon" Value="[INSTALLDIR]mikupush.exe" />
+          
+          <RegistryKey Key="command">
+            <RegistryValue Type="string" Value="&quot;[INSTALLDIR]mikupush.exe&quot; &quot;%1&quot;" />
+          </RegistryKey>
+        </RegistryKey>
+
+      </Component>
+
+      <Component Id="DirectoryContextMenuRegistryEntries" Guid="*">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\shell\MikuPush" Action="createAndRemoveOnUninstall">
+          <RegistryValue Type="string" Value="Upload with Miku Push!" KeyPath="yes" />
+          <RegistryValue Type="string" Name="Icon" Value="[INSTALLDIR]mikupush.exe" />
+
+          <RegistryKey Key="command">
+            <RegistryValue Type="string" Value="&quot;[INSTALLDIR]mikupush.exe&quot; &quot;%1&quot;" />
+          </RegistryKey>
+        </RegistryKey>
+
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Miku Push! Helper (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "Miku Push! Helper (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -16,22 +16,25 @@
 
 use log::{debug, warn};
 use rust_i18n::t;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const MAIN_WINDOW_TITLE: &'static str = "Miku Push!";
 pub const ABOUT_WINDOW_TITLE: &'static str = "About Miku Push!";
 pub const MAIN_WINDOW: &'static str = "main";
 pub const ABOUT_WINDOW: &'static str = "about";
 
-pub fn initialize_main_window(app: &AppHandle) {
+pub fn initialize_main_window(app: &AppHandle, hidden: bool) -> WebviewWindow {
+    debug!("creating {} window visible: {}", MAIN_WINDOW, !hidden);
     let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
         .title(MAIN_WINDOW_TITLE)
-        .inner_size(800.0, 600.0);
+        .inner_size(800.0, 600.0)
+        .visible(!hidden);
 
     #[cfg(target_os = "windows")]
     {
         let window = win_builder.build().unwrap();
         window.set_decorations(false).unwrap();
+        return window;
     }
 
     #[cfg(target_os = "macos")]
@@ -41,36 +44,42 @@ pub fn initialize_main_window(app: &AppHandle) {
         use tauri::TitleBarStyle;
 
         let window = win_builder.build().unwrap();
-        let ns_window_ptr = window.ns_window().unwrap();
-        let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
-        let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
-
         window.set_title_bar_style(TitleBarStyle::Overlay).unwrap();
 
-        unsafe {
-            use objc2::{MainThreadMarker, MainThreadOnly};
-            use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
-            use objc2_foundation::NSString;
+        let closure_window = window.clone();
+        let _ = app.run_on_main_thread(move || {
+            let ns_window_ptr = closure_window.ns_window().unwrap();
+            let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
+            let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
 
-            let toolbar_id = NSString::from_str("MainToolbar");
-            let mtm = MainThreadMarker::new().expect("must be on the main thread");
-            let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
+            unsafe {
+                use objc2::{MainThreadMarker, MainThreadOnly};
+                use objc2_app_kit::{NSToolbar, NSWindowCollectionBehavior};
+                use objc2_foundation::NSString;
 
-            ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
-            ns_window.setToolbar(Some(&toolbar));
-            ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
-            ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
-        }
+                let toolbar_id = NSString::from_str("MainToolbar");
+                let mtm = MainThreadMarker::new().expect("must be on the main thread");
+                let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), &toolbar_id);
+
+                ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+                ns_window.setToolbar(Some(&toolbar));
+                ns_window.setToolbarStyle(NSWindowToolbarStyle::Unified);
+                ns_window.setCollectionBehavior(NSWindowCollectionBehavior::FullScreenNone);
+            }
+        });
+
+        return window;
     }
 
     #[cfg(target_os = "linux")]
     {
         let window = win_builder.build().unwrap();
         let _ = window.remove_menu();
+        return window;
     }
 }
 
-pub fn restore_main_window(app: &AppHandle) {
+pub fn restore_main_window(app: &AppHandle, hidden: bool) {
     debug!("attempting to restore {} window", MAIN_WINDOW);
 
     #[cfg(target_os = "macos")]
@@ -80,11 +89,10 @@ pub fn restore_main_window(app: &AppHandle) {
 
     if window.is_none() {
         debug!("creating a new {} window instance because it was closed", MAIN_WINDOW);
-        initialize_main_window(app);
-        window = app.get_webview_window(MAIN_WINDOW);
+        window = Some(initialize_main_window(app, hidden));
     }
 
-    if let Some(window) = window {
+    if let Some(window) = window && !hidden {
         debug!("restoring {} window instance", MAIN_WINDOW);
         let _ = window.show();
         let _ = window.set_focus();
