@@ -67,3 +67,5 @@ DerivedData/
 .env
 !.env.example
 
+# Certificates
+*.pfx
