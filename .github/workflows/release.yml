@@ -68,14 +68,6 @@ jobs:
           echo "$PROVISIONING_PROFILE_APP" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client.provisionprofile
           echo "$PROVISIONING_PROFILE_EXT" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client_Share.provisionprofile
 
-      - name: Verify Apple Developer Certificate
-        if: matrix.platform == 'macos-latest'
-        run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
-          echo "Certificate imported."
-
       - name: install frontend dependencies
         run: npm install
 
@@ -88,11 +80,7 @@ jobs:
         run: xcodebuild \
           -scheme "share" \
           -configuration Release \
-          -derivedDataPath /Users/runner/work/mikupush/mikupush/helpers/macos-helpers/Build \
-          CODE_SIGN_STYLE="Manual" \
-          CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
-          PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
-          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          -derivedDataPath /Users/runner/work/mikupush/mikupush/helpers/macos-helpers/Build
 
       - uses: tauri-apps/tauri-action@v0
         env:
