@@ -77,9 +77,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
           PROVISIONING_PROFILE_SPECIFIER: ${{ secrets.PROVISIONING_PROFILE_SPECIFIER }}
-        run: xcodebuild \
-          -scheme "share" \
-          -configuration Release \
+        run: xcodebuild
+          -scheme "share"
+          -configuration Release
           -derivedDataPath /Users/runner/work/mikupush/mikupush/helpers/macos-helpers/Build
 
       - uses: tauri-apps/tauri-action@v0
