@@ -66,6 +66,14 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: Build macOS helper plugin
+        if: matrix.platform == 'macos-latest'
+        run: scripts/build-macos-helpers.sh
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          PROVISIONING_PROFILE_SPECIFIER: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

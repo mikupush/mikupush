@@ -402,7 +402,7 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
         },
     };
 
-    #[cfg(target_os = "windows")]
+    #[cfg(not(target_os = "macos"))]
     let directory = match app_handle.path().temp_dir() {
         Ok(path) => path.join("io.mikupush.client"),
         Err(err) => {
