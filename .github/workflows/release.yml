@@ -53,6 +53,8 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          PROVISIONING_PROFILE_APP: ${{ secrets.PROVISIONING_PROFILE_APP }}
+          PROVISIONING_PROFILE_EXT: ${{ secrets.PROVISIONING_PROFILE_EXT }}
         run: |
           echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -62,17 +64,19 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
+          echo "$PROVISIONING_PROFILE_APP" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client.provisionprofile
+          echo "$PROVISIONING_PROFILE_EXT" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client_Share.provisionprofile
 
       - name: install frontend dependencies
         run: npm install
 
       - name: Build macOS helper plugin
         if: matrix.platform == 'macos-latest'
-        run: scripts/build-macos-helpers.sh
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
           PROVISIONING_PROFILE_SPECIFIER: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}
+        run: scripts/build-macos-helpers.sh
 
       - uses: tauri-apps/tauri-action@v0
         env:
