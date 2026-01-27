@@ -73,6 +73,7 @@ jobs:
 
       - name: Build macOS helper plugin
         if: matrix.platform == 'macos-latest'
+        working-directory: ./helpers/macos-helpers
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
