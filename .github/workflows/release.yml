@@ -73,7 +73,9 @@ jobs:
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+          CERT_THUMBPRINT=$(echo "$CERT_INFO" | awk -F'"' '{print $1}' | sed 's/[0-9+])//g' | xargs)
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+          echo "CERT_THUMBPRINT=$CERT_THUMBPRINT" >> $GITHUB_ENV
           echo "Certificate imported."
 
       - name: install frontend dependencies
@@ -84,7 +86,7 @@ jobs:
         working-directory: ./helpers/macos-helpers
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ env.CERT_THUMBPRINT }}
           PROVISIONING_PROFILE_SPECIFIER: ${{ secrets.PROVISIONING_PROFILE_SPECIFIER }}
         run: xcodebuild
           -scheme "share"
