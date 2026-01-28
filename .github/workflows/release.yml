@@ -64,14 +64,22 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
+          # Create provisioning profiles directories
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROVISIONING_PROFILE_APP" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client.provisionprofile
-          echo "$PROVISIONING_PROFILE_EXT" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client_Share.provisionprofile
+          mkdir -p ~/Library/Provisioning\ Profiles
+          # Decode provisioning profiles
+          echo "$PROVISIONING_PROFILE_APP" | base64 --decode > Miku_Push_Client.provisionprofile
+          echo "$PROVISIONING_PROFILE_EXT" | base64 --decode > Miku_Push_Client_Share.provisionprofile
           # Extract UUIDs from provisioning profiles
           PROFILE_UUID_APP=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i Miku_Push_Client.provisionprofile))
           PROFILE_UUID_EXT=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i Miku_Push_Client_Share.provisionprofile))
           echo "PROFILE_UUID_APP=$PROFILE_UUID_APP" >> $GITHUB_ENV
           echo "PROFILE_UUID_EXT=$PROFILE_UUID_EXT" >> $GITHUB_ENV
+          # Install the provisioning profiles
+          cp Miku_Push_Client.provisionprofile ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client.provisionprofile
+          cp Miku_Push_Client.provisionprofile ~/Library/Provisioning\ Profiles/Miku_Push_Client.provisionprofile
+          cp Miku_Push_Client_Share.provisionprofile ~/Library/MobileDevice/Provisioning\ Profiles/Miku_Push_Client_Share.provisionprofile
+          cp Miku_Push_Client_Share.provisionprofile ~/Library/Provisioning\ Profiles/Miku_Push_Client_Share.provisionprofile
 
       - name: Verify Apple Developer Certificate
         if: matrix.platform == 'macos-latest'
