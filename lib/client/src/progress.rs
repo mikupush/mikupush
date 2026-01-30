@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use log::debug;
 use serde::Serialize;
 use uuid::Uuid;
 use mikupush_common::Progress;
@@ -57,8 +58,18 @@ impl ProgressTrack {
     }
 
     fn calculate_rate(&mut self, uploaded_bytes: u64) -> u64 {
+        debug!("progress uploaded bytes: {}", uploaded_bytes);
+        debug!("progress last uploaded bytes: {}", self.last_uploaded_bytes);
+        let initial_last_uploaded_bytes = self.last_uploaded_bytes;
         let rate_bytes = uploaded_bytes.saturating_sub(self.last_uploaded_bytes);
         self.last_uploaded_bytes = uploaded_bytes;
+
+        if initial_last_uploaded_bytes == 0 {
+            debug!("progress rate bytes: 0");
+            return 0;
+        }
+
+        debug!("progress rate bytes: {}", rate_bytes);
         rate_bytes
     }
 }
