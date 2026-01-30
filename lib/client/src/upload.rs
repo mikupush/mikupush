@@ -231,8 +231,6 @@ impl UploadTask for SingleUploadTask {
     }
 }
 
-const FILE_UPLOAD_CHUNK_SIZE: usize = 10 * 1024 * 1024; // 10MB
-
 #[derive(Debug, Clone)]
 pub struct ChunkedUploadTask {
     base_url: String,
@@ -242,9 +240,9 @@ pub struct ChunkedUploadTask {
     progress: ProgressTrack,
     client: reqwest::Client,
     upload: Upload,
-    total_size: u64,
     uploaded_bytes: u64,
     last_measured_rate: Instant,
+    chunk_size: u64
 }
 
 impl ChunkedUploadTask {
@@ -252,6 +250,7 @@ impl ChunkedUploadTask {
         base_url: String,
         upload: Upload,
         client: reqwest::Client,
+        chunk_size: u64
     ) -> Result<Self, std::io::Error> {
         let progress = ProgressTrack::new(upload.id.clone(), upload.size);
         let cancellation_token = CancellationToken::new();
@@ -269,9 +268,9 @@ impl ChunkedUploadTask {
             client,
             upload,
             progress,
-            total_size: 0,
             uploaded_bytes: 0,
             last_measured_rate: Instant::now(),
+            chunk_size
         })
     }
 
@@ -330,10 +329,11 @@ impl ChunkedUploadTask {
     async fn perform_upload(&mut self) -> Result<(), FileUploadError> {
         let mut file = File::open(self.upload.path.clone()).await
             .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
-        let mut buffer = vec![0u8; FILE_UPLOAD_CHUNK_SIZE];
+        let chunk_size = self.chunk_size as usize;
+        let mut buffer = vec![0u8; chunk_size];
         let mut index: u64 = 0;
 
-        file.set_max_buf_size(FILE_UPLOAD_CHUNK_SIZE);
+        file.set_max_buf_size(chunk_size);
 
         loop {
             if self.cancellation_token.is_cancelled() {

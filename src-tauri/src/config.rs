@@ -16,7 +16,7 @@
 
 use std::fmt::{Display, Formatter};
 use log::{debug, warn};
-use tauri::{State};
+use tauri::{AppHandle, Manager, State};
 use mikupush_common::{ConfigKey, ConfigValue};
 use mikupush_database::{ConfigRepository, DbPool};
 use crate::AppContext;
@@ -44,6 +44,17 @@ pub struct Configuration {
 impl Configuration {
     pub fn new(connection_pool: DbPool) -> Self {
         Self { config_repository: ConfigRepository::new(connection_pool) }
+    }
+
+    pub fn from_app_handle(app_handle: &AppHandle) -> Result<Self, String> {
+        let app_context = app_handle.state::<AppContext>();
+        let connection_pool = app_context.db_connection.get();
+        if connection_pool.is_none() {
+            warn!("can't create instance of Configuration because database connection pool is not initialized");
+            return Err("database connection pool is not initialized".to_string());
+        }
+
+        Ok(Self::new(connection_pool.unwrap().clone()))
     }
 
     pub fn apply(&self, key: ConfigKey, value: ConfigValue) -> Result<(), ConfigurationError> {
