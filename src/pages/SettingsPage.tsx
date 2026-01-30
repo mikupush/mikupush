@@ -16,33 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Input } from '@/components/ui/input.tsx'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@/components/ui/button.tsx'
 import { Heading2 } from '@/components/Typography.tsx'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select.tsx'
-import { Theme } from '@/model/config.ts'
-import { useUserTheme } from '@/hooks/use-configuration.ts'
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet
-} from '@/components/ui/field.tsx'
-import { useServer } from '@/context/ServerProvider.tsx'
-import { useState } from 'react'
-import zod from 'zod'
-import toast from 'react-hot-toast'
+import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field.tsx'
+import { ServerField } from '@/components/settings/ServerField.tsx'
+import { ThemeField } from '@/components/settings/ThemeField.tsx'
+import { UploadFieldGroup } from '@/components/settings/UploadFieldGroup.tsx'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -57,6 +36,10 @@ export default function SettingsPage() {
             <ThemeField />
           </FieldGroup>
         </FieldSet>
+        <FieldSet className="space-y-6">
+          <FieldLegend>{t('settings.upload.heading')}</FieldLegend>
+          <UploadFieldGroup />
+        </FieldSet>
         <FieldSet>
           <FieldLegend className="text-red-500">{t('common.form.danger_zone')}</FieldLegend>
           <FieldGroup>
@@ -68,96 +51,3 @@ export default function SettingsPage() {
   )
 }
 
-function ThemeField() {
-  const { t } = useTranslation()
-  const { applyTheme, theme } = useUserTheme()
-
-  return (
-    <Field>
-      <FieldLabel>{t('settings.appearance.theme.label')}</FieldLabel>
-      <Select
-        value={theme}
-        onValueChange={(value) => applyTheme(value as Theme)}
-      >
-        <SelectTrigger className="w-full max-w-56">
-          <SelectValue placeholder={t('settings.appearance.theme.placeholder')} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="light">{t('settings.appearance.theme.option.light')}</SelectItem>
-            <SelectItem value="dark">{t('settings.appearance.theme.option.dark')}</SelectItem>
-            <SelectItem value="system">{t('settings.appearance.theme.option.system')}</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <FieldError></FieldError>
-    </Field>
-  )
-}
-
-function ServerField() {
-  const { t } = useTranslation()
-  const { setCurrentByUrl, current } = useServer()
-  const [url, setUrl] = useState(current.url)
-  const [errors, setErrors] = useState<string[]>([])
-
-  const handleValidationError = (error: unknown): boolean => {
-    if (!(error instanceof zod.ZodError)) {
-      return false
-    }
-
-    setErrors(
-      error.issues.map(issue => {
-        if (issue.code === 'invalid_type') return t('settings.server.error.invalid')
-        if (issue.code === 'invalid_format') return t('settings.server.error.format')
-        if (issue.code === 'too_small') return t('settings.server.error.required')
-        if (issue.input === undefined) return t('settings.server.error.required')
-        return ''
-      }).filter(error => error !== '')
-    )
-    return true
-  }
-
-  const handleServerError = (error: unknown) => {
-    if (typeof error === 'string') {
-      setErrors([error])
-      return
-    }
-
-    if (error instanceof Error && error.message) {
-      setErrors([error.message])
-      return
-    }
-
-    toast.error(t('errors.unknown'))
-  }
-
-  const handleChangeServer = async () => {
-    try {
-      setErrors([])
-      zod.url().nonempty().parse(url)
-      await setCurrentByUrl(url)
-      toast.success(t('settings.server.success'))
-    } catch (error) {
-      if (handleValidationError(error)) return
-      handleServerError(error)
-    }
-  }
-
-  return (
-    <Field>
-      <FieldLabel>{t('settings.server.label')}</FieldLabel>
-      <div className="flex w-full max-w-lg items-center gap-2">
-        <Input
-          name="serverUrl"
-          placeholder="https://mikupush.io"
-          value={url}
-          onChange={(event) => setUrl(event.target.value.toLowerCase().trim())}
-        />
-        <Button onClick={handleChangeServer}>{t('settings.server.apply')}</Button>
-      </div>
-      <FieldDescription>{t('settings.server.description')}</FieldDescription>
-      <FieldError errors={errors.map(error => ({ message: error }))} />
-    </Field>
-  )
-}

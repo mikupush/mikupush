@@ -1,6 +1,6 @@
 [package]
 name = "mikupush"
-version = "0.1.5"
+version = "0.1.6"
 description = "Simple, lightweight, and open-source WeTransfer alternative for desktop, with anonymous sharing by default and self-hosted server support"
 authors = ["MikuPush"]
 edition = "2024"

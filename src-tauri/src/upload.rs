@@ -17,7 +17,7 @@
 use std::borrow::Cow;
 use std::fs::File;
 use crate::events::*;
-use mikupush_common::{Progress, UploadRequest};
+use mikupush_common::{ConfigKey, Progress, UploadRequest, CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE};
 use mikupush_client::{Client, ClientError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
 use crate::state::{SelectedServerState, UploadsState};
 use log::{debug, error, info, warn};
@@ -27,6 +27,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use uuid::Uuid;
+use crate::config::Configuration;
 use crate::MAIN_WINDOW;
 
 #[tauri::command]
@@ -74,8 +75,22 @@ pub fn start_upload(
     let server_state = app_handle.state::<SelectedServerState>();
     let upload_state = app_handle.state::<UploadsState>();
 
+    let configuration_repository = Configuration::from_app_handle(app_handle)?;
+    let chunked_mode = configuration_repository.get(ConfigKey::UploadInChunks) == CONFIG_TRUE_VALUE;
+    let chunk_size = match configuration_repository.get(ConfigKey::UploadChunkSize).parse::<u64>() {
+        Ok(size) => size * 1024 * 1024, // MB to bytes
+        Err(err) => {
+            warn!("failed to parse configured upload chunk size: {}; using default", err);
+            CONFIG_CHUNK_SIZE_DEFAULT
+        }
+    };
+
     let server = server_state.current_server();
-    let request = UploadRequest::from_file_path(file_path, server)?;
+    let mut request = UploadRequest::from_file_path(file_path, server)?;
+    if chunked_mode {
+        request = request.upload_by_chunks(chunk_size);
+    }
+
     let upload_id = request.upload.id.clone().to_string();
     let in_progress_uploads = upload_state.add_request(request.clone());
     let client = server_state.clone().client();

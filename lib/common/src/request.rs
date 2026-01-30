@@ -37,17 +37,35 @@ pub struct UploadRequest {
     pub upload: Upload,
     pub finished: bool,
     pub canceled: bool,
+    pub chunked: bool,
+    pub chunk_size: u64,
 }
 
 impl UploadRequest {
-    pub fn new(id: Uuid, name: String, size: u64, mime_type: String, path: String, server: Server) -> Self {
+    pub fn new(
+        id: Uuid,
+        name: String,
+        size: u64,
+        mime_type: String,
+        path: String,
+        server: Server,
+    ) -> Self {
         Self {
             progress: Progress::new(size),
             error: None,
             upload: Upload::new(id, name, size, mime_type, path, server),
             finished: false,
             canceled: false,
+            chunked: false,
+            chunk_size: 0
         }
+    }
+
+    pub fn upload_by_chunks(&self, chunk_size: u64) -> Self {
+        let mut this = self.clone();
+        this.chunked = true;
+        this.chunk_size = chunk_size;
+        this
     }
 
     pub fn update_progress(&self, progress: Progress) -> Self {

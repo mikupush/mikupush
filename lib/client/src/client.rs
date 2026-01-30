@@ -117,14 +117,14 @@ impl Client {
         let client = self.client.clone();
         let size = request.upload.size;
 
-        if size < SINGLE_UPLOAD_MAX_SIZE_BYTES {
-            debug!("uploading file {} with size {} as single upload", request.upload.id, size);
-            let task = SingleUploadTask::new(self.base_url.clone(), request.upload.clone(), client).await
+        if request.chunked {
+            debug!("uploading file {} with size {} as chunked upload", request.upload.id, request.chunk_size);
+            let task = ChunkedUploadTask::new(self.base_url.clone(), request.upload.clone(), client, request.chunk_size).await
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
             Ok(Box::new(task))
         } else {
-            debug!("uploading file {} with size {} as chunked upload", request.upload.id, size);
-            let task = ChunkedUploadTask::new(self.base_url.clone(), request.upload.clone(), client).await
+            debug!("uploading file {} with size {} as single upload", request.upload.id, size);
+            let task = SingleUploadTask::new(self.base_url.clone(), request.upload.clone(), client).await
                 .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
             Ok(Box::new(task))
         }

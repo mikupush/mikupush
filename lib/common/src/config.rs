@@ -19,11 +19,17 @@ use std::fmt::{Display, Formatter};
 
 use crate::Theme;
 
+pub const CONFIG_TRUE_VALUE: &str = "true";
+pub const CONFIG_FALSE_VALUE: &str = "false";
+pub const CONFIG_CHUNK_SIZE_DEFAULT: u64 = 50 * 1024 * 1024; // 50 MB
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConfigKey {
     Theme,
     StartOnSystemStartup,
     StartMinimized,
+    UploadInChunks,
+    UploadChunkSize,
 }
 
 impl ConfigKey {
@@ -32,14 +38,18 @@ impl ConfigKey {
             ConfigKey::Theme => "theme".to_string(),
             ConfigKey::StartOnSystemStartup => "start_on_system_startup".to_string(),
             ConfigKey::StartMinimized => "start_minimized".to_string(),
+            ConfigKey::UploadInChunks => "upload_in_chunks".to_string(),
+            ConfigKey::UploadChunkSize => "upload_chunk_size".to_string(),
         }
     }
 
     pub fn default_value(&self) -> ConfigValue {
         match self {
             ConfigKey::Theme => Theme::default().to_string(),
-            ConfigKey::StartOnSystemStartup => false.to_string(),
-            ConfigKey::StartMinimized => false.to_string(),
+            ConfigKey::StartOnSystemStartup => CONFIG_FALSE_VALUE.to_string(),
+            ConfigKey::StartMinimized => CONFIG_FALSE_VALUE.to_string(),
+            ConfigKey::UploadInChunks => CONFIG_TRUE_VALUE.to_string(),
+            ConfigKey::UploadChunkSize => "50".to_string(),
         }
     }
 
@@ -48,6 +58,8 @@ impl ConfigKey {
             "theme" => Some(ConfigKey::Theme),
             "start_on_system_startup" => Some(ConfigKey::StartOnSystemStartup),
             "start_minimized" => Some(ConfigKey::StartMinimized),
+            "upload_in_chunks" => Some(ConfigKey::UploadInChunks),
+            "upload_chunk_size" => Some(ConfigKey::UploadChunkSize),
             _ => None,
         }
     }

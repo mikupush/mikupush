@@ -24,6 +24,8 @@ use mikupush_common::Upload;
 use std::cmp::min;
 use std::io::Result as IoResult;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicU64;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 use tokio::fs::File;
@@ -231,8 +233,6 @@ impl UploadTask for SingleUploadTask {
     }
 }
 
-const FILE_UPLOAD_CHUNK_SIZE: usize = 10 * 1024 * 1024; // 10MB
-
 #[derive(Debug, Clone)]
 pub struct ChunkedUploadTask {
     base_url: String,
@@ -242,9 +242,9 @@ pub struct ChunkedUploadTask {
     progress: ProgressTrack,
     client: reqwest::Client,
     upload: Upload,
-    total_size: u64,
-    uploaded_bytes: u64,
-    last_measured_rate: Instant,
+    uploaded_bytes: Arc<AtomicU64>,
+    last_measured_rate: Arc<Mutex<Instant>>,
+    chunk_size: u64
 }
 
 impl ChunkedUploadTask {
@@ -252,6 +252,7 @@ impl ChunkedUploadTask {
         base_url: String,
         upload: Upload,
         client: reqwest::Client,
+        chunk_size: u64
     ) -> Result<Self, std::io::Error> {
         let progress = ProgressTrack::new(upload.id.clone(), upload.size);
         let cancellation_token = CancellationToken::new();
@@ -269,20 +270,28 @@ impl ChunkedUploadTask {
             client,
             upload,
             progress,
-            total_size: 0,
-            uploaded_bytes: 0,
-            last_measured_rate: Instant::now(),
+            uploaded_bytes: Arc::new(AtomicU64::new(0)),
+            last_measured_rate: Arc::new(Mutex::new(Instant::now())),
+            chunk_size
         })
     }
 
-    fn emit_progress(&mut self, bytes_sent: u64) {
-        self.uploaded_bytes = min(self.uploaded_bytes + bytes_sent, self.upload.size);
-        let elapsed = self.last_measured_rate.elapsed();
+    fn emit_progress(&mut self, bytes_sent: &std::io::Result<Bytes>) {
+        let Ok(bytes_sent) = bytes_sent else {
+            return
+        };
+
+        let bytes_sent = bytes_sent.len() as u64;
+        let mut last_measured_rate = self.last_measured_rate.lock().unwrap();
+        let uploaded_bytes = self.uploaded_bytes.load(std::sync::atomic::Ordering::Acquire);
+        let uploaded_bytes_now = min(uploaded_bytes + bytes_sent, self.upload.size);
+        self.uploaded_bytes.store(uploaded_bytes_now, std::sync::atomic::Ordering::Release);
+        let elapsed = last_measured_rate.elapsed();
 
         if elapsed >= Duration::from_secs(1) {
-            let updated_progress = self.progress.update(self.uploaded_bytes);
+            let updated_progress = self.progress.update(uploaded_bytes_now);
             let _ = self.progress_sender.send(updated_progress);
-            self.last_measured_rate = Instant::now();
+            *last_measured_rate = Instant::now();
         }
 
         #[cfg(test)]
@@ -292,15 +301,22 @@ impl ChunkedUploadTask {
     }
 
     async fn perform_chunk_upload(&self, data: Vec<u8>, index: u64) -> Result<(), FileUploadError> {
-        debug!("uploading chunk {} for file {} ({} bytes)", index, self.upload.id, data.len());
+        let content_size = data.len();
+        debug!("uploading chunk {} for file {} ({} bytes)", index, self.upload.id, content_size);
         let now = Instant::now();
-        let bytes = Bytes::from(data);
         let url = format!("{}/api/file/{}/upload/part/{}", self.base_url, self.upload.id, index);
+        let mut this = self.clone();
+        let stream = ReaderStream::new(std::io::Cursor::new(data)).map(move |chunk| {
+            this.emit_progress(&chunk);
+            chunk
+        });
+        let body = reqwest::Body::wrap_stream(stream);
         let send_future = self.client
             .post(&url)
             .header("Connection", "keep-alive")
             .header("Content-Type", "application/octet-stream")
-            .body(bytes)
+            .header("Content-Length", content_size)
+            .body(body)
             .send();
 
         let response = select! {
@@ -330,10 +346,11 @@ impl ChunkedUploadTask {
     async fn perform_upload(&mut self) -> Result<(), FileUploadError> {
         let mut file = File::open(self.upload.path.clone()).await
             .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
-        let mut buffer = vec![0u8; FILE_UPLOAD_CHUNK_SIZE];
+        let chunk_size = self.chunk_size as usize;
+        let mut buffer = vec![0u8; chunk_size];
         let mut index: u64 = 0;
 
-        file.set_max_buf_size(FILE_UPLOAD_CHUNK_SIZE);
+        file.set_max_buf_size(chunk_size);
 
         loop {
             if self.cancellation_token.is_cancelled() {
@@ -352,7 +369,6 @@ impl ChunkedUploadTask {
             let chunk = &buffer[..bytes_read];
             debug!("attempting to upload chunk of {} bytes ({} bytes read by the reader)", chunk.len(), bytes_read);
             self.perform_chunk_upload(Vec::from(chunk), index).await?;
-            self.emit_progress(bytes_read as u64);
             index += 1;
         }
     }

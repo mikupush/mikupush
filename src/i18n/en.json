@@ -59,6 +59,17 @@
         }
       }
     },
+    "upload": {
+      "heading": "Upload",
+      "upload_in_chunks": {
+        "label": "Upload the file in chunks",
+        "description": "Recommended for low-bandwidth or unstable networks. This may increase the upload time."
+      },
+      "chunk_size": {
+        "label": "Upload chunk size in MB",
+        "description": "The recommended value is between 50 and 100 MB, if your network is slow try between 5 and 10 MB. The minimum value is 5 MB and the maximum 1000 MB."
+      }
+    },
     "server": {
       "label": "Server URL",
       "description": "Change the target server URL for upload files. It may produce unexpected errors uploading new files. Change at your risk!",
