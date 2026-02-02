@@ -172,7 +172,7 @@ impl SingleUploadTask {
              self.cancellation_token.clone(),
              self.stop_token.clone(),
              self.upload.size,
-             self.progress,
+             self.progress.clone(),
              self.progress_sender.clone(),
         ).await
     }
@@ -239,7 +239,7 @@ pub struct ChunkedUploadTask {
     progress_sender: Sender<ProgressTrack>,
     progress_receiver: Receiver<ProgressTrack>,
     cancellation_token: CancellationToken,
-    progress: ProgressTrack,
+    progress: Arc<Mutex<ProgressTrack>>,
     client: reqwest::Client,
     upload: Upload,
     uploaded_bytes: Arc<AtomicU64>,
@@ -269,14 +269,14 @@ impl ChunkedUploadTask {
             cancellation_token,
             client,
             upload,
-            progress,
+            progress: Arc::new(Mutex::new(progress)),
             uploaded_bytes: Arc::new(AtomicU64::new(0)),
             last_measured_rate: Arc::new(Mutex::new(Instant::now())),
             chunk_size
         })
     }
 
-    fn emit_progress(&mut self, bytes_sent: &std::io::Result<Bytes>) {
+    fn emit_progress(&self, bytes_sent: &std::io::Result<Bytes>) {
         let Ok(bytes_sent) = bytes_sent else {
             return
         };
@@ -289,7 +289,8 @@ impl ChunkedUploadTask {
         let elapsed = last_measured_rate.elapsed();
 
         if elapsed >= Duration::from_secs(1) {
-            let updated_progress = self.progress.update(uploaded_bytes_now);
+            let mut progress = self.progress.lock().unwrap();
+            let updated_progress = progress.update(uploaded_bytes_now);
             let _ = self.progress_sender.send(updated_progress);
             *last_measured_rate = Instant::now();
         }
@@ -305,7 +306,7 @@ impl ChunkedUploadTask {
         debug!("uploading chunk {} for file {} ({} bytes)", index, self.upload.id, content_size);
         let now = Instant::now();
         let url = format!("{}/api/file/{}/upload/part/{}", self.base_url, self.upload.id, index);
-        let mut this = self.clone();
+        let this = self.clone();
         let stream = ReaderStream::new(std::io::Cursor::new(data)).map(move |chunk| {
             this.emit_progress(&chunk);
             chunk
