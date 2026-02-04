@@ -5,30 +5,34 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::borrow::Cow;
-use std::fs::File;
+use crate::MAIN_WINDOW;
+use crate::config::Configuration;
 use crate::events::*;
-use mikupush_common::{ConfigKey, Progress, UploadRequest, CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE};
-use mikupush_client::{Client, ClientError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
 use crate::state::{SelectedServerState, UploadsState};
 use log::{debug, error, info, warn};
+use mikupush_client::{
+    Client, ClientError, FILE_INFO_ERROR_NOT_EXISTS, FileStatus, FileUploadError,
+};
+use mikupush_common::{
+    CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE, ConfigKey, Progress, UploadRequest,
+};
 use rust_i18n::t;
+use std::borrow::Cow;
+use std::fs::File;
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use uuid::Uuid;
-use crate::config::Configuration;
-use crate::MAIN_WINDOW;
 
 #[tauri::command]
 pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadRequest>, String> {
@@ -54,7 +58,7 @@ pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadR
 pub fn start_upload_for_collection(
     app_handle: &AppHandle,
     file_paths: Vec<String>,
-    always_notify: bool
+    always_notify: bool,
 ) -> Result<Vec<UploadRequest>, String> {
     debug!("enqueue many files to uploads: {}", file_paths.join(";"));
     let mut in_progress_uploads: Vec<UploadRequest> = vec![];
@@ -69,7 +73,7 @@ pub fn start_upload_for_collection(
 pub fn start_upload(
     app_handle: &AppHandle,
     file_path: String,
-    always_notify: bool
+    always_notify: bool,
 ) -> Result<Vec<UploadRequest>, String> {
     debug!("starting upload for path: {}", file_path);
     let server_state = app_handle.state::<SelectedServerState>();
@@ -77,10 +81,16 @@ pub fn start_upload(
 
     let configuration_repository = Configuration::from_app_handle(app_handle)?;
     let chunked_mode = configuration_repository.get(ConfigKey::UploadInChunks) == CONFIG_TRUE_VALUE;
-    let chunk_size = match configuration_repository.get(ConfigKey::UploadChunkSize).parse::<u64>() {
+    let chunk_size = match configuration_repository
+        .get(ConfigKey::UploadChunkSize)
+        .parse::<u64>()
+    {
         Ok(size) => size * 1024 * 1024, // MB to bytes
         Err(err) => {
-            warn!("failed to parse configured upload chunk size: {}; using default", err);
+            warn!(
+                "failed to parse configured upload chunk size: {}; using default",
+                err
+            );
             CONFIG_CHUNK_SIZE_DEFAULT
         }
     };
@@ -97,9 +107,17 @@ pub fn start_upload(
 
     show_notification(
         &app_handle,
-        t!("notifications.upload.enqueued.title", name = request.upload.name).to_string(),
-        t!("notifications.upload.enqueued.body", name = request.upload.name).to_string(),
-        always_notify
+        t!(
+            "notifications.upload.enqueued.title",
+            name = request.upload.name
+        )
+        .to_string(),
+        t!(
+            "notifications.upload.enqueued.body",
+            name = request.upload.name
+        )
+        .to_string(),
+        always_notify,
     );
 
     let app_handle = app_handle.clone();
@@ -120,12 +138,18 @@ pub fn start_upload(
 }
 
 #[tauri::command]
-pub async fn enqueue_many_uploads(app_handle: AppHandle, paths: Vec<String>) -> Result<Vec<UploadRequest>, String> {
+pub async fn enqueue_many_uploads(
+    app_handle: AppHandle,
+    paths: Vec<String>,
+) -> Result<Vec<UploadRequest>, String> {
     start_upload_for_collection(&app_handle, paths, false)
 }
 
 #[tauri::command]
-pub async fn enqueue_upload(app_handle: AppHandle, file_path: String) -> Result<Vec<UploadRequest>, String> {
+pub async fn enqueue_upload(
+    app_handle: AppHandle,
+    file_path: String,
+) -> Result<Vec<UploadRequest>, String> {
     start_upload(&app_handle, file_path, false)
 }
 
@@ -141,7 +165,10 @@ pub async fn retry_upload(
     let client = server_state.client();
     let upload_request = uploads_state.get_request(upload_id.clone());
     if let None = upload_request {
-        warn!("can't retry upload request with id {}: not found", upload_id);
+        warn!(
+            "can't retry upload request with id {}: not found",
+            upload_id
+        );
         return Ok(());
     }
 
@@ -156,12 +183,15 @@ pub async fn retry_upload(
                 debug!("error retrieving file info during upload retry: {}", error);
                 update_upload_request_state(
                     &app_handle,
-                    upload_request.finish_with_error(error.code(), error.to_string())
+                    upload_request.finish_with_error(error.code(), error.to_string()),
                 );
                 return;
             }
 
-            debug!("upload with id {} is not registered, registering again", upload_request.upload.id);
+            debug!(
+                "upload with id {} is not registered, registering again",
+                upload_request.upload.id
+            );
             if let Err(error) = client.create(&upload_request.clone().upload).await {
                 warn!("error registering file {:?}", error);
                 handle_upload_failed(&app_handle, error, upload_id, false);
@@ -169,8 +199,13 @@ pub async fn retry_upload(
             }
         }
 
-        if let Ok(info) = info && info.status == FileStatus::Uploaded {
-            debug!("upload with id {} is already uploaded, aborting retry", upload_request.upload.id);
+        if let Ok(info) = info
+            && info.status == FileStatus::Uploaded
+        {
+            debug!(
+                "upload with id {} is already uploaded, aborting retry",
+                upload_request.upload.id
+            );
             return;
         }
 
@@ -283,8 +318,8 @@ async fn upload_file(
         }
     });
 
-    let result = handle.await.map_err(|err| {
-        FileUploadError::ClientError { message: format!("upload task join error: {}", err.to_string()) }
+    let result = handle.await.map_err(|err| FileUploadError::ClientError {
+        message: format!("upload task join error: {}", err.to_string()),
     })?;
     state.remove_cancellation_token(upload_id.clone());
 
@@ -312,9 +347,17 @@ fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify
 
     show_notification(
         &app_handle,
-        t!("notifications.upload.success.title", name = request.upload.name).to_string(),
-        t!("notifications.upload.success.body", name = request.upload.name).to_string(),
-        always_notify
+        t!(
+            "notifications.upload.success.title",
+            name = request.upload.name
+        )
+        .to_string(),
+        t!(
+            "notifications.upload.success.body",
+            name = request.upload.name
+        )
+        .to_string(),
+        always_notify,
     );
 }
 
@@ -347,9 +390,17 @@ fn handle_upload_failed(
 
     show_notification(
         app_handle,
-        t!("notifications.upload.error.title", name = request.upload.name).to_string(),
-        t!("notifications.upload.error.body", name = request.upload.name).to_string(),
-        always_notify
+        t!(
+            "notifications.upload.error.title",
+            name = request.upload.name
+        )
+        .to_string(),
+        t!(
+            "notifications.upload.error.body",
+            name = request.upload.name
+        )
+        .to_string(),
+        always_notify,
     );
 }
 
@@ -382,7 +433,8 @@ fn show_notification(app_handle: &AppHandle, title: String, body: String, always
             return;
         }
 
-        let result = app_handle.notification()
+        let result = app_handle
+            .notification()
             .builder()
             .title(title)
             .body(body)
@@ -405,16 +457,14 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
 
     #[cfg(target_os = "macos")]
     let directory = match app_handle.path().home_dir() {
-        Ok(path) => {
-            path
-                .join("Library")
-                .join("Group Containers")
-                .join("group.io.mikupush.client")
-        },
+        Ok(path) => path
+            .join("Library")
+            .join("Group Containers")
+            .join("group.io.mikupush.client"),
         Err(err) => {
             warn!("failed to get home directory: {}", err);
             return;
-        },
+        }
     };
 
     #[cfg(not(target_os = "macos"))]
@@ -423,7 +473,7 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
         Err(err) => {
             warn!("failed to get local data directory: {}", err);
             return;
-        },
+        }
     };
 
     let request_file_path = directory.join(request_file);
@@ -443,7 +493,7 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
             }
 
             paths
-        },
+        }
         Err(err) => {
             warn!("failed to parse share requests paths: {}", err);
             return;
