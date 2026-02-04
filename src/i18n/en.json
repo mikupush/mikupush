@@ -43,8 +43,11 @@
   },
   "settings": {
     "heading": "Settings",
-    "appearance": {
-      "heading": "Appearance",
+    "general": {
+      "heading": "Appearance and behavior",
+      "autostart": {
+        "label": "Start the app on system startup"
+      },
       "theme": {
         "label": "Theme",
         "placeholder": "Select a theme",

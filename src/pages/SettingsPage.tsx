@@ -22,6 +22,7 @@ import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field.tsx'
 import { ServerField } from '@/components/settings/ServerField.tsx'
 import { ThemeField } from '@/components/settings/ThemeField.tsx'
 import { UploadFieldGroup } from '@/components/settings/UploadFieldGroup.tsx'
+import { AutoStartField } from '@/components/settings/AutoStartField.tsx'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -31,8 +32,9 @@ export default function SettingsPage() {
       <Heading2 className="mb-6">{t('settings.heading')}</Heading2>
       <div className="space-y-6">
         <FieldSet className="space-y-6">
-          <FieldLegend>{t('settings.appearance.heading')}</FieldLegend>
+          <FieldLegend>{t('settings.general.heading')}</FieldLegend>
           <FieldGroup>
+            <AutoStartField />
             <ThemeField />
           </FieldGroup>
         </FieldSet>
