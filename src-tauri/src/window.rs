@@ -5,12 +5,12 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -50,7 +50,8 @@ pub fn initialize_main_window(app: &AppHandle, hidden: bool) -> WebviewWindow {
         let _ = app.run_on_main_thread(move || {
             let ns_window_ptr = closure_window.ns_window().unwrap();
             let obj_ptr = ns_window_ptr as *mut objc2::runtime::AnyObject;
-            let ns_window: Retained<NSWindow> = unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
+            let ns_window: Retained<NSWindow> =
+                unsafe { Retained::retain(obj_ptr.cast()) }.unwrap();
 
             unsafe {
                 use objc2::{MainThreadMarker, MainThreadOnly};
@@ -88,11 +89,16 @@ pub fn restore_main_window(app: &AppHandle, hidden: bool) {
     let mut window = app.get_webview_window(MAIN_WINDOW);
 
     if window.is_none() {
-        debug!("creating a new {} window instance because it was closed", MAIN_WINDOW);
+        debug!(
+            "creating a new {} window instance because it was closed",
+            MAIN_WINDOW
+        );
         window = Some(initialize_main_window(app, hidden));
     }
 
-    if let Some(window) = window && !hidden {
+    if let Some(window) = window
+        && !hidden
+    {
         debug!("restoring {} window instance", MAIN_WINDOW);
         let _ = window.show();
         let _ = window.set_focus();
@@ -109,10 +115,11 @@ pub fn initialize_about_window(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    let win_builder = WebviewWindowBuilder::new(app, ABOUT_WINDOW, WebviewUrl::App("about.html".into()))
-        .title(ABOUT_WINDOW_TITLE)
-        .inner_size(800.0, 600.0)
-        .min_inner_size(480.0, 600.0);
+    let win_builder =
+        WebviewWindowBuilder::new(app, ABOUT_WINDOW, WebviewUrl::App("about.html".into()))
+            .title(ABOUT_WINDOW_TITLE)
+            .inner_size(800.0, 600.0)
+            .min_inner_size(480.0, 600.0);
 
     let window = match win_builder.build() {
         Ok(window) => window,

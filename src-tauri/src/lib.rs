@@ -5,31 +5,33 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod upload;
-mod events;
-mod state;
 mod config;
+mod events;
+mod menu;
 mod resources;
 mod server;
+mod state;
+mod upload;
 mod window;
-mod menu;
 
-use std::env;
+use crate::menu::setup_app_menu;
 use crate::resources::unpack_resources;
 use crate::server::initialize_current_server_state;
-use crate::window::{initialize_main_window, restore_main_window, MAIN_WINDOW};
+use crate::upload::start_upload_for_collection;
+use crate::window::{MAIN_WINDOW, initialize_main_window, restore_main_window};
 use log::{debug, warn};
-use mikupush_database::{create_database_connection, DbPool};
+use mikupush_database::{DbPool, create_database_connection};
 use state::{SelectedServerState, UploadsState};
+use std::env;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -37,13 +39,14 @@ use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri::{
+    App, AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, Wry,
+};
+use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_fs::FsExt;
 use tokio::runtime::Runtime;
 use tokio::time::sleep;
-use crate::menu::setup_app_menu;
-use crate::upload::start_upload_for_collection;
 
 pub struct AppContext {
     pub db_connection: OnceLock<DbPool>,
@@ -54,13 +57,13 @@ type GenericResult<T> = Result<T, Box<dyn std::error::Error>>;
 rust_i18n::i18n!("i18n", fallback = "en");
 
 struct AppState {
-    allow_quit: AtomicBool
+    allow_quit: AtomicBool,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            allow_quit: AtomicBool::new(false)
+            allow_quit: AtomicBool::new(false),
         }
     }
 }
@@ -69,12 +72,15 @@ impl Default for AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--tray"])))
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| on_single_instance(&app, argv)))
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            on_single_instance(&app, argv)
+        }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
@@ -91,7 +97,7 @@ pub fn run() {
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
                         file_name: Some("logs".to_string()),
-                    })
+                    }),
                 ])
                 .build(),
         )
@@ -155,6 +161,9 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
         app.deep_link().register_all()?;
     }
 
+    let args: Vec<String> = env::args().collect();
+    let start_hidden = args.contains(&"--tray".to_string());
+
     let deep_link = app.deep_link();
     let current_deep_links = deep_link.get_current()?;
     setup_app_menu(app.app_handle())?;
@@ -164,7 +173,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     app_context.db_connection.set(db).unwrap();
     initialize_current_server_state(app.app_handle())?;
 
-    let hidden = current_deep_links.is_some();
+    let hidden = current_deep_links.is_some() || start_hidden;
     initialize_main_window(app.app_handle(), hidden);
 
     #[cfg(target_os = "macos")]
@@ -198,10 +207,9 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     }
 
     let app_handle = app.app_handle().clone();
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() > 1 {
-        if let Err(err) = start_upload_for_collection(&app_handle, Vec::from(&args[1..]), true) {
+    let requested_paths = get_requested_paths_from_args(args);
+    if requested_paths.len() > 0 {
+        if let Err(err) = start_upload_for_collection(&app_handle, requested_paths, true) {
             warn!("error starting upload from program args: {:?}", err);
         }
     }
@@ -231,7 +239,7 @@ fn execute_tray_event(app: &AppHandle, event: MenuEvent) {
             let state = app.state::<AppState>();
             state.allow_quit.store(true, Ordering::Relaxed);
             app.exit(0);
-        },
+        }
         "show" => {
             restore_main_window(app, false);
         }
@@ -263,10 +271,7 @@ fn process_deep_links(app_handle: &AppHandle, urls: Vec<Url>) {
         let path = url.path();
 
         if path.starts_with("/share") {
-            upload::handle_upload_deep_link(
-                &app_handle,
-                path.replace("/share/", "").as_str()
-            );
+            upload::handle_upload_deep_link(&app_handle, path.replace("/share/", "").as_str());
         }
     }
 }
@@ -276,18 +281,80 @@ fn on_single_instance(app_handle: &AppHandle, argv: Vec<String>) {
     let launch_restore_main_window = |app_handle: &AppHandle, hidden: bool| {
         let app_handle = app_handle.clone();
         tauri::async_runtime::spawn(async move {
-            debug!("restoring {} window from single instance event", MAIN_WINDOW);
+            debug!(
+                "restoring {} window from single instance event",
+                MAIN_WINDOW
+            );
             #[cfg(target_os = "windows")]
             sleep(Duration::from_millis(200)).await;
             restore_main_window(&app_handle, hidden);
         });
     };
 
-    if argv.len() > 1 {
-        if let Err(err) = start_upload_for_collection(app_handle, Vec::from(&argv[1..]), true) {
-            warn!("error starting upload from single instance event: {:?}", err);
+    let requested_paths = get_requested_paths_from_args(argv);
+    if requested_paths.len() > 0 {
+        if let Err(err) = start_upload_for_collection(app_handle, requested_paths, true) {
+            warn!(
+                "error starting upload from single instance event: {:?}",
+                err
+            );
         }
     } else {
         launch_restore_main_window(app_handle, false);
+    }
+}
+
+fn get_requested_paths_from_args(args: Vec<String>) -> Vec<String> {
+    if args.len() == 0 {
+        return vec![];
+    }
+
+    let requested_paths: Vec<String> = args.iter()
+        .filter(|arg| arg.ne(&"--tray"))
+        .map(|arg| arg.to_string())
+        .collect();
+
+    if requested_paths.len() > 1 {
+        Vec::from(&requested_paths[1..])
+    } else {
+        vec![]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_requested_paths_from_args_should_return_empty_vec_when_no_args_provided() {
+        let args: Vec<String> = vec![];
+        let requested_paths = get_requested_paths_from_args(args);
+
+        assert_eq!(requested_paths.len(), 0);
+    }
+
+    #[test]
+    fn test_get_requested_paths_from_args_should_return_empty_vec_when_no_valid_args_provided() {
+        let args: Vec<String> = vec![
+            "/usr/bin/mikupush".to_string(),
+            "--tray".to_string()
+        ];
+        let requested_paths = get_requested_paths_from_args(args);
+
+        assert_eq!(requested_paths.len(), 0);
+    }
+
+    #[test]
+    fn test_get_requested_paths_from_args_should_return_valid_paths() {
+        let args: Vec<String> = vec![
+            "/usr/bin/mikupush".to_string(),
+            "--tray".to_string(),
+            "/example/path/to/file.txt".to_string()
+        ];
+
+        let requested_paths = get_requested_paths_from_args(args);
+
+        assert_eq!(requested_paths.len(), 1);
+        assert_eq!(requested_paths[0], "/example/path/to/file.txt");
     }
 }

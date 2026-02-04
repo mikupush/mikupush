@@ -10,19 +10,19 @@ export function ThemeField() {
 
   return (
     <Field>
-      <FieldLabel>{t('settings.appearance.theme.label')}</FieldLabel>
+      <FieldLabel>{t('settings.general.theme.label')}</FieldLabel>
       <Select
         value={theme}
         onValueChange={(value) => applyTheme(value as Theme)}
       >
         <SelectTrigger className="w-full max-w-56">
-          <SelectValue placeholder={t('settings.appearance.theme.placeholder')}/>
+          <SelectValue placeholder={t('settings.general.theme.placeholder')}/>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            <SelectItem value="light">{t('settings.appearance.theme.option.light')}</SelectItem>
-            <SelectItem value="dark">{t('settings.appearance.theme.option.dark')}</SelectItem>
-            <SelectItem value="system">{t('settings.appearance.theme.option.system')}</SelectItem>
+            <SelectItem value="light">{t('settings.general.theme.option.light')}</SelectItem>
+            <SelectItem value="dark">{t('settings.general.theme.option.dark')}</SelectItem>
+            <SelectItem value="system">{t('settings.general.theme.option.system')}</SelectItem>
           </SelectGroup>
         </SelectContent>
       </Select>

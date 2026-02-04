@@ -5,21 +5,21 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::fmt::{Display, Formatter};
+use crate::AppContext;
 use log::{debug, warn};
-use tauri::{AppHandle, Manager, State};
 use mikupush_common::{ConfigKey, ConfigValue};
 use mikupush_database::{ConfigRepository, DbPool};
-use crate::AppContext;
+use std::fmt::{Display, Formatter};
+use tauri::{AppHandle, Manager, State};
 
 #[derive(Debug, Clone)]
 pub enum ConfigurationError {
@@ -43,14 +43,18 @@ pub struct Configuration {
 
 impl Configuration {
     pub fn new(connection_pool: DbPool) -> Self {
-        Self { config_repository: ConfigRepository::new(connection_pool) }
+        Self {
+            config_repository: ConfigRepository::new(connection_pool),
+        }
     }
 
     pub fn from_app_handle(app_handle: &AppHandle) -> Result<Self, String> {
         let app_context = app_handle.state::<AppContext>();
         let connection_pool = app_context.db_connection.get();
         if connection_pool.is_none() {
-            warn!("can't create instance of Configuration because database connection pool is not initialized");
+            warn!(
+                "can't create instance of Configuration because database connection pool is not initialized"
+            );
             return Err("database connection pool is not initialized".to_string());
         }
 
@@ -59,8 +63,11 @@ impl Configuration {
 
     pub fn apply(&self, key: ConfigKey, value: ConfigValue) -> Result<(), ConfigurationError> {
         debug!("saving config: {} = {}", key, value);
-        self.config_repository.save((key, value))
-            .map_err(|e| ConfigurationError::SaveError { message: e.to_string() })
+        self.config_repository
+            .save((key, value))
+            .map_err(|e| ConfigurationError::SaveError {
+                message: e.to_string(),
+            })
     }
 
     pub fn get(&self, key: ConfigKey) -> ConfigValue {
@@ -89,7 +96,9 @@ impl Configuration {
 pub fn get_config_value(app_context: State<AppContext>, key: String) -> Result<String, String> {
     let connection_pool = app_context.db_connection.get();
     if connection_pool.is_none() {
-        warn!("can't create instance of Configuration because database connection pool is not initialized");
+        warn!(
+            "can't create instance of Configuration because database connection pool is not initialized"
+        );
         return Err("database connection pool is not initialized".to_string());
     }
 
@@ -103,10 +112,16 @@ pub fn get_config_value(app_context: State<AppContext>, key: String) -> Result<S
 }
 
 #[tauri::command]
-pub fn set_config_value(app_context: State<AppContext>, key: String, value: String) -> Result<(), String> {
+pub fn set_config_value(
+    app_context: State<AppContext>,
+    key: String,
+    value: String,
+) -> Result<(), String> {
     let connection_pool = app_context.db_connection.get();
     if connection_pool.is_none() {
-        warn!("can't create instance of Configuration because database connection pool is not initialized");
+        warn!(
+            "can't create instance of Configuration because database connection pool is not initialized"
+        );
         return Err("database connection pool is not initialized".to_string());
     }
 
@@ -116,5 +131,7 @@ pub fn set_config_value(app_context: State<AppContext>, key: String, value: Stri
         return Err("invalid configuration key".to_string());
     }
 
-    configuration.apply(key.unwrap(), value).map_err(|e| e.to_string())
+    configuration
+        .apply(key.unwrap(), value)
+        .map_err(|e| e.to_string())
 }
