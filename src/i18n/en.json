@@ -46,7 +46,7 @@
     "general": {
       "heading": "Appearance and behavior",
       "autostart": {
-        "label": "Start the app on system startup"
+        "label": "Start the app on system startup minimized"
       },
       "theme": {
         "label": "Theme",
