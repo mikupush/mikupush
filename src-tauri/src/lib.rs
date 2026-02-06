@@ -173,6 +173,12 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     app_context.db_connection.set(db).unwrap();
     initialize_current_server_state(app.app_handle())?;
 
+    #[cfg(target_os = "macos")]
+    if only_tray {
+        let app_handle = app.app_handle().clone();
+        let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
+
     if !only_tray {
         let hidden = current_deep_links.is_some();
         initialize_main_window(app.app_handle(), hidden);
