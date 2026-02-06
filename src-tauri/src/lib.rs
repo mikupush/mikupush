@@ -162,7 +162,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     }
 
     let args: Vec<String> = env::args().collect();
-    let start_hidden = args.contains(&"--tray".to_string());
+    let only_tray = args.contains(&"--tray".to_string());
 
     let deep_link = app.deep_link();
     let current_deep_links = deep_link.get_current()?;
@@ -173,8 +173,16 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     app_context.db_connection.set(db).unwrap();
     initialize_current_server_state(app.app_handle())?;
 
-    let hidden = current_deep_links.is_some() || start_hidden;
-    initialize_main_window(app.app_handle(), hidden);
+    #[cfg(target_os = "macos")]
+    if only_tray {
+        let app_handle = app.app_handle().clone();
+        let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
+
+    if !only_tray {
+        let hidden = current_deep_links.is_some();
+        initialize_main_window(app.app_handle(), hidden);
+    }
 
     #[cfg(target_os = "macos")]
     let icon = Image::from(tauri::include_image!("icons/tray_icon.png"));
