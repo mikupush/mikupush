@@ -364,6 +364,7 @@ impl ChunkedUploadTask {
 
             if bytes_read == 0 {
                 debug!("finish uploading file chunks");
+                self.acknowledge().await?;
                 return Ok(())
             }
 
@@ -371,6 +372,37 @@ impl ChunkedUploadTask {
             debug!("attempting to upload chunk of {} bytes ({} bytes read by the reader)", chunk.len(), bytes_read);
             self.perform_chunk_upload(Vec::from(chunk), index).await?;
             index += 1;
+        }
+    }
+
+    async fn acknowledge(&self) -> Result<(), FileUploadError> {
+        debug!("Acknowledging chunked upload: {}", self.upload.id);
+        let url = format!("{}/api/file/{}/upload/ack", self.base_url, self.upload.id);
+
+        let response = self.client
+            .post(&url)
+            .header("Connection", "keep-alive")
+            .send()
+            .await;
+
+        match response {
+            Ok(response) => {
+                if response.status().is_success() {
+                    return Ok(());
+                }
+
+                Err(FileUploadError::ClientError {
+                    message: format!(
+                        "upload ack responded with status {}",
+                        response.status().as_u16()
+                    )
+                })
+            },
+            Err(err) => {
+                Err(FileUploadError::ClientError {
+                    message: err.to_string()
+                })
+            }
         }
     }
 }
