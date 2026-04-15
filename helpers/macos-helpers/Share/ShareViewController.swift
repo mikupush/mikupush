@@ -46,6 +46,7 @@ class ShareViewController: NSViewController {
         self.logger.info("launching items url retrieve task")
  
         Task {
+            let uuid = UUID().uuidString.lowercased()
             var fileUrls: [String] = []
             self.logger.info("extracting share items paths")
             
@@ -56,7 +57,8 @@ class ShareViewController: NSViewController {
                         do {
                             if let url = try await self.retrieveSelectedFileUrl(
                                 attachment: attachment,
-                                sharedContainerURL: sharedContainerURL
+                                sharedContainerURL: sharedContainerURL,
+                                uuid: uuid
                             ) {
                                 fileUrls.append(url.path())
                             }
@@ -67,20 +69,22 @@ class ShareViewController: NSViewController {
                 }
             }
 
-            self.finalizeAndSend(fileUrls: fileUrls, encoder: jsonEncoder, container: sharedContainerURL)
+            self.finalizeAndSend(
+                fileUrls: fileUrls,
+                encoder: jsonEncoder,
+                container: sharedContainerURL,
+                uuid: uuid
+            )
         }
     }
     
-    func retrieveSelectedFileUrl(attachment: NSItemProvider, sharedContainerURL: URL) async throws -> URL? {
+    func retrieveSelectedFileUrl(attachment: NSItemProvider, sharedContainerURL: URL, uuid: String) async throws -> URL? {
         self.logger.debug("retrieving item url")
 
         let item = try await attachment.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil)
-        
-        self.logger.info("item type: \(type(of: item), privacy: .public)")
-        self.logger.info("item content: \(String(describing: item), privacy: .public)")
-        
+
         var resolvedUrl: URL? = nil
-        
+
         if let nsUrl = item as? NSURL {
             resolvedUrl = nsUrl as URL
         }
@@ -88,37 +92,31 @@ class ShareViewController: NSViewController {
             resolvedUrl = url
         }
         else if let data = item as? Data {
-            self.logger.info("Item is Data. Trying to convert to String...")
-
             if let urlString = String(data: data, encoding: .utf8) {
                 let cleanString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-                self.logger.debug("data decoded string: \(cleanString, privacy: .public)")
-
-                // Intentamos crear la URL desde el string
-                if let url = URL(string: cleanString) {
-                    resolvedUrl = url
-                } else {
-                    resolvedUrl = URL(fileURLWithPath: cleanString)
-                }
+                resolvedUrl = URL(string: cleanString) ?? URL(fileURLWithPath: cleanString)
             }
         }
-            
+
         guard let originalUrl = resolvedUrl else {
-            self.logger.error("url not resolved from item: \(String(describing: item), privacy: .public)")
+            self.logger.error("url not resolved")
             return nil
         }
 
-        return originalUrl
+        return try self.copyFileToAppGroup(
+            originalUrl: originalUrl,
+            container: sharedContainerURL,
+            uuid: uuid
+        )
     }
 
-    func finalizeAndSend(fileUrls: [String], encoder: JSONEncoder, container: URL) {
+    func finalizeAndSend(fileUrls: [String], encoder: JSONEncoder, container: URL, uuid: String) {
         if fileUrls.isEmpty {
             self.logger.warning("No files collected.")
             self.closeExtension()
             return
         }
 
-        let uuid = UUID().uuidString.lowercased()
         let fileName = "\(uuid).json"
         
         do {
@@ -136,6 +134,21 @@ class ShareViewController: NSViewController {
         }
 
         self.closeExtension()
+    }
+
+    func copyFileToAppGroup(originalUrl: URL, container: URL, uuid: String) throws -> URL {
+        let fileManager = FileManager.default
+
+        let requestDir = container.appendingPathComponent(uuid, isDirectory: true)
+        try fileManager.createDirectory(at: requestDir, withIntermediateDirectories: true)
+
+        let fileName = originalUrl.lastPathComponent
+        let destURL = requestDir.appendingPathComponent(fileName)
+
+        self.logger.info("copying file to app group: \(originalUrl.path) -> \(destURL.path)")
+
+        try fileManager.copyItem(at: originalUrl, to: destURL)
+        return destURL
     }
 
     func closeExtension() {
