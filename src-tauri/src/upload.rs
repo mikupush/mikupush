@@ -18,7 +18,7 @@ use crate::MAIN_WINDOW;
 use crate::config::Configuration;
 use crate::events::*;
 use crate::state::{SelectedServerState, UploadsState};
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use mikupush_client::{
     Client, ClientError, FILE_INFO_ERROR_NOT_EXISTS, FileStatus, FileUploadError,
 };
@@ -28,11 +28,15 @@ use mikupush_common::{
 use rust_i18n::t;
 use std::borrow::Cow;
 use std::fs::File;
+use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use uuid::Uuid;
+
+#[cfg(target_os = "macos")]
+const MACOS_APP_GROUP_ID: &str = "group.io.mikupush.client";
 
 #[tauri::command]
 pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadRequest>, String> {
@@ -323,7 +327,7 @@ async fn upload_file(
     })?;
     state.remove_cancellation_token(upload_id.clone());
 
-    debug!("upload task finished for upload with id {}", upload_id);
+    debug!("upload task finished for upload with id {}; success: {}", upload_id, result.is_ok());
     result
 }
 
@@ -359,6 +363,16 @@ fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify
         .to_string(),
         always_notify,
     );
+
+    #[cfg(target_os = "macos")]
+    {
+        let path = request.upload.path;
+        if path.contains(MACOS_APP_GROUP_ID) {
+            if let Err(err) = std::fs::remove_file(&path) {
+                warn!("failed to remove file ({}): {}", path, err);
+            }
+        }
+    }
 }
 
 fn handle_upload_failed(
@@ -367,7 +381,7 @@ fn handle_upload_failed(
     upload_id: String,
     always_notify: bool,
 ) {
-    info!("upload with id {} failed: {}", upload_id, error);
+    warn!("upload with id {} failed: {}", upload_id, error);
     let state = app_handle.state::<UploadsState>();
     let request = state.get_request(upload_id.clone());
     if let None = request {
@@ -456,13 +470,10 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
     debug!("handling share deep-link: {}", request_file);
 
     #[cfg(target_os = "macos")]
-    let directory = match app_handle.path().home_dir() {
-        Ok(path) => path
-            .join("Library")
-            .join("Group Containers")
-            .join("group.io.mikupush.client"),
-        Err(err) => {
-            warn!("failed to get home directory: {}", err);
+    let directory: PathBuf = match crate::macos::get_group_container_path(MACOS_APP_GROUP_ID) {
+        Some(path) => path.as_str().into(),
+        None => {
+            warn!("failed to get app group {} directory", MACOS_APP_GROUP_ID);
             return;
         }
     };
@@ -477,6 +488,7 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
     };
 
     let request_file_path = directory.join(request_file);
+    debug!("opening request file: {:?}", request_file_path);
     let file = match File::open(&request_file_path) {
         Ok(file) => file,
         Err(err) => {
@@ -487,6 +499,7 @@ pub fn handle_upload_deep_link(app_handle: &AppHandle, request_file: &str) {
 
     let paths: Vec<String> = match serde_json::from_reader(file) {
         Ok(paths) => {
+            debug!("requested paths for upload from deep-link: {:?}", paths);
             debug!("deleting share request paths file");
             if let Err(err) = std::fs::remove_file(&request_file_path) {
                 warn!("failed to delete share request paths file: {}", err);

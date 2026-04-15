@@ -19,7 +19,7 @@ use crate::response::ErrorResponse;
 use crate::FileUploadError;
 use bytes::Bytes;
 use futures_core::Stream;
-use log::debug;
+use log::{debug, warn};
 use mikupush_common::Upload;
 use std::cmp::min;
 use std::io::Result as IoResult;
@@ -63,6 +63,12 @@ impl UploadStream {
         progress: ProgressTrack,
         progress_sender: Sender<ProgressTrack>,
     ) -> Result<Self, std::io::Error> {
+        let file = File::open(&path).await;
+        if let Err(err) = &file {
+            warn!("error opening file {:?}: {}", file, err);
+            return Err(file.unwrap_err())
+        }
+
         Ok(Self {
             upload_id: upload_id.to_string(),
             total_size,
@@ -72,7 +78,7 @@ impl UploadStream {
             progress,
             last_measured_rate: Instant::now(),
             stop_token,
-            reader_stream: ReaderStream::new(File::open(path).await?)
+            reader_stream: ReaderStream::new(file?)
         })
     }
 
@@ -345,8 +351,13 @@ impl ChunkedUploadTask {
     }
 
     async fn perform_upload(&mut self) -> Result<(), FileUploadError> {
-        let mut file = File::open(self.upload.path.clone()).await
-            .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+        let file = File::open(self.upload.path.clone()).await;
+        if let Err(err) = &file {
+            warn!("error opening file {:?}: {}", file, err);
+            return Err(FileUploadError::ClientError { message: err.to_string() })
+        }
+
+        let mut file = file.unwrap();
         let chunk_size = self.chunk_size as usize;
         let mut buffer = vec![0u8; chunk_size];
         let mut index: u64 = 0;
@@ -359,9 +370,13 @@ impl ChunkedUploadTask {
                 return Ok(());
             }
 
-            let bytes_read = file.read(&mut buffer).await
-                .map_err(|err| FileUploadError::ClientError { message: err.to_string() })?;
+            let bytes_read = file.read(&mut buffer).await;
+            if let Err(err) = &bytes_read {
+                warn!("error reading file {:?}: {}", file, err);
+                return Err(FileUploadError::ClientError { message: err.to_string() });
+            }
 
+            let bytes_read = bytes_read.unwrap();
             if bytes_read == 0 {
                 debug!("finish uploading file chunks");
                 self.acknowledge().await?;
