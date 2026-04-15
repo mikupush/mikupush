@@ -22,6 +22,7 @@ mod server;
 mod state;
 mod upload;
 mod window;
+mod macos;
 
 use crate::menu::setup_app_menu;
 use crate::resources::unpack_resources;
