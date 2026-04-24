@@ -8,7 +8,7 @@ notifications:
       body: The file %{name} has been added to the upload queue
     success:
       title: ✅ File %{name} uploaded!
-      body: Now you can grab the link and share it
+      body: The link is copied to the clipboard
     error:
       title: ❌ Failed to upload file %{name}
       body: An error occurred while uploading the file %{name}

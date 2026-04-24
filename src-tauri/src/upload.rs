@@ -34,6 +34,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use uuid::Uuid;
+use crate::window::is_main_window_visible;
 
 #[cfg(target_os = "macos")]
 const MACOS_APP_GROUP_ID: &str = "group.io.mikupush.client";
@@ -261,13 +262,17 @@ pub async fn copy_upload_link(
         return Err(t!("errors.upload.not_found").to_string());
     }
 
-    let upload = upload.unwrap();
-    let upload = upload.upload;
+    copy_link(&upload.unwrap(), &app_handle)
+}
+
+fn copy_link(upload: &UploadRequest, app_handle: &AppHandle) -> Result<(), String> {
+    let upload = upload.upload.clone();
     let result = app_handle.clipboard().write_text(upload.url);
+
     if let Err(error) = result {
         warn!(
             "failed to copy link to the clipboard for upload id {}: {}",
-            upload_id,
+            upload.id,
             error.to_string()
         );
         return Err(t!("errors.upload.copy_link").to_string());
@@ -364,6 +369,12 @@ fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify
         always_notify,
     );
 
+    if !is_main_window_visible(&app_handle) {
+        if let Err(err) = copy_link(&request, &app_handle) {
+            warn!("failed to copy upload link: {}", err);
+        }
+    }
+
     #[cfg(target_os = "macos")]
     {
         let path = request.upload.path;
@@ -432,17 +443,7 @@ fn show_notification(app_handle: &AppHandle, title: String, body: String, always
     tauri::async_runtime::spawn(async move {
         debug!("showing notification: {} - {}", title, body);
 
-        let is_main_window_visible = || -> bool {
-            let window = app_handle.get_webview_window(MAIN_WINDOW);
-
-            if let Some(window) = window {
-                window.is_visible().unwrap_or(false)
-            } else {
-                false
-            }
-        };
-
-        if !always && is_main_window_visible() {
+        if !always && is_main_window_visible(&app_handle) {
             debug!("skipping notification because window is visible");
             return;
         }
