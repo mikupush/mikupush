@@ -145,3 +145,13 @@ pub fn open_about_window(app_handle: AppHandle) -> Result<(), String> {
 
     Ok(())
 }
+
+pub fn is_main_window_visible(app_handle: &AppHandle) -> bool {
+    let window = app_handle.get_webview_window(MAIN_WINDOW);
+
+    if let Some(window) = window {
+        window.is_visible().unwrap_or(false)
+    } else {
+        false
+    }
+}
