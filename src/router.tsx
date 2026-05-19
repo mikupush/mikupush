@@ -21,6 +21,7 @@ import DefaultLayout from '@/layout/DefaultLayout.tsx'
 import UploadsPage from '@/pages/UploadsPage.tsx'
 import SettingsPage from '@/pages/SettingsPage.tsx'
 import ArchivedUploadsPage from '@/pages/ArchivedUploadsPage.tsx'
+import ServerListPage from '@/pages/ServerListPage.tsx'
 
 export default function Router() {
   return (
@@ -29,6 +30,7 @@ export default function Router() {
         <Route index element={<UploadsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="archived" element={<ArchivedUploadsPage />} />
+        <Route path="servers" element={<ServerListPage />} />
       </Route>
     </Routes>
   )

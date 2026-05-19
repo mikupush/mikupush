@@ -17,11 +17,12 @@
 use crate::AppContext;
 use crate::state::SelectedServerState;
 use log::{debug, warn};
-use mikupush_common::Server;
+use mikupush_common::{encode_image_base64, Server};
 use mikupush_database::ServerRepository;
 use rust_i18n::t;
 use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
+use crate::resources::ResourceType;
 
 type ServerResult<T> = Result<T, String>;
 
@@ -171,4 +172,57 @@ pub fn initialize_current_server_state(app_handle: &AppHandle) -> ServerResult<(
     );
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn find_all_servers(app_handle: AppHandle, app_context: State<AppContext>) -> ServerResult<Vec<Server>> {
+    let connection_pool = app_context.db_connection.get().cloned().ok_or_else(|| {
+        warn!("can't get all servers because database connection pool is not initialized");
+        t!("errors.database.internal_error")
+    })?;
+
+    let server_repository = ServerRepository::new(connection_pool);
+    let servers = server_repository.find_all()
+        .map_err(|err| err.to_string())?;
+    let servers = servers.iter()
+        .map(|server| map_server_icon_into_base64(&app_handle, server))
+        .collect();
+
+    Ok(servers)
+}
+
+#[tauri::command]
+pub fn server_icon_url(app_handle: AppHandle, icon: String) -> Result<String, String> {
+    debug!("encoding server icon to base64 url: {}", icon);
+    let path = ResourceType::ServerIcon
+        .dir_path(&app_handle)
+        .map_err(|err| {
+            warn!("unable to get server icons directory path: {}", err);
+            t!("errors.file_system.server_icon_access").to_string()
+        })?;
+
+    let icon_path = path.join(icon);
+    if !icon_path.exists() {
+        warn!(
+            "server icon file not found: {}",
+            icon_path.to_string_lossy()
+        );
+        return Err(t!("errors.server.server_icon_not_found").to_string());
+    }
+
+    let base64 = encode_image_base64(icon_path).map_err(|err| {
+        warn!("failed to encode server icon to base64: {}", err);
+        return t!("errors.server.server_icon_encoding").to_string();
+    })?;
+
+    Ok(base64)
+}
+
+fn map_server_icon_into_base64(app_handle: &AppHandle, server: &Server) -> Server {
+    let mut server = server.clone();
+    if let Some(icon) = server.icon {
+        server.icon = server_icon_url(app_handle.clone(), icon).ok()
+    }
+
+    server
 }

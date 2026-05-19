@@ -126,7 +126,8 @@ pub fn run() {
             server::get_server_by_url,
             server::get_server_by_id,
             server::create_server,
-            resources::server_icon_url,
+            server::find_all_servers,
+            server::server_icon_url,
             resources::resource_path,
             resources::openable_resource_path,
             window::open_about_window

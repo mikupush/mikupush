@@ -29,6 +29,7 @@ import { Small } from '@/components/Typography.tsx'
 import { useServer } from '@/context/ServerProvider.tsx'
 import { useServerIcon } from '@/hooks/server.ts'
 import { useTranslation } from 'react-i18next'
+import { NavLink } from 'react-router'
 
 export function SelectedServerSidebarMenu() {
   const { isMobile } = useSidebar()
@@ -105,11 +106,13 @@ function DropdownMenuItems({ side = 'bottom' }: DropdownProps) {
         Example server
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem className="gap-2 p-2">
-        <div className="flex size-6 items-center justify-center bg-transparent">
-          <Server className="size-4" />
-        </div>
-        <div className="font-medium">{t('server.manage')} 🚧</div>
+      <DropdownMenuItem asChild className="gap-2 p-2">
+        <NavLink to="/servers">
+          <div className="flex size-6 items-center justify-center bg-transparent">
+            <Server className="size-4" />
+          </div>
+          <div className="font-medium">{t('server.manage')}</div>
+        </NavLink>
       </DropdownMenuItem>
     </DropdownMenuContent>
   )
