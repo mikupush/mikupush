@@ -34,7 +34,8 @@
   "server": {
     "recent": "Recently used servers",
     "manage": "Manage servers",
-    "add": "Add server"
+    "add": "Add server",
+    "empty": "There isn't servers, add one to be able to upload files"
   },
   "sidebar": {
     "uploads": "Now uploading",
@@ -103,7 +104,8 @@
       "client_error": "A client error occurred while deleting the file."
     },
     "server": {
-      "not_available": "There is no server available to upload files. Please check your server configuration."
+      "not_available": "There is no server available to upload files. Please check your server configuration.",
+      "fetch_list": "Failed to retrieve saved servers."
     },
     "about": {
       "third_party_licenses_open": "Failed to open the third-party licenses file"
