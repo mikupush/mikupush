@@ -14,39 +14,43 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod client;
 mod config;
+mod database;
+mod date_time;
+mod encoder;
+mod error;
 mod events;
+mod macos;
 mod menu;
+mod mime_type;
 mod resources;
+mod schema;
 mod server;
 mod state;
+mod status;
+mod theme;
 mod upload;
 mod window;
-mod macos;
 
+use crate::database::{DbPool, create_database_connection};
 use crate::menu::setup_app_menu;
 use crate::resources::unpack_resources;
 use crate::server::initialize_current_server_state;
 use crate::upload::start_upload_for_collection;
 use crate::window::{MAIN_WINDOW, initialize_main_window, restore_main_window};
 use log::{debug, warn};
-use mikupush_database::{DbPool, create_database_connection};
 use state::{SelectedServerState, UploadsState};
 use std::env;
-use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{
-    App, AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, Wry,
-};
+use tauri::{App, AppHandle, Manager, RunEvent, Url, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_deep_link::DeepLinkExt;
-use tauri_plugin_fs::FsExt;
-use tokio::runtime::Runtime;
 use tokio::time::sleep;
 
 pub struct AppContext {
@@ -56,6 +60,11 @@ pub struct AppContext {
 type GenericResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 rust_i18n::i18n!("i18n", fallback = "en");
+
+pub use config::*;
+pub use server::Server;
+pub use theme::Theme;
+pub use upload::{Progress, Upload, UploadRequest};
 
 struct AppState {
     allow_quit: AtomicBool,
@@ -73,7 +82,10 @@ impl Default for AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--tray"])))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--tray"]),
+        ))
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -91,7 +103,7 @@ pub fn run() {
                 .level(log::LevelFilter::Error)
                 .level_for("mikupush", log::LevelFilter::Debug)
                 .level_for("mikupush_lib", log::LevelFilter::Debug)
-                .level_for("mikupush_client", log::LevelFilter::Debug)
+                .level_for("mikupush_lib::client", log::LevelFilter::Debug)
                 .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
@@ -319,7 +331,8 @@ fn get_requested_paths_from_args(args: Vec<String>) -> Vec<String> {
         return vec![];
     }
 
-    let requested_paths: Vec<String> = args.iter()
+    let requested_paths: Vec<String> = args
+        .iter()
         .filter(|arg| arg.ne(&"--tray"))
         .map(|arg| arg.to_string())
         .collect();
@@ -345,10 +358,7 @@ mod tests {
 
     #[test]
     fn test_get_requested_paths_from_args_should_return_empty_vec_when_no_valid_args_provided() {
-        let args: Vec<String> = vec![
-            "/usr/bin/mikupush".to_string(),
-            "--tray".to_string()
-        ];
+        let args: Vec<String> = vec!["/usr/bin/mikupush".to_string(), "--tray".to_string()];
         let requested_paths = get_requested_paths_from_args(args);
 
         assert_eq!(requested_paths.len(), 0);
@@ -359,7 +369,7 @@ mod tests {
         let args: Vec<String> = vec![
             "/usr/bin/mikupush".to_string(),
             "--tray".to_string(),
-            "/example/path/to/file.txt".to_string()
+            "/example/path/to/file.txt".to_string(),
         ];
 
         let requested_paths = get_requested_paths_from_args(args);

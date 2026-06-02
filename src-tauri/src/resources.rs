@@ -15,13 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use log::{debug, warn};
-use mikupush_common::encode_image_base64;
 use rust_i18n::t;
-use std::io;
-use std::path::{Path, PathBuf};
-use tauri::utils::platform::resource_dir;
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_fs::FsExt;
 
 pub enum ResourceType {
     ServerIcon,

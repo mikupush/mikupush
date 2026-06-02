@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::client::Client;
+use crate::server::Server;
+use crate::upload::UploadRequest;
 use log::warn;
-use mikupush_client::Client;
-use mikupush_common::{Server, UploadRequest};
 use std::{collections::HashMap, sync::Mutex};
 use tokio_util::sync::CancellationToken;
 

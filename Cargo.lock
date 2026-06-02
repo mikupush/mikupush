@@ -3023,22 +3023,27 @@ name = "mikupush"
 version = "0.1.11"
 dependencies = [
  "async-stream",
+ "base64 0.22.1",
+ "bytes",
  "chrono",
+ "diesel",
+ "diesel_migrations",
  "env_logger",
  "futures-core",
+ "libsqlite3-sys",
  "log",
- "mikupush_client",
- "mikupush_common",
- "mikupush_database",
  "mimetype-detector",
  "objc2 0.6.2",
  "objc2-app-kit",
  "objc2-foundation 0.3.1",
+ "r2d2",
  "rand 0.8.5",
+ "regex",
  "reqwest 0.11.27",
  "rust-i18n",
  "serde",
  "serde_json",
+ "serial_test",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
@@ -3058,55 +3063,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "urlencoding",
- "uuid",
-]
-
-[[package]]
-name = "mikupush_client"
-version = "0.0.0"
-dependencies = [
- "async-stream",
- "bytes",
- "chrono",
- "futures-core",
- "log",
- "mikupush_common",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
-name = "mikupush_common"
-version = "0.0.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "log",
- "mimetype-detector",
- "rand 0.8.5",
- "regex",
- "serde",
  "url",
- "uuid",
-]
-
-[[package]]
-name = "mikupush_database"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "diesel",
- "diesel_migrations",
- "libsqlite3-sys",
- "mikupush_common",
- "r2d2",
- "serial_test",
+ "urlencoding",
  "uuid",
 ]
 
@@ -5379,9 +5337,9 @@ dependencies = [
 
 [[package]]
 name = "sqlite-wasm-rs"
-version = "0.4.5"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9aead1c279716985b981b7940ef9b652d3f93d70a7296853c633b7ce8fa8088a"
+checksum = "60bdd87fcb4c9764b024805fb2df5f1d659bea6e629fdbdcdcfc4042b9a640d0"
 dependencies = [
  "js-sys",
  "once_cell",
