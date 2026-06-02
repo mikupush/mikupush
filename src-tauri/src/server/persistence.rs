@@ -180,6 +180,14 @@ impl ServerRepository {
             .execute(&mut connection)?;
         Ok(())
     }
+
+    pub fn delete(&self, id: Uuid) -> Result<(), DbError> {
+        let mut connection = self.connection_pool.get()?;
+        diesel::delete(servers_table::table)
+            .filter(servers_table::id.eq(id.to_string()))
+            .execute(&mut connection)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -337,6 +345,35 @@ mod tests {
         assert!(ids.contains(&server1.id));
         assert!(ids.contains(&server2.id));
         assert!(ids.contains(&server3.id));
+    }
+
+    #[test]
+    #[serial]
+    fn server_repository_delete_should_delete_existing() {
+        let db = test_database_connection();
+        let mut connection = db.get().unwrap();
+        clean(&mut connection);
+        let server = insert_test_server(&db);
+
+        let repository = ServerRepository::new(db.clone());
+        repository.delete(server.id).unwrap();
+        let existing = find_by_id(server.id, &mut connection);
+
+        assert_eq!(true, existing.is_none());
+    }
+
+    #[test]
+    #[serial]
+    fn server_repository_delete_should_delete_not_existing() {
+        let db = test_database_connection();
+        let mut connection = db.get().unwrap();
+        clean(&mut connection);
+        let server = Server::test();
+
+        let repository = ServerRepository::new(db.clone());
+        let result = repository.delete(server.id);
+
+        assert_eq!(true, result.is_ok());
     }
 
     fn insert_test_server(db: &DbPool) -> Server {

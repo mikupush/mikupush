@@ -140,6 +140,7 @@ pub fn run() {
             server::create_server,
             server::find_all_servers,
             server::server_icon_url,
+            server::delete_server,
             resources::resource_path,
             resources::openable_resource_path,
             window::open_about_window

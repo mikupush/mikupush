@@ -60,15 +60,19 @@ pub fn server_icon_url(app_handle: AppHandle, icon: String) -> Result<String, St
 }
 
 #[tauri::command]
-async fn delete_server(app_context: State<'_, AppContext>, id: String) -> ServerResult<()> {
+pub fn delete_server(app_context: State<'_, AppContext>, id: String) -> ServerResult<()> {
     debug!("deleting server: {:?}", id);
     let connection_pool = app_context.db_connection.get().cloned().ok_or_else(|| {
-        warn!("can't create server because database connection pool is not initialized");
+        warn!("can't delete server because database connection pool is not initialized");
         t!("errors.database.internal_error")
     })?;
 
-    let _server_repository = ServerRepository::new(connection_pool);
-    let _parsed_id = Uuid::parse_str(&id).map_err(|_| t!("errors.server.invalid_server_id"))?;
+    let server_repository = ServerRepository::new(connection_pool);
+    let parsed_id = Uuid::parse_str(&id)
+        .map_err(|_| t!("errors.server.invalid_server_id"))?;
+
+    server_repository.delete(parsed_id)
+        .map_err(|err| err.to_string())?;
 
     Ok(())
 }

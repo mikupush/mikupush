@@ -43,7 +43,10 @@ export default function ServerListPage() {
 
   const deleteServer = (server: Server) => {
     invoke<void>('delete_server', { id: server.id })
-      .then(() => toast.success(t('server.delete.success')))
+      .then(() => {
+        setServers(servers => servers.filter(item => item.id !== server.id))
+        toast.success(t('server.delete.success'))
+      })
       .catch(() => toast.error(t('server.delete.error')))
   }
 
