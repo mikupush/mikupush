@@ -195,6 +195,7 @@ impl Client {
         let response = self
             .client
             .get(&url)
+            .header("Accept", "application/json")
             .send()
             .await
             .map_err(|err| HealthCheckError {

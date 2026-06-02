@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next'
 
 export interface ServerItemProps extends Server {
   restricted: boolean
+  disabled: boolean
   onDelete: () => void
   onEdit: () => void
   onConnect: () => void
@@ -42,6 +43,7 @@ export default function ServerItem({
   icon,
   restricted = false,
   connected = false,
+  disabled = false,
   onDelete = () => undefined,
   onEdit = () => undefined,
   onConnect = () => undefined,
@@ -66,15 +68,15 @@ export default function ServerItem({
         <Small className="font-light text-lg line-clamp-1 break-all max-w-4/5">{url}</Small>
       </div>
       <div className="flex items-center">
-        <Button variant="ghost" onClick={onConnect}>
+        <Button variant="ghost" onClick={onConnect} disabled={disabled || connected}>
           <PlugIcon />
         </Button>
-        <Button variant="ghost" onClick={onEdit}>
+        <Button variant="ghost" onClick={onEdit} disabled={disabled}>
           <Settings2Icon />
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost">
+            <Button variant="ghost" disabled={disabled}>
               <TrashIcon className="text-red-500" />
             </Button>
           </AlertDialogTrigger>
@@ -84,8 +86,10 @@ export default function ServerItem({
               <AlertDialogDescription>{t('server.delete.confirmation.message')}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
+              <AlertDialogCancel disabled={disabled}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={onDelete} disabled={disabled}>
+                {t('common.delete')}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

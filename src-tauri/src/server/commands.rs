@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::AppContext;
+use crate::client::{Client, HealthCheckStatus};
 use crate::encoder::encode_image_base64;
 use crate::resources::ResourceType;
 use crate::server::{Server, ServerRepository, map_server_icon_into_base64};
@@ -94,9 +95,9 @@ pub fn delete_server(app_context: State<'_, AppContext>, id: String) -> ServerRe
 }
 
 #[tauri::command]
-pub fn set_connected_server(
-    app_context: State<AppContext>,
-    current_server_state: State<SelectedServerState>,
+pub async fn set_connected_server(
+    app_context: State<'_, AppContext>,
+    current_server_state: State<'_, SelectedServerState>,
     id: String,
 ) -> ServerResult<()> {
     let parsed_id = Uuid::parse_str(&id).map_err(|_| t!("errors.server.invalid_server_id"))?;
@@ -110,7 +111,7 @@ pub fn set_connected_server(
         warn!("unable to find server by id: {}", err);
         t!("errors.database.internal_error")
     })?;
-    let server = match server {
+    let mut server = match server {
         Some(server) => server,
         None => {
             debug!("server with id {} not found", parsed_id);
@@ -118,12 +119,31 @@ pub fn set_connected_server(
         }
     };
 
+    let health_check_status = Client::new(server.clone())
+        .check_health()
+        .await
+        .map_err(|err| {
+            warn!("unable to check server health: {}", err);
+            t!("errors.server.health_check")
+        })?;
+
+    if !matches!(health_check_status, HealthCheckStatus::Up) {
+        warn!("server {} health check is down", server.id);
+        return Err(t!("errors.server.health_check_down").to_string());
+    }
+
     server_repository
         .update_connected(server.id)
         .map_err(|err| {
             warn!("unable to update connected server: {}", err);
             t!("errors.server.change_server")
         })?;
+
+    server.healthy = true;
+    server_repository.save(server.clone()).map_err(|err| {
+        warn!("unable to update connected server health: {}", err);
+        t!("errors.server.change_server")
+    })?;
     current_server_state.set_server(server.clone());
     debug!("current server set to {} - {}", server.id, server.name);
 

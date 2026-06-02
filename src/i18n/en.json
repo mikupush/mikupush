@@ -45,6 +45,10 @@
       },
       "success": "Server deleted",
       "error": "An error occurred deleting the server"
+    },
+    "connect": {
+      "loading": "Connecting to the server...",
+      "success": "Server connected successfully"
     }
   },
   "sidebar": {

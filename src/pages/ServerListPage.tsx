@@ -26,11 +26,15 @@ import { Server } from '@/model/server.ts'
 import toast from 'react-hot-toast'
 import { Paragraph } from '@/components/Typography.tsx'
 import LoadingSpinner from '@/components/LoadingSpinner.tsx'
+import { useServerConnector } from '@/hooks/server.ts'
+import { useServer } from '@/context/ServerProvider.tsx'
 
 export default function ServerListPage() {
   const { t } = useTranslation()
   const [servers, setServers] = useState<Server[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const { isConnecting, connectById } = useServerConnector()
+  const { current } = useServer()
 
   useEffect(() => {
     setIsLoading(true)
@@ -48,6 +52,23 @@ export default function ServerListPage() {
         toast.success(t('server.delete.success'))
       })
       .catch(() => toast.error(t('server.delete.error')))
+  }
+
+  const connectServer = (server: Server) => {
+    const connectPromise = connectById(server.id)
+      .then((connectedServer) => {
+        setServers(servers => servers.map(item => ({
+          ...item,
+          connected: item.id === server.id,
+          healthy: item.id === server.id ? connectedServer.healthy : item.healthy
+        })))
+      })
+
+    toast.promise(connectPromise, {
+      loading: t('server.connect.loading'),
+      success: t('server.connect.success'),
+      error: (error) => typeof error === 'string' ? error : t('errors.unknown')
+    })
   }
 
   return (
@@ -71,6 +92,9 @@ export default function ServerListPage() {
             {servers.map((server: Server) => (
               <ServerItem
                 {...server}
+                disabled={isConnecting}
+                connected={current.id === server.id}
+                onConnect={() => connectServer(server)}
                 onDelete={() => deleteServer(server)}
               />
             ))}

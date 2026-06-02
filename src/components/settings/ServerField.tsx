@@ -18,18 +18,24 @@
 
 import { useTranslation } from 'react-i18next'
 import { useServer } from '@/context/ServerProvider.tsx'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field.tsx'
 import { Input } from '@/components/ui/input.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import zod from 'zod'
+import { useServerConnector } from '@/hooks/server.ts'
 
 export function ServerField() {
   const { t } = useTranslation()
-  const { setCurrentByUrl, current } = useServer()
+  const { current } = useServer()
+  const { isConnecting, connectByUrl } = useServerConnector()
   const [url, setUrl] = useState(current.url)
   const [errors, setErrors] = useState<string[]>([])
+
+  useEffect(() => {
+    setUrl(current.url)
+  }, [current.url])
 
   const handleValidationError = (error: unknown): boolean => {
     if (!(error instanceof zod.ZodError)) {
@@ -66,7 +72,7 @@ export function ServerField() {
     try {
       setErrors([])
       zod.url().nonempty().parse(url)
-      await setCurrentByUrl(url)
+      await connectByUrl(url)
       toast.success(t('settings.server.success'))
     } catch (error) {
       if (handleValidationError(error)) return
@@ -83,8 +89,11 @@ export function ServerField() {
           placeholder="https://mikupush.io"
           value={url}
           onChange={(event) => setUrl(event.target.value.toLowerCase().trim())}
+          disabled={isConnecting}
         />
-        <Button onClick={handleChangeServer}>{t('settings.server.apply')}</Button>
+        <Button onClick={handleChangeServer} disabled={isConnecting}>
+          {t('settings.server.apply')}
+        </Button>
       </div>
       <FieldDescription>{t('settings.server.description')}</FieldDescription>
       <FieldError errors={errors.map(error => ({ message: error }))}/>
