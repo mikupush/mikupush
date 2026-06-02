@@ -41,6 +41,12 @@ export default function ServerListPage() {
       .finally(() => setIsLoading(false))
   }, [])
 
+  const deleteServer = (server: Server) => {
+    invoke<void>('delete_server', { id: server.id })
+      .then(() => toast.success(t('server.delete.success')))
+      .catch(() => toast.error(t('server.delete.error')))
+  }
+
   return (
     <div className="flex flex-1 flex-col py-3 pt-5 overflow-hidden">
       <div className="px-5 pb-5">
@@ -60,7 +66,10 @@ export default function ServerListPage() {
         <div className="flex flex-1 overflow-y-auto px-5">
           <ul className="space-y-6 w-full max-w-3xl mx-auto pb-5">
             {servers.map((server: Server) => (
-              <ServerItem {...server} />
+              <ServerItem
+                {...server}
+                onDelete={() => deleteServer(server)}
+              />
             ))}
           </ul>
         </div>

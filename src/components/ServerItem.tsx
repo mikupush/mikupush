@@ -20,6 +20,14 @@ import { LockIcon, PlugIcon, ServerIcon, Settings2Icon, TrashIcon } from 'lucide
 import { Large, Small } from '@/components/Typography.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { Server } from '@/model/server.ts'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog.tsx'
+import { useTranslation } from 'react-i18next'
 
 export interface ServerItemProps extends Server {
   restricted: boolean
@@ -38,6 +46,8 @@ export default function ServerItem({
   onEdit = () => undefined,
   onConnect = () => undefined,
 }: Partial<ServerItemProps>) {
+  const { t } = useTranslation()
+
   return (
     <li className="flex">
       <div className="size-20 flex justify-center items-center rounded-lg overflow-hidden">
@@ -62,9 +72,23 @@ export default function ServerItem({
         <Button variant="ghost" onClick={onEdit}>
           <Settings2Icon />
         </Button>
-        <Button variant="ghost" onClick={onDelete}>
-          <TrashIcon className="text-red-500" />
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost">
+              <TrashIcon className="text-red-500" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('server.delete.confirmation.title')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('server.delete.confirmation.message')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={onDelete}>{t('common.delete')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </li>
   )

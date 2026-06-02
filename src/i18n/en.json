@@ -4,7 +4,9 @@
       "danger_zone": "Danger Zone",
       "save": "Save"
     },
-    "in_development": "Coming Soon! This feature is currently in development 🚧"
+    "in_development": "Coming Soon! This feature is currently in development 🚧",
+    "cancel": "Cancel",
+    "delete": "Delete"
   },
   "about": {
     "version": "Version {{version}}",
@@ -35,7 +37,15 @@
     "recent": "Recently used servers",
     "manage": "Manage servers",
     "add": "Add server",
-    "empty": "There isn't servers, add one to be able to upload files"
+    "empty": "There isn't servers, add one to be able to upload files",
+    "delete": {
+      "confirmation": {
+        "title": "Are you absolutely sure?",
+        "message": "This action cannot be undone. This will permanently delete the server. You can add again later"
+      },
+      "success": "Server deleted",
+      "error": "An error occurred deleting the server"
+    }
   },
   "sidebar": {
     "uploads": "Now uploading",
