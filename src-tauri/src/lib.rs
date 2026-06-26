@@ -138,9 +138,11 @@ pub fn run() {
             server::get_server_by_url,
             server::get_server_by_id,
             server::create_server,
+            server::update_server,
             server::find_all_servers,
             server::server_icon_url,
             server::delete_server,
+            server::check_server_health,
             resources::resource_path,
             resources::openable_resource_path,
             window::open_about_window

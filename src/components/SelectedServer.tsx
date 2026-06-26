@@ -27,14 +27,16 @@ import { Button } from '@/components/ui/button'
 import { ChevronsUpDown, Server } from 'lucide-react'
 import { Small } from '@/components/Typography.tsx'
 import { useServer } from '@/context/ServerProvider.tsx'
-import { useServerIcon } from '@/hooks/server.ts'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
+import { ServerIcon } from '@/components/ServerIcon.tsx'
 
 export function SelectedServerSidebarMenu() {
   const { isMobile } = useSidebar()
   const { current } = useServer()
-  const icon = useServerIcon(current)
+  const name = current.useAlias && current.alias != null && current.alias !== ''
+    ? current.alias
+    : current.name
 
   return (
     <SidebarMenu>
@@ -45,11 +47,9 @@ export function SelectedServerSidebarMenu() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
-                <img className="h-full" src={icon} alt="" />
-              </div>
+              <ServerIcon className="size-8" icon={current.icon} />
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{current.alias ?? current.name}</span>
+                <span className="truncate font-medium">{name}</span>
                 {/*<span className="truncate text-xs">Premium</span>*/}
               </div>
               <ChevronsUpDown className="ml-auto" />
@@ -64,14 +64,14 @@ export function SelectedServerSidebarMenu() {
 
 export function SelectedServerDropdown() {
   const { current } = useServer()
-  const icon = useServerIcon(current)
+  const name = current.useAlias && current.alias ? current.alias : current.name
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost">
-          <img className="h-full" src={icon} alt="" />
-          <Small>{current.alias ?? current.name}</Small>
+          <ServerIcon className="size-full" icon={current.icon} />
+          <Small>{name}</Small>
           <ChevronsUpDown className="ml-auto" />
         </Button>
       </DropdownMenuTrigger>

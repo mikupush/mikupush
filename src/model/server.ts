@@ -24,6 +24,7 @@ export interface Server {
   name: string;
   icon: string | null;
   alias: string | null;
+  useAlias: boolean;
   addedAt: string;
   testing: boolean;
   connected: boolean;
@@ -36,6 +37,7 @@ export const undefinedServer: Server = {
   name: '',
   icon: null,
   alias: null,
+  useAlias: false,
   addedAt: '',
   testing: false,
   connected: false,
@@ -52,6 +54,7 @@ export function createServerFromUrl(url: string): Server {
     name: hostname,
     icon: null,
     alias: null,
+    useAlias: false,
     addedAt: new Date().toISOString(),
     testing: false,
     connected: false,

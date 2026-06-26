@@ -35,6 +35,7 @@ pub struct Server {
     pub name: String,
     pub icon: Option<String>,
     pub alias: Option<String>,
+    pub use_alias: bool,
     pub added_at: DateTimeUtc,
     pub testing: bool,
     pub connected: bool,
@@ -49,6 +50,7 @@ impl Server {
             name,
             icon: None,
             alias: None,
+            use_alias: false,
             added_at: chrono::Utc::now(),
             testing: false,
             connected: false,
@@ -96,19 +98,27 @@ pub fn initialize_current_server_state(app_handle: &AppHandle) -> ServerResult<(
         t!("errors.server.get_current_server").to_string()
     })?;
 
-    let connected_server = match connected_server {
-        Some(server) => server,
-        None => {
-            warn!("connected server not found");
-            return Err(t!("errors.server.server_not_found").to_string());
+    let find_first_server = || -> Option<Server> {
+        let all_servers = server_repository.find_all();
+        if let Err(err) = &all_servers {
+            warn!("unable to find all servers: {}", err);
+            return None;
         }
+
+        all_servers.ok()?
+            .first()
+            .map(Clone::clone)
     };
 
-    current_server.set_server(connected_server.clone());
-    debug!(
-        "server initialization complete, current server is {} - {}",
-        connected_server.id, connected_server.name
-    );
+    let connected_server = connected_server.or_else(find_first_server);
+
+    if let Some(server) = connected_server {
+        current_server.set_server(server.clone());
+        debug!(
+            "server initialization complete, current server is {} - {}",
+            server.id, server.name
+        );
+    }
 
     Ok(())
 }

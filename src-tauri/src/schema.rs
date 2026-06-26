@@ -14,6 +14,7 @@ diesel::table! {
         name -> Text,
         icon -> Nullable<Text>,
         alias -> Nullable<Text>,
+        use_alias -> Bool,
         added_at -> Timestamp,
         testing -> Bool,
         connected -> Bool,

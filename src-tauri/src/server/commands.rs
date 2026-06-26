@@ -41,10 +41,6 @@ pub fn find_all_servers(
     let servers = server_repository
         .find_all()
         .map_err(|err| err.to_string())?;
-    let servers = servers
-        .iter()
-        .map(|server| map_server_icon_into_base64(&app_handle, server))
-        .collect();
 
     Ok(servers)
 }
@@ -90,6 +86,24 @@ pub fn delete_server(app_context: State<'_, AppContext>, id: String) -> ServerRe
 
     server_repository.delete(parsed_id)
         .map_err(|err| err.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn check_server_health(server: Server) -> ServerResult<()> {
+    let health_check_status = Client::new(server.clone())
+        .check_health()
+        .await
+        .map_err(|err| {
+            warn!("unable to check server health: {}", err);
+            t!("errors.server.health_check").to_string()
+        })?;
+
+    if !matches!(health_check_status, HealthCheckStatus::Up) {
+        warn!("server {} health check is down", server.id);
+        return Err(t!("errors.server.health_check_down").to_string());
+    }
 
     Ok(())
 }
@@ -225,4 +239,23 @@ pub fn create_server(app_context: State<AppContext>, new_server: Server) -> Serv
 
     debug!("server with id {} created", new_server.id);
     Ok(new_server)
+}
+
+#[tauri::command]
+pub fn update_server(app_context: State<AppContext>, server: Server) -> ServerResult<Server> {
+    debug!("updating server: {:?}", server);
+    let connection_pool = app_context.db_connection.get().cloned().ok_or_else(|| {
+        warn!("can't update server because database connection pool is not initialized");
+        t!("errors.database.internal_error")
+    })?;
+
+    let server_repository = ServerRepository::new(connection_pool);
+
+    server_repository.save(server.clone()).map_err(|err| {
+        warn!("unable to update server: {}", err);
+        t!("errors.server.update_server")
+    })?;
+
+    debug!("server with id {} updated", server.id);
+    Ok(server)
 }

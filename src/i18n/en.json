@@ -49,6 +49,46 @@
     "connect": {
       "loading": "Connecting to the server...",
       "success": "Server connected successfully"
+    },
+    "form": {
+      "heading": "Edit server",
+      "server_id": "Server ID: {{id}}",
+      "use_alias": "Use custom alias instead of server name",
+      "name": {
+        "label": "Name",
+        "error": {
+          "required": "The server name is required"
+        }
+      },
+      "alias": {
+        "label": "Alias"
+      },
+      "url": {
+        "label": "Url",
+        "error": {
+          "required": "The server URL is required",
+          "format": "The server URL should be a valid URL"
+        }
+      },
+      "save": {
+        "loading": "Checking server health...",
+        "success": "Server saved successfully"
+      },
+      "test_connection": "Test connection",
+      "health_check": {
+        "success": {
+          "title": "Connection successful",
+          "message": "The server is available."
+        },
+        "error": {
+          "title": "Connection failed"
+        }
+      },
+      "danger_zone": {
+        "delete_server_and_uploads": "Delete from the list and all uploaded files",
+        "delete_uploads": "Delete all uploaded files",
+        "delete_server": "Delete from the list"
+      }
     }
   },
   "sidebar": {

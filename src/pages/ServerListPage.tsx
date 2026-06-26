@@ -28,9 +28,11 @@ import { Paragraph } from '@/components/Typography.tsx'
 import LoadingSpinner from '@/components/LoadingSpinner.tsx'
 import { useServerConnector } from '@/hooks/server.ts'
 import { useServer } from '@/context/ServerProvider.tsx'
+import { useNavigate } from 'react-router'
 
 export default function ServerListPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [servers, setServers] = useState<Server[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const { isConnecting, connectById } = useServerConnector()
@@ -71,6 +73,10 @@ export default function ServerListPage() {
     })
   }
 
+  const editServer = (server: Server) => {
+    navigate(`/servers/${server.id}/edit`)
+  }
+
   return (
     <div className="flex flex-1 flex-col py-3 pt-5 overflow-hidden">
       <div className="px-5 pb-5">
@@ -91,10 +97,12 @@ export default function ServerListPage() {
           <ul className="space-y-6 w-full max-w-3xl mx-auto pb-5">
             {servers.map((server: Server) => (
               <ServerItem
+                key={server.id}
                 {...server}
                 disabled={isConnecting}
                 connected={current.id === server.id}
                 onConnect={() => connectServer(server)}
+                onEdit={() => editServer(server)}
                 onDelete={() => deleteServer(server)}
               />
             ))}

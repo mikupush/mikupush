@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { LockIcon, PlugIcon, ServerIcon, Settings2Icon, TrashIcon } from 'lucide-react'
+import { LockIcon, PlugIcon, Settings2Icon, TrashIcon } from 'lucide-react'
 import { Large, Small } from '@/components/Typography.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { Server } from '@/model/server.ts'
@@ -28,6 +28,7 @@ import {
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog.tsx'
 import { useTranslation } from 'react-i18next'
+import { ServerIcon } from '@/components/ServerIcon.tsx'
 
 export interface ServerItemProps extends Server {
   restricted: boolean
@@ -41,6 +42,8 @@ export default function ServerItem({
   name = 'Server name',
   url = 'https://example.com',
   icon,
+  alias,
+  useAlias = false,
   restricted = false,
   connected = false,
   disabled = false,
@@ -50,18 +53,14 @@ export default function ServerItem({
 }: Partial<ServerItemProps>) {
   const { t } = useTranslation()
 
+  const displayName = (useAlias && alias != null && alias !== '') ? alias : name
+
   return (
     <li className="flex">
-      <div className="size-20 flex justify-center items-center rounded-lg overflow-hidden">
-        {icon ? (
-          <img className="h-full object-cover" src={icon} alt="" />
-        ) : (
-          <ServerIcon className="size-20" />
-        )}
-      </div>
+      <ServerIcon icon={icon} />
       <div className="flex flex-1 flex-col justify-between py-2 ml-3">
         <div className="flex items-center">
-          <Large className="text-lg line-clamp-1 break-all max-w-4/6">{name}</Large>
+          <Large className="text-lg line-clamp-1 break-all max-w-4/6">{displayName}</Large>
           {restricted && <LockIcon className="ml-1 size-5" />}
           {connected && <PlugIcon className="text-green-500 ml-1 size-5" />}
         </div>
@@ -76,7 +75,7 @@ export default function ServerItem({
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" disabled={disabled}>
+            <Button variant="ghost" disabled={disabled || connected}>
               <TrashIcon className="text-red-500" />
             </Button>
           </AlertDialogTrigger>
