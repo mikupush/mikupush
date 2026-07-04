@@ -119,7 +119,7 @@ impl UploadRequest {
         let size = metadata.len();
         let mime_type = match detect_mime_type(path.to_path_buf()) {
             Ok(mime_type) => mime_type.to_string(),
-            Err(_) => detect_mime_type_by_extension(path.to_path_buf()).ok()
+            Err(_) => detect_mime_type_by_extension(path.to_path_buf())
                 .unwrap_or("application/octet-stream".to_string()),
         };
 
