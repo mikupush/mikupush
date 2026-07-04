@@ -90,10 +90,10 @@ pub fn delete_server(app_context: State<'_, AppContext>, id: String) -> ServerRe
     })?;
 
     let server_repository = ServerRepository::new(connection_pool);
-    let parsed_id = Uuid::parse_str(&id)
-        .map_err(|_| t!("errors.server.invalid_server_id"))?;
+    let parsed_id = Uuid::parse_str(&id).map_err(|_| t!("errors.server.invalid_server_id"))?;
 
-    server_repository.delete(parsed_id)
+    server_repository
+        .delete(parsed_id)
         .map_err(|err| err.to_string())?;
 
     Ok(())
@@ -165,6 +165,13 @@ async fn download_server_icon(
     let Some((bytes, content_type)) = icon_response else {
         return Ok(None);
     };
+    let Some(extension) = icon_extension(content_type.as_deref()) else {
+        warn!(
+            "discarding server icon with unsupported content-type: {:?}",
+            content_type
+        );
+        return Ok(None);
+    };
 
     let icons_dir = ResourceType::ServerIcon
         .dir_path(app_handle)
@@ -178,7 +185,7 @@ async fn download_server_icon(
         t!("errors.file_system.server_icon_access").to_string()
     })?;
 
-    let icon_file_name = format!("{}{}", server.id, icon_extension(content_type.as_deref()));
+    let icon_file_name = format!("{}{}", server.id, extension);
     let icon_path = icons_dir.join(&icon_file_name);
 
     tokio::fs::write(&icon_path, bytes).await.map_err(|err| {
@@ -189,14 +196,14 @@ async fn download_server_icon(
     Ok(Some(icon_file_name))
 }
 
-fn icon_extension(content_type: Option<&str>) -> &str {
+fn icon_extension(content_type: Option<&str>) -> Option<&str> {
     match content_type.unwrap_or("").split(';').next().unwrap_or("") {
-        "image/png" => ".png",
-        "image/jpeg" => ".jpg",
-        "image/webp" => ".webp",
-        "image/gif" => ".gif",
-        "image/svg+xml" => ".svg",
-        _ => ".bin",
+        "image/png" => Some(".png"),
+        "image/jpeg" => Some(".jpg"),
+        "image/webp" => Some(".webp"),
+        "image/gif" => Some(".gif"),
+        "image/svg+xml" => Some(".svg"),
+        _ => None,
     }
 }
 
