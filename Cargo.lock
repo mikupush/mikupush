@@ -3032,6 +3032,7 @@ dependencies = [
  "futures-core",
  "libsqlite3-sys",
  "log",
+ "mime_guess",
  "mimetype-detector",
  "objc2 0.6.2",
  "objc2-app-kit",

@@ -15,10 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{Progress, Upload};
+use crate::mime_type::{detect_mime_type, detect_mime_type_by_extension};
 use crate::server::Server;
-use mimetype_detector::detect_file;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use mimetype_detector::detect_file;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,9 +117,10 @@ impl UploadRequest {
         let metadata =
             std::fs::metadata(&path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
         let size = metadata.len();
-        let mime_type = match detect_file(path.to_str().unwrap()) {
+        let mime_type = match detect_mime_type(path.to_path_buf()) {
             Ok(mime_type) => mime_type.to_string(),
-            Err(_) => "application/octet-stream".to_string(),
+            Err(_) => detect_mime_type_by_extension(path.to_path_buf()).ok()
+                .unwrap_or("application/octet-stream".to_string()),
         };
 
         Ok(Self::new(

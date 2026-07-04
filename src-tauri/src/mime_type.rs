@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use log::warn;
+use mime_guess::from_path;
 use mimetype_detector::detect_file;
 use regex::Regex;
 use std::error::Error;
@@ -71,6 +72,18 @@ pub fn detect_mime_type(path: PathBuf) -> Result<String, MimeTypeDetectError> {
     Ok(mime_type.mime().to_string())
 }
 
+pub fn detect_mime_type_by_extension(path: PathBuf) -> Result<String, MimeTypeDetectError> {
+    from_path(&path)
+        .first()
+        .map(|mime_type| mime_type.essence_str().to_string())
+        .ok_or_else(|| MimeTypeDetectError::DetectError {
+            message: format!(
+                "failed to detect mime type by contents or extension for path {}",
+                path.display(),
+            ),
+        })
+}
+
 fn is_svg_image(path: &PathBuf) -> Result<bool, MimeTypeDetectError> {
     let bytes = fs::read(path).map_err(|err| MimeTypeDetectError::IOError {
         message: err.to_string(),
@@ -78,4 +91,23 @@ fn is_svg_image(path: &PathBuf) -> Result<bool, MimeTypeDetectError> {
 
     let regex = Regex::new(r"^<svg .*").unwrap();
     Ok(regex.is_match(&String::from_utf8_lossy(&bytes)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detect_mime_type_by_extension_should_fallback_to_file_extension() {
+        let mime_type = detect_mime_type_by_extension(PathBuf::from("missing-file.pdf")).unwrap();
+
+        assert_eq!("application/pdf", mime_type);
+    }
+
+    #[test]
+    fn detect_mime_type_by_extension_should_return_error_when_extension_is_unknown() {
+        let result = detect_mime_type_by_extension(PathBuf::from("missing-file"));
+
+        assert!(result.is_err());
+    }
 }
