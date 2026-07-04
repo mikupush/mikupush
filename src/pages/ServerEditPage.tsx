@@ -18,7 +18,7 @@
 
 import { Large, Muted } from '@/components/Typography.tsx'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { Switch } from '@/components/ui/switch.tsx'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field.tsx'
 import { useEffect, useMemo, useState } from 'react'
@@ -35,6 +35,13 @@ import { LoaderCircle } from 'lucide-react'
 import { ServerIcon } from '@/components/ServerIcon.tsx'
 import BackButton from '@/components/BackButton.tsx'
 import { PageHeading } from '@/components/PageHeading.tsx'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog.tsx'
 
 interface ServerEditFormValues {
   alias: string
@@ -44,9 +51,11 @@ interface ServerEditFormValues {
 export default function ServerEditPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [server, setServer] = useState<Server | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const schema = useMemo(() => zod.object({
     alias: zod.string()
       .trim(),
@@ -127,6 +136,23 @@ export default function ServerEditPage() {
     }
   }
 
+  const deleteServer = async () => {
+    if (!server) {
+      return
+    }
+
+    setDeleting(true)
+
+    try {
+      await invoke<void>('delete_server', { id: server.id })
+      toast.success(t('server.delete.success'))
+      navigate('/servers')
+    } catch {
+      toast.error(t('server.delete.error'))
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -139,7 +165,7 @@ export default function ServerEditPage() {
     return null
   }
 
-  const controlsDisabled = saving
+  const controlsDisabled = saving || deleting
   const name = (server.useAlias && server.alias != null && server.alias !== '')
     ? `${server.alias} (${server.name})`
     : server.name
@@ -186,7 +212,7 @@ export default function ServerEditPage() {
           <FieldError errors={[errors.alias]}/>
         </Field>
         <div className="flex gap-2">
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={controlsDisabled}>
             {saving && <LoaderCircle className="animate-spin" />}
             {t('common.form.save')}
           </Button>
@@ -195,7 +221,7 @@ export default function ServerEditPage() {
       <section className="mt-10 space-y-4">
         <Large className="text-red-500">{t('common.form.danger_zone')}</Large>
         <div className="flex flex-col items-start gap-4">
-          <Button type="button" variant="destructive">
+          {/*<Button type="button" variant="destructive">
             {t('server.form.danger_zone.delete_server_and_uploads')}
           </Button>
           <Button
@@ -203,13 +229,30 @@ export default function ServerEditPage() {
             className="bg-red-100 text-foreground hover:bg-red-200"
           >
             {t('server.form.danger_zone.delete_uploads')}
-          </Button>
-          <Button
-            type="button"
-            className="bg-red-100 text-foreground hover:bg-red-200"
-          >
-            {t('server.form.danger_zone.delete_server')}
-          </Button>
+          </Button>*/}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={controlsDisabled}
+              >
+                {t('server.form.danger_zone.delete_server')}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('server.delete.confirmation.title')}</AlertDialogTitle>
+                <AlertDialogDescription>{t('server.delete.confirmation.message')}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={controlsDisabled}>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={deleteServer} disabled={controlsDisabled}>
+                  {t('common.delete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </section>
     </div>
