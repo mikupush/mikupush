@@ -140,6 +140,7 @@ pub fn run() {
             server::create_server,
             server::update_server,
             server::find_all_servers,
+            server::find_recent_servers,
             server::server_icon_url,
             server::delete_server,
             server::check_server_health,

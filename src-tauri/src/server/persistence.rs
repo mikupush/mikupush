@@ -32,6 +32,7 @@ pub struct ServerModel {
     pub alias: Option<String>,
     pub use_alias: bool,
     pub added_at: NaiveDateTime,
+    pub connected_at: Option<NaiveDateTime>,
     pub testing: bool,
     pub connected: bool,
     pub healthy: bool,
@@ -49,6 +50,7 @@ impl TryFrom<ServerModel> for Server {
             alias: model.alias,
             use_alias: model.use_alias,
             added_at: model.added_at.and_utc(),
+            connected_at: model.connected_at.map(|connected_at| connected_at.and_utc()),
             testing: model.testing,
             connected: model.connected,
             healthy: model.healthy,
@@ -66,6 +68,7 @@ impl From<Server> for ServerModel {
             alias: model.alias,
             use_alias: model.use_alias,
             added_at: model.added_at.naive_utc(),
+            connected_at: model.connected_at.map(|connected_at| connected_at.naive_utc()),
             testing: model.testing,
             connected: model.connected,
             healthy: model.healthy,
@@ -139,8 +142,27 @@ impl ServerRepository {
         Ok(entity)
     }
 
-    pub fn update_connected(&self, id: Uuid) -> Result<(), DbError> {
+    pub fn find_recent(&self) -> Result<Vec<Server>, DbError> {
         let mut connection = self.connection_pool.get()?;
+        let entities = servers_table::table
+            .filter(servers_table::connected_at.is_not_null())
+            .order(servers_table::connected_at.desc())
+            .limit(5)
+            .select(ServerModel::as_select())
+            .load::<ServerModel>(&mut connection)?;
+
+        let models: Vec<Server> = entities
+            .iter()
+            .map(|entity| entity.clone().try_into())
+            .filter_map(Result::ok)
+            .collect();
+
+        Ok(models)
+    }
+
+    pub fn update_connected(&self, id: Uuid) -> Result<chrono::DateTime<chrono::Utc>, DbError> {
+        let mut connection = self.connection_pool.get()?;
+        let connected_at = chrono::Utc::now();
 
         diesel::update(servers_table::table)
             .set(servers_table::connected.eq(false))
@@ -148,10 +170,13 @@ impl ServerRepository {
 
         diesel::update(servers_table::table)
             .filter(servers_table::id.eq(&id.to_string()))
-            .set(servers_table::connected.eq(true))
+            .set((
+                servers_table::connected.eq(true),
+                servers_table::connected_at.eq(connected_at.naive_utc()),
+            ))
             .execute(&mut connection)?;
 
-        Ok(())
+        Ok(connected_at)
     }
 
     pub fn save(&self, server: Server) -> Result<(), DbError> {
@@ -197,6 +222,7 @@ impl ServerRepository {
 mod tests {
     use super::*;
     use crate::database::{DbPool, tests::test_database_connection};
+    use chrono::{Duration, Utc};
     use serial_test::serial;
     use uuid::Uuid;
 
@@ -272,17 +298,18 @@ mod tests {
         let repository = ServerRepository::new(db.clone());
 
         let not_connected_server = insert_test_server(&db);
-        let connected_server = insert_test_server(&db);
+        let expected_connected_server = insert_test_server(&db);
 
         repository
-            .update_connected(connected_server.id)
+            .update_connected(expected_connected_server.id)
             .expect("update_connected failed");
 
         let connected = repository.find_connected().unwrap();
         assert!(connected.is_some());
 
         let connected_server = connected.unwrap();
-        assert_eq!(connected_server.id, connected_server.id);
+        assert_eq!(expected_connected_server.id, connected_server.id);
+        assert!(connected_server.connected_at.is_some());
 
         let not_connected_model = find_by_id(not_connected_server.id, &mut connection).unwrap();
         assert_eq!(false, not_connected_model.connected);
@@ -352,6 +379,39 @@ mod tests {
 
     #[test]
     #[serial]
+    fn server_repository_find_recent_should_return_last_five_connected_servers() {
+        let db = test_database_connection();
+        let mut connection = db.get().unwrap();
+        clean(&mut connection);
+
+        let repository = ServerRepository::new(db.clone());
+        let base_time = Utc::now();
+        let mut expected = vec![];
+
+        for index in 0..7 {
+            let server = insert_test_server_with_connected_at(
+                &db,
+                Some(base_time + Duration::minutes(index)),
+            );
+
+            if index >= 2 {
+                expected.push(server.id);
+            }
+        }
+
+        insert_test_server_with_connected_at(&db, None);
+
+        let actual = repository.find_recent().unwrap();
+
+        expected.reverse();
+        let actual_ids: Vec<Uuid> = actual.iter().map(|server| server.id).collect();
+
+        assert_eq!(5, actual.len());
+        assert_eq!(expected, actual_ids);
+    }
+
+    #[test]
+    #[serial]
     fn server_repository_delete_should_delete_existing() {
         let db = test_database_connection();
         let mut connection = db.get().unwrap();
@@ -396,6 +456,25 @@ mod tests {
             .values::<ServerModel>(model.clone().into())
             .execute(&mut connection);
         println!("insert test server with url result: {:?}", result);
+        model
+    }
+
+    fn insert_test_server_with_connected_at(
+        db: &DbPool,
+        connected_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Server {
+        let mut connection = db.get().unwrap();
+        let mut model = Server::new(
+            Uuid::new_v4(),
+            format!("https://{}.example.com", Uuid::new_v4()),
+            "Test Server".to_string(),
+        );
+        model.connected_at = connected_at;
+
+        let result = diesel::insert_into(servers_table::table)
+            .values::<ServerModel>(model.clone().into())
+            .execute(&mut connection);
+        println!("insert test server with connected_at result: {:?}", result);
         model
     }
 

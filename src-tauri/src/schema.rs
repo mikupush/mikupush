@@ -16,6 +16,7 @@ diesel::table! {
         alias -> Nullable<Text>,
         use_alias -> Bool,
         added_at -> Timestamp,
+        connected_at -> Nullable<Timestamp>,
         testing -> Bool,
         connected -> Bool,
         healthy -> Bool,

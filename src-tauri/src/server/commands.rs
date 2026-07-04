@@ -55,6 +55,21 @@ pub fn find_all_servers(
 }
 
 #[tauri::command]
+pub fn find_recent_servers(app_context: State<AppContext>) -> ServerResult<Vec<Server>> {
+    let connection_pool = app_context.db_connection.get().cloned().ok_or_else(|| {
+        warn!("can't get recent servers because database connection pool is not initialized");
+        t!("errors.database.internal_error")
+    })?;
+
+    let server_repository = ServerRepository::new(connection_pool);
+    let servers = server_repository
+        .find_recent()
+        .map_err(|err| err.to_string())?;
+
+    Ok(servers)
+}
+
+#[tauri::command]
 pub fn server_icon_url(app_handle: AppHandle, icon: String) -> Result<String, String> {
     debug!("encoding server icon to base64 url: {}", icon);
     let path = ResourceType::ServerIcon
@@ -245,7 +260,7 @@ pub async fn set_connected_server(
         return Err(t!("errors.server.health_check_down").to_string());
     }
 
-    server_repository
+    let connected_at = server_repository
         .update_connected(server.id)
         .map_err(|err| {
             warn!("unable to update connected server: {}", err);
@@ -253,6 +268,8 @@ pub async fn set_connected_server(
         })?;
 
     server.healthy = true;
+    server.connected = true;
+    server.connected_at = Some(connected_at);
     server_repository.save(server.clone()).map_err(|err| {
         warn!("unable to update connected server health: {}", err);
         t!("errors.server.change_server")
