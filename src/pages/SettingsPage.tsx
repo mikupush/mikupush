@@ -23,6 +23,7 @@ import { ServerField } from '@/components/settings/ServerField.tsx'
 import { ThemeField } from '@/components/settings/ThemeField.tsx'
 import { UploadFieldGroup } from '@/components/settings/UploadFieldGroup.tsx'
 import { AutoStartField } from '@/components/settings/AutoStartField.tsx'
+import { LanguageField } from '@/components/settings/LanguageField.tsx'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -36,6 +37,7 @@ export default function SettingsPage() {
           <FieldGroup>
             <AutoStartField />
             <ThemeField />
+            <LanguageField />
           </FieldGroup>
         </FieldSet>
         <FieldSet className="space-y-6">
@@ -52,4 +54,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-

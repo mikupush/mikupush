@@ -16,5 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export type Theme = 'light' | 'dark' | 'system';
-export type Language = 'en' | 'es';
+import { ReactNode, useEffect } from 'react'
+import { useUserLanguage } from '@/hooks/use-configuration.ts'
+
+interface LanguageProviderProps {
+  children: ReactNode
+}
+
+export function LanguageProvider({ children }: LanguageProviderProps) {
+  const { currentLanguage } = useUserLanguage()
+
+  useEffect(() => {
+    currentLanguage()
+  }, [currentLanguage])
+
+  return children
+}

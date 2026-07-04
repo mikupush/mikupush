@@ -26,6 +26,7 @@ import { fetchCurrentUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
 import { ServerProvider } from '@/context/ServerProvider.tsx'
 import { ToastContainer } from '@/components/ToastContainer.tsx'
+import { LanguageProvider } from '@/context/LanguageProvider.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
   const store = useUploadsStore.getState()
@@ -54,12 +55,14 @@ fetchCurrentUploads()
 
 function MainWindow() {
   return (
-    <ThemeProvider>
-      <ServerProvider>
-        <Router />
-        <ToastContainer />
-      </ServerProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <ServerProvider>
+          <Router />
+          <ToastContainer />
+        </ServerProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   )
 }
 

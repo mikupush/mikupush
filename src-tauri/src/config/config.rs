@@ -25,6 +25,7 @@ pub const CONFIG_CHUNK_SIZE_DEFAULT: u64 = 50 * 1024 * 1024; // 50 MB
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConfigKey {
     Theme,
+    Language,
     StartOnSystemStartup,
     StartMinimized,
     UploadInChunks,
@@ -35,6 +36,7 @@ impl ConfigKey {
     pub fn key(&self) -> String {
         match self {
             ConfigKey::Theme => "theme".to_string(),
+            ConfigKey::Language => "language".to_string(),
             ConfigKey::StartOnSystemStartup => "start_on_system_startup".to_string(),
             ConfigKey::StartMinimized => "start_minimized".to_string(),
             ConfigKey::UploadInChunks => "upload_in_chunks".to_string(),
@@ -45,6 +47,7 @@ impl ConfigKey {
     pub fn default_value(&self) -> ConfigValue {
         match self {
             ConfigKey::Theme => Theme::default().to_string(),
+            ConfigKey::Language => "en".to_string(),
             ConfigKey::StartOnSystemStartup => CONFIG_FALSE_VALUE.to_string(),
             ConfigKey::StartMinimized => CONFIG_FALSE_VALUE.to_string(),
             ConfigKey::UploadInChunks => CONFIG_TRUE_VALUE.to_string(),
@@ -55,6 +58,7 @@ impl ConfigKey {
     pub fn from_string(key: String) -> Option<Self> {
         match key.as_str() {
             "theme" => Some(ConfigKey::Theme),
+            "language" => Some(ConfigKey::Language),
             "start_on_system_startup" => Some(ConfigKey::StartOnSystemStartup),
             "start_minimized" => Some(ConfigKey::StartMinimized),
             "upload_in_chunks" => Some(ConfigKey::UploadInChunks),

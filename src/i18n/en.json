@@ -126,6 +126,14 @@
           "invalid": "The theme should be Dark, Light or System",
           "required": "The theme is required"
         }
+      },
+      "language": {
+        "label": "Language",
+        "placeholder": "Select a language",
+        "option": {
+          "en": "English",
+          "es": "Spanish"
+        }
       }
     },
     "upload": {

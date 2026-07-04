@@ -1,0 +1,42 @@
+menu:
+  about: Acerca de Miku Push!
+
+notifications:
+  upload:
+    enqueued:
+      title: Subiendo archivo %{name} 🚀
+      body: El archivo %{name} se ha añadido a la cola de subida
+    success:
+      title: ✅ Archivo %{name} subido!
+      body: El enlace se ha copiado al portapapeles
+    error:
+      title: ❌ No se pudo subir el archivo %{name}
+      body: Se produjo un error al subir el archivo %{name}
+
+errors:
+  window:
+    open_about: Se produjo un error inesperado al abrir la ventana Acerca de
+  upload:
+    copy_link: Se produjo un error inesperado al copiar el enlace
+    not_found: Subida no encontrada
+  file_system:
+    server_icon_access: Se produjo un error inesperado al acceder a los iconos de servidores en el directorio de datos de la aplicacion
+  database:
+    internal_error: Se produjo un error inesperado al acceder a la base de datos
+  server:
+    invalid_server_id: El identificador de servidor proporcionado no es valido
+    server_not_found: No se pudo encontrar el servidor solicitado
+    change_server: Se produjo un error inesperado al cambiar el servidor
+    health_check: Se produjo un error inesperado al comprobar el estado del servidor
+    health_check_down: El servidor no esta disponible
+    info: Se produjo un error inesperado al obtener la informacion del servidor
+    icon: Se produjo un error inesperado al obtener el icono del servidor
+    create_server: Se produjo un error inesperado al crear el servidor
+    update_server: Se produjo un error inesperado al actualizar el servidor
+    get_server: Se produjo un error inesperado al obtener el servidor
+    get_current_server: Se produjo un error inesperado al obtener el servidor actual
+    server_icon_not_found: Icono del servidor no encontrado
+    server_icon_encoding: Se produjo un error inesperado al codificar el icono del servidor en base64
+  resource:
+    path_not_resolved: Se produjo un error inesperado al resolver la ruta del recurso
+    not_found: Recurso no encontrado

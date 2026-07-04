@@ -17,24 +17,46 @@
  */
 
 import { useTheme } from '@/context/ThemeProvider.tsx'
-import { Theme } from '@/model/config.ts'
+import { Language, Theme } from '@/model/config.ts'
 import { applyConfig, getConfig } from '@/helpers/config.ts'
 import { CONFIG_THEME } from '@/constants/config.ts'
+import { useTranslation } from 'react-i18next'
+import { useCallback } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 export function useUserTheme() {
   const { setTheme, theme } = useTheme()
 
-  const applyTheme = (theme: Theme) => {
+  const applyTheme = useCallback((theme: Theme) => {
     applyConfig(CONFIG_THEME, theme).then(() => setTheme(theme))
-  }
+  }, [setTheme])
 
-  const currentTheme = () => {
+  const currentTheme = useCallback(() => {
     getConfig(CONFIG_THEME).then(theme => setTheme(theme as Theme))
-  }
+  }, [setTheme])
 
   return {
     applyTheme,
     currentTheme,
     theme
+  }
+}
+
+export function useUserLanguage() {
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage?.startsWith('es') ? 'es' : 'en'
+
+  const applyLanguage = useCallback((language: Language) => {
+    invoke('set_current_language', { language }).then(() => i18n.changeLanguage(language))
+  }, [i18n])
+
+  const currentLanguage = useCallback(() => {
+    invoke<Language>('get_language').then(language => i18n.changeLanguage(language))
+  }, [i18n])
+
+  return {
+    applyLanguage,
+    currentLanguage,
+    language
   }
 }

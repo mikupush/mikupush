@@ -21,6 +21,7 @@ mod date_time;
 mod encoder;
 mod error;
 mod events;
+mod language;
 mod macos;
 mod menu;
 mod mime_type;
@@ -133,6 +134,8 @@ pub fn run() {
             upload::get_all_in_progress_uploads,
             config::get_config_value,
             config::set_config_value,
+            language::get_language,
+            language::set_current_language,
             server::set_connected_server,
             server::get_connected_server,
             server::get_server_by_url,
@@ -185,11 +188,12 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
 
     let deep_link = app.deep_link();
     let current_deep_links = deep_link.get_current()?;
-    setup_app_menu(app.app_handle())?;
     unpack_resources(app.app_handle())?;
     let db = setup_app_database_connection(app);
     let app_context = app.state::<AppContext>();
     app_context.db_connection.set(db).unwrap();
+    language::configure_current_language(app.app_handle())?;
+    setup_app_menu(app.app_handle())?;
     initialize_current_server_state(app.app_handle())?;
 
     #[cfg(target_os = "macos")]

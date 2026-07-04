@@ -27,6 +27,7 @@ import { openableResourcePath } from '@/helpers/resource.ts'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import toast from 'react-hot-toast'
 import { ToastContainer } from '@/components/ToastContainer.tsx'
+import { LanguageProvider } from '@/context/LanguageProvider.tsx'
 
 function AboutWindow() {
   const [appName, setAppName] = useState('')
@@ -50,28 +51,30 @@ function AboutWindow() {
   }
 
   return (
-    <ThemeProvider>
-      <div className="py-6 px-20 space-y-6 overflow-auto">
-        <div className="flex w-full place-content-center">
-          <img src={appIcon} alt="logo" className="h-16" />
+    <LanguageProvider>
+      <ThemeProvider>
+        <div className="py-6 px-20 space-y-6 overflow-auto">
+          <div className="flex w-full place-content-center">
+            <img src={appIcon} alt="logo" className="h-16" />
+          </div>
+          <div className="space-y-2">
+            <Heading2 as="h1" className="text-center py-0 border-none">{appName}</Heading2>
+            <Large className="text-center">{t('about.version', { version: appVersion })}</Large>
+            <Large className="text-center">{t('about.copyright')}</Large>
+            <Large className="text-center">{t('about.licensed')}</Large>
+          </div>
+          <div>
+            <Paragraph className="text-center">{t('about.hatsune_miku_copyright')}</Paragraph>
+            <Paragraph className="text-center">{t('about.not_affiliated')}</Paragraph>
+            <Paragraph className="text-center">{t('about.why_hatsune_miku')}</Paragraph>
+          </div>
+          <div className="flex justify-center">
+            <Button onClick={openThirdPartyLicenses}>{t('about.see_third_party_licenses')}</Button>
+          </div>
         </div>
-        <div className="space-y-2">
-          <Heading2 as="h1" className="text-center py-0 border-none">{appName}</Heading2>
-          <Large className="text-center">{t('about.version', { version: appVersion })}</Large>
-          <Large className="text-center">{t('about.copyright')}</Large>
-          <Large className="text-center">{t('about.licensed')}</Large>
-        </div>
-        <div>
-          <Paragraph className="text-center">{t('about.hatsune_miku_copyright')}</Paragraph>
-          <Paragraph className="text-center">{t('about.not_affiliated')}</Paragraph>
-          <Paragraph className="text-center">{t('about.why_hatsune_miku')}</Paragraph>
-        </div>
-        <div className="flex justify-center">
-          <Button onClick={openThirdPartyLicenses}>{t('about.see_third_party_licenses')}</Button>
-        </div>
-      </div>
-      <ToastContainer />
-    </ThemeProvider>
+        <ToastContainer />
+      </ThemeProvider>
+    </LanguageProvider>
   )
 }
 
