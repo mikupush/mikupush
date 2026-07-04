@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { useServer } from '@/context/ServerProvider.tsx'
 
 export function useServerConnector() {
-  const { setCurrentById, setCurrentByUrl } = useServer()
+  const { current, setCurrentById, setCurrentByUrl } = useServer()
   const [isConnecting, setIsConnecting] = useState(false)
 
   const connectById = async (serverId: string) => {
@@ -44,6 +44,7 @@ export function useServerConnector() {
   }
 
   return {
+    current,
     isConnecting,
     connectById,
     connectByUrl

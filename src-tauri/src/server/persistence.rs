@@ -50,7 +50,9 @@ impl TryFrom<ServerModel> for Server {
             alias: model.alias,
             use_alias: model.use_alias,
             added_at: model.added_at.and_utc(),
-            connected_at: model.connected_at.map(|connected_at| connected_at.and_utc()),
+            connected_at: model
+                .connected_at
+                .map(|connected_at| connected_at.and_utc()),
             testing: model.testing,
             connected: model.connected,
             healthy: model.healthy,
@@ -68,7 +70,9 @@ impl From<Server> for ServerModel {
             alias: model.alias,
             use_alias: model.use_alias,
             added_at: model.added_at.naive_utc(),
-            connected_at: model.connected_at.map(|connected_at| connected_at.naive_utc()),
+            connected_at: model
+                .connected_at
+                .map(|connected_at| connected_at.naive_utc()),
             testing: model.testing,
             connected: model.connected,
             healthy: model.healthy,

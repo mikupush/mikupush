@@ -14,13 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::AppContext;
 use crate::MAIN_WINDOW;
 use crate::client::{Client, ClientError, FILE_INFO_ERROR_NOT_EXISTS, FileStatus, FileUploadError};
 use crate::config::Configuration;
 use crate::config::{CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE, ConfigKey};
 use crate::events::*;
 use crate::state::{SelectedServerState, UploadsState};
-use crate::upload::{Progress, UploadRequest};
+use crate::status::Status;
+use crate::upload::UploadRepository;
+use crate::upload::{Progress, Upload, UploadRequest};
 use crate::window::is_main_window_visible;
 use log::{debug, info, warn};
 use rust_i18n::t;
@@ -238,6 +241,33 @@ pub async fn delete_upload(
 }
 
 #[tauri::command]
+pub async fn delete_archived_upload(
+    app_context: State<'_, AppContext>,
+    server_state: State<'_, SelectedServerState>,
+    upload_id: String,
+) -> Result<Vec<Upload>, String> {
+    debug!("deleting archived upload with id {}", upload_id.clone());
+
+    let id = Uuid::parse_str(upload_id.as_str()).map_err(|err| err.to_string())?;
+    let server_id = server_state.current_server().id.to_string();
+    let client = server_state.client();
+    client.delete(id).await.map_err(|err| err.to_string())?;
+
+    let connection_pool = app_context
+        .db_connection
+        .get()
+        .cloned()
+        .ok_or_else(|| "database connection is not initialized".to_string())?;
+    let repository = UploadRepository::new(connection_pool);
+    repository.delete(id).map_err(|err| err.to_string())?;
+
+    debug!("deleted archived upload with id {}", upload_id.clone());
+    repository
+        .find_by_server_id(server_id)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 pub fn cancel_upload(
     uploads_state: State<'_, UploadsState>,
     upload_id: String,
@@ -282,6 +312,24 @@ fn copy_link(upload: &UploadRequest, app_handle: &AppHandle) -> Result<(), Strin
 pub fn get_all_in_progress_uploads(uploads_state: State<'_, UploadsState>) -> Vec<UploadRequest> {
     debug!("get uploads");
     uploads_state.get_all_in_progress()
+}
+
+#[tauri::command]
+pub fn get_archived_uploads(
+    app_context: State<'_, AppContext>,
+    server_id: String,
+) -> Result<Vec<Upload>, String> {
+    debug!("get archived uploads for server {}", server_id);
+    let connection_pool = app_context
+        .db_connection
+        .get()
+        .cloned()
+        .ok_or_else(|| "database connection is not initialized".to_string())?;
+    let repository = UploadRepository::new(connection_pool);
+
+    repository
+        .find_by_server_id(server_id)
+        .map_err(|err| err.to_string())
 }
 
 async fn upload_file(
@@ -350,8 +398,10 @@ fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify
     }
 
     let mut request = request.unwrap();
+    request.upload.status = Status::Completed;
     request = request.finish();
     state.update_request(request.clone());
+    persist_finished_upload(app_handle, &request);
 
     emit_uploads_changed(&app_handle, state.get_all_in_progress());
 
@@ -384,6 +434,25 @@ fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify
                 warn!("failed to remove file ({}): {}", path, err);
             }
         }
+    }
+}
+
+fn persist_finished_upload(app_handle: &AppHandle, request: &UploadRequest) {
+    let app_context = app_handle.state::<AppContext>();
+    let Some(connection_pool) = app_context.db_connection.get().cloned() else {
+        warn!(
+            "failed to persist completed upload {}: database connection is not initialized",
+            request.upload.id
+        );
+        return;
+    };
+
+    let repository = UploadRepository::new(connection_pool);
+    if let Err(err) = repository.save(request.upload.clone()) {
+        warn!(
+            "failed to persist completed upload {}: {}",
+            request.upload.id, err
+        );
     }
 }
 

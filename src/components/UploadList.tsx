@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { UploadProgressItem, UploadItem } from '@/components/UploadItem'
-import { UploadRequest } from '@/model/upload'
+import { ArchivedUploadItem, UploadProgressItem, UploadItem } from '@/components/UploadItem'
+import { Upload, UploadRequest } from '@/model/upload'
 
 interface UploadListProps {
   items: UploadRequest[]
@@ -35,6 +35,18 @@ export function UploadProgressList({ items }: UploadListProps) {
   return (
     <ul className="flex-1">
       {items.map(item => <UploadProgressItem key={item.upload.id} item={item} />)}
+    </ul>
+  )
+}
+
+interface ArchivedUploadListProps {
+  items: Upload[]
+}
+
+export function ArchivedUploadList({ items }: ArchivedUploadListProps) {
+  return (
+    <ul className="flex-1">
+      {items.map(item => <ArchivedUploadItem key={item.id} upload={item} />)}
     </ul>
   )
 }

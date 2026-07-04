@@ -15,9 +15,59 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import LoadingSpinner from '@/components/LoadingSpinner.tsx'
+import { Paragraph } from '@/components/Typography.tsx'
+import { ArchivedUploadList } from '@/components/UploadList.tsx'
+import { useServerConnector } from '@/hooks/server.ts'
+import { Upload } from '@/model/upload.ts'
+import { useUploadsStore } from '@/store/uploads.ts'
+import { invoke } from '@tauri-apps/api/core'
+import { ArchiveIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export default function ArchivedUploadsPage() {
+  const { current } = useServerConnector()
+  const archivedUploads = useUploadsStore(state => state.archivedUploads)
+  const setArchivedUploads = useUploadsStore(state => state.setArchivedUploads)
+  const [ isLoading, setIsLoading ] = useState(false)
+
+  useEffect(() => {
+    if (!current.id) {
+      setArchivedUploads([])
+      return
+    }
+
+    setIsLoading(true)
+    invoke<Upload[]>('get_archived_uploads', { serverId: current.id })
+      .then((uploads) => setArchivedUploads(uploads))
+      .catch((error) => {
+        console.warn('error getting archived uploads', error)
+        setArchivedUploads([])
+      })
+      .finally(() => setIsLoading(false))
+  }, [ current.id, setArchivedUploads ])
+
+  return (
+    <div className="flex flex-1">
+      {(isLoading) ? (
+        <LoadingSpinner size={50} />
+      ) : (archivedUploads.length > 0) ? (
+        <ArchivedUploadList items={archivedUploads} />
+      ) : (
+        <EmptyState />
+      )}
+    </div>
+  )
+}
+
+function EmptyState() {
   const { t } = useTranslation()
-  return <h1 className="text-center my-auto">{t('common.in_development')}</h1>
+
+  return (
+    <div className="flex flex-1 flex-col justify-center items-center px-20">
+      <ArchiveIcon width={60} height={60} />
+      <Paragraph className="text-center">{t('uploads.archived_empty_state')}</Paragraph>
+    </div>
+  )
 }

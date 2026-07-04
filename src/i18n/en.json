@@ -19,6 +19,7 @@
   },
   "uploads": {
     "empty_state": "Looks like you haven't shared any files yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select a file to get started.",
+    "archived_empty_state": "There are no archived uploads for this server.",
     "select_file": "Select a file",
     "link_copied": {
       "success": "Link copied to the clipboard",

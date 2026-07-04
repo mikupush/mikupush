@@ -47,4 +47,5 @@ export interface Upload {
   url?: string;
   createdAt: string; // ISO string, matches Rust DateTimeUtc
   status: string;
+  serverId: string;
 }

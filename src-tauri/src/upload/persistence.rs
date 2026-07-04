@@ -96,6 +96,23 @@ impl UploadRepository {
         Ok(models)
     }
 
+    pub fn find_by_server_id(&self, server_id: String) -> Result<Vec<Upload>, DbError> {
+        let mut connection = self.connection_pool.get()?;
+        let entities = uploads_table::table
+            .filter(uploads_table::server_id.eq(server_id))
+            .order(uploads_table::created_at.desc())
+            .select(UploadModel::as_select())
+            .load::<UploadModel>(&mut connection)?;
+
+        let models: Vec<Upload> = entities
+            .iter()
+            .map(|entity| entity.clone().try_into())
+            .filter_map(Result::ok)
+            .collect();
+
+        Ok(models)
+    }
+
     pub fn find_by_id(&self, id: Uuid) -> Result<Option<Upload>, DbError> {
         let mut connection = self.connection_pool.get()?;
         let entity = uploads_table::table
@@ -118,6 +135,14 @@ impl UploadRepository {
             self.update(&model)?;
         }
 
+        Ok(())
+    }
+
+    pub fn delete(&self, id: Uuid) -> Result<(), DbError> {
+        let mut connection = self.connection_pool.get()?;
+        diesel::delete(uploads_table::table)
+            .filter(uploads_table::id.eq(id.to_string()))
+            .execute(&mut connection)?;
         Ok(())
     }
 
