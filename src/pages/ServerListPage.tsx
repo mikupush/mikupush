@@ -81,7 +81,7 @@ export default function ServerListPage() {
     <div className="flex flex-1 flex-col py-3 pt-5 overflow-hidden">
       <div className="px-5 pb-5">
         <div className="flex justify-between w-full max-w-3xl mx-auto">
-          <Button>
+          <Button onClick={() => navigate('/servers/add')}>
             <PlusIcon />
             {t('server.add')}
           </Button>

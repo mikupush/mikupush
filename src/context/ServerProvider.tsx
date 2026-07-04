@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createServerFromUrl, undefinedServer, Server, ServerNotFoundError } from '@/model/server.ts'
+import { undefinedServer, Server, ServerNotFoundError } from '@/model/server.ts'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import toast from 'react-hot-toast'
@@ -53,7 +53,11 @@ export function ServerProvider({ children }: ServerProviderProps) {
 
     if (!server) {
       server = await invoke<Server>('create_server', {
-        newServer: createServerFromUrl(url)
+        newServer: {
+          alias: null,
+          useAlias: false,
+          url,
+        }
       })
     }
 

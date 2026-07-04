@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::error::{FileDeleteError, FileInfoError, FileUploadError, HealthCheckError};
-use super::response::{ErrorResponse, FileInfo, HealthCheckStatus};
+use super::response::{ErrorResponse, FileInfo, HealthCheckStatus, ServerInfo};
 use super::upload::SingleUploadTask;
 use super::{ChunkedUploadTask, UploadTask};
 use crate::server::Server;
@@ -25,6 +25,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 const SINGLE_UPLOAD_MAX_SIZE_BYTES: u64 = 20971520; // 20MB
+const SERVER_ICON_MAX_SIZE_BYTES: u64 = 2097152; // 2MB
 
 pub struct Client {
     base_url: String,
@@ -191,7 +192,7 @@ impl Client {
     }
 
     pub async fn check_health(&self) -> Result<HealthCheckStatus, HealthCheckError> {
-        let url = format!("{}/health", self.base_url);
+        let url = format!("{}/health?json", self.base_url);
         let response = self
             .client
             .get(&url)
@@ -210,5 +211,87 @@ impl Client {
         HealthCheckStatus::from_string(response_body).map_err(|err| HealthCheckError {
             message: err.to_string(),
         })
+    }
+
+    pub async fn server_info(&self) -> Result<ServerInfo, String> {
+        let url = format!("{}/api/info", self.base_url);
+        let response = self
+            .client
+            .get(&url)
+            .header("Accept", "application/json")
+            .send()
+            .await
+            .map_err(|err| err.to_string())?;
+
+        let status = response.status().clone();
+        let response_body = response
+            .text()
+            .await
+            .map_err(|err| format!("failed to retrieve response body: {}", err.to_string()))?;
+
+        debug!("GET {}: {} - {}", url, status, response_body);
+
+        if !status.is_success() {
+            return Err(format!("Server responded with error: {}", response_body));
+        }
+
+        serde_json::from_str(&response_body)
+            .map_err(|err| format!("failed to deserialize response: {}", err))
+    }
+
+    pub async fn server_icon(&self) -> Result<Option<(Vec<u8>, Option<String>)>, String> {
+        let url = format!("{}/api/icon", self.base_url);
+        let mut response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|err| format!("failed to retrieve server icon: {}", err.to_string()))?;
+
+        let status = response.status().clone();
+        debug!("GET {}: {}", url, status);
+
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+
+        if !status.is_success() {
+            return Err(format!(
+                "server responded with error status code: {}",
+                status
+            ));
+        }
+
+        let exceeds_max_size = response
+            .content_length()
+            .is_some_and(|size| size > SERVER_ICON_MAX_SIZE_BYTES);
+
+        if exceeds_max_size {
+            return Ok(None);
+        }
+
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        let mut bytes = Vec::new();
+
+        let mut next_chunk = async || {
+            response
+                .chunk()
+                .await
+                .map_err(|err| format!("failed to retrieve server icon chunk: {}", err))
+        };
+
+        while let Some(chunk) = next_chunk().await? {
+            if bytes.len() + chunk.len() > SERVER_ICON_MAX_SIZE_BYTES as usize {
+                return Ok(None);
+            }
+
+            bytes.extend_from_slice(&chunk);
+        }
+
+        Ok(Some((bytes, content_type)))
     }
 }

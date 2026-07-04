@@ -31,6 +31,12 @@ export interface Server {
   healthy: boolean;
 }
 
+export interface CreateServer {
+  useAlias: boolean;
+  alias: string | null;
+  url: string;
+}
+
 export const undefinedServer: Server = {
   id: '',
   url: '',

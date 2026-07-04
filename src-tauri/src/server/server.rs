@@ -105,9 +105,7 @@ pub fn initialize_current_server_state(app_handle: &AppHandle) -> ServerResult<(
             return None;
         }
 
-        all_servers.ok()?
-            .first()
-            .map(Clone::clone)
+        all_servers.ok()?.first().map(Clone::clone)
     };
 
     let connected_server = connected_server.or_else(find_first_server);

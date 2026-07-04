@@ -143,6 +143,7 @@ pub fn run() {
             server::server_icon_url,
             server::delete_server,
             server::check_server_health,
+            server::fetch_server_info,
             resources::resource_path,
             resources::openable_resource_path,
             window::open_about_window

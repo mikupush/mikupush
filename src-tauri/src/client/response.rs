@@ -65,3 +65,15 @@ pub struct FileInfo {
     pub uploaded_at: NaiveDateTime,
     pub status: FileStatus,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerInfo {
+    pub name: String,
+    pub version: ServerVersion,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerVersion {
+    pub name: String,
+    pub code: i64,
+}

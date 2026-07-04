@@ -29,6 +29,8 @@ errors:
     change_server: An unexpected error occurred while changing the server
     health_check: An unexpected error occurred while checking the server health
     health_check_down: The server is not available
+    info: An unexpected error occurred while getting the server information
+    icon: An unexpected error occurred while getting the server icon
     create_server: An unexpected error occurred while creating the server
     update_server: An unexpected error occurred while updating the server
     get_server: An unexpected error occurred while getting the server

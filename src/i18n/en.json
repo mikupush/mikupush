@@ -52,6 +52,7 @@
     },
     "form": {
       "heading": "Edit server",
+      "add_heading": "Add server",
       "server_id": "Server ID: {{id}}",
       "use_alias": "Use custom alias instead of server name",
       "name": {
@@ -61,7 +62,11 @@
         }
       },
       "alias": {
-        "label": "Alias"
+        "label": "Alias",
+        "placeholder": "My awesome server",
+        "error": {
+          "max": "The alias cannot exceed 255 characters"
+        }
       },
       "url": {
         "label": "Url",
@@ -71,14 +76,19 @@
         }
       },
       "save": {
-        "loading": "Checking server health...",
+        "loading": "Saving server...",
         "success": "Server saved successfully"
+      },
+      "save_and_connect": {
+        "label": "Save and connect",
+        "loading": "Checking and saving server...",
+        "success": "Server saved and connected successfully"
       },
       "test_connection": "Test connection",
       "health_check": {
         "success": {
-          "title": "Connection successful",
-          "message": "The server is available."
+          "title": "Connection success",
+          "message": "- Server name: {{name}}\n- Server url: {{url}}\n- Server version: {{version}}"
         },
         "error": {
           "title": "Connection failed"
