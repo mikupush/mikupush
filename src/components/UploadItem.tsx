@@ -35,7 +35,6 @@ import { formatDate, formatRate, formatSizeBytes } from '@/helpers/format'
 import { Upload, UploadRequest } from '@/model/upload'
 import { useUploadsStore } from '@/store/uploads'
 import { invoke } from '@tauri-apps/api/core'
-import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
@@ -195,7 +194,7 @@ function ArchivedUploadActions({ upload }: ArchivedUploadItemProps) {
     <>
       <Button
         onClick={() => {
-          writeText(upload.url ?? '')
+          invoke('copy_archived_upload_link', { uploadId: upload.id })
             .then(() => toast.success(t('uploads.link_copied.success')))
             .catch(() => toast.error(t('uploads.link_copied.error')))
         }}

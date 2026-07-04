@@ -289,12 +289,32 @@ pub async fn copy_upload_link(
         return Err(t!("errors.upload.not_found").to_string());
     }
 
-    copy_link(&upload.unwrap(), &app_handle)
+    copy_upload_url(&upload.unwrap().upload, &app_handle)
 }
 
-fn copy_link(upload: &UploadRequest, app_handle: &AppHandle) -> Result<(), String> {
-    let upload = upload.upload.clone();
-    let result = app_handle.clipboard().write_text(upload.url);
+#[tauri::command]
+pub async fn copy_archived_upload_link(
+    app_handle: AppHandle,
+    app_context: State<'_, AppContext>,
+    upload_id: String,
+) -> Result<(), String> {
+    let id = Uuid::parse_str(upload_id.as_str()).map_err(|err| err.to_string())?;
+    let connection_pool = app_context
+        .db_connection
+        .get()
+        .cloned()
+        .ok_or_else(|| "database connection is not initialized".to_string())?;
+    let repository = UploadRepository::new(connection_pool);
+    let upload = repository
+        .find_by_id(id)
+        .map_err(|err| err.to_string())?
+        .ok_or_else(|| t!("errors.upload.not_found").to_string())?;
+
+    copy_upload_url(&upload, &app_handle)
+}
+
+fn copy_upload_url(upload: &Upload, app_handle: &AppHandle) -> Result<(), String> {
+    let result = app_handle.clipboard().write_text(upload.url.clone());
 
     if let Err(error) = result {
         warn!(
@@ -421,7 +441,7 @@ fn handle_upload_finish(app_handle: &AppHandle, upload_id: String, always_notify
     );
 
     if !is_main_window_visible(&app_handle) {
-        if let Err(err) = copy_link(&request, &app_handle) {
+        if let Err(err) = copy_upload_url(&request.upload, &app_handle) {
             warn!("failed to copy upload link: {}", err);
         }
     }

@@ -131,6 +131,7 @@ pub fn run() {
             upload::delete_upload,
             upload::delete_archived_upload,
             upload::copy_upload_link,
+            upload::copy_archived_upload_link,
             upload::cancel_upload,
             upload::get_all_in_progress_uploads,
             upload::get_archived_uploads,
