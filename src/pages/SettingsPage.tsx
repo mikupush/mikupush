@@ -19,7 +19,6 @@
 import { useTranslation } from 'react-i18next'
 import { Heading2 } from '@/components/Typography.tsx'
 import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field.tsx'
-import { ServerField } from '@/components/settings/ServerField.tsx'
 import { ThemeField } from '@/components/settings/ThemeField.tsx'
 import { UploadFieldGroup } from '@/components/settings/UploadFieldGroup.tsx'
 import { AutoStartField } from '@/components/settings/AutoStartField.tsx'
@@ -43,12 +42,6 @@ export default function SettingsPage() {
         <FieldSet className="space-y-6">
           <FieldLegend>{t('settings.upload.heading')}</FieldLegend>
           <UploadFieldGroup />
-        </FieldSet>
-        <FieldSet>
-          <FieldLegend className="text-red-500">{t('common.form.danger_zone')}</FieldLegend>
-          <FieldGroup>
-            <ServerField />
-          </FieldGroup>
         </FieldSet>
       </div>
     </div>
