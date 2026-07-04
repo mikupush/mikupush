@@ -114,7 +114,7 @@ export default function ServerAddPage() {
     setConnectionAlert(null)
 
     try {
-      await invoke<void>('check_server_health', { server })
+      await checkServerHealth(server)
       const serverInfo = await invoke<ServerInfo>('fetch_server_info', { server })
       setConnectionAlert({
         variant: 'success',
