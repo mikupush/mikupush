@@ -152,10 +152,6 @@ impl Client {
         Ok(())
     }
 
-    // TODO: event bus, ver como hacemos eso, para luego emitir eventos que puedan ser consumidos por varios listeners
-    // o en vez de event bus en el worker de los uploads le pasamos el AppHandle para que pueda emitir las notificaciones
-    // podemos crear un struct nuevo que se dedique a la emision de notificaciones
-    // TODO: crear listeners para enviar notificaciones cuando los uploads han terminado, podemos crear structs que inyecten AppHandle y que con un hilo escuchen al evento
     pub async fn upload(
         &self,
         request: &UploadRequest,
