@@ -51,7 +51,7 @@ impl UploadRequest {
         server: Server,
     ) -> Self {
         Self {
-            progress: Progress::new(size),
+            progress: Progress::new(id, size),
             error: None,
             upload: Upload::new(id, name, size, mime_type, path, server),
             finished: false,
@@ -101,7 +101,7 @@ impl UploadRequest {
 
     pub fn reset_progress(&self) -> Self {
         let mut this = self.clone();
-        this.progress = Progress::new(this.upload.size);
+        this.progress = Progress::from_upload(&this.upload);
         this.finished = false;
         this.error = None;
         this

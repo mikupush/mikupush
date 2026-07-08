@@ -16,7 +16,7 @@
 
 use crate::date_time::DateTimeUtc;
 use crate::server::Server;
-use crate::status::Status;
+use crate::upload::status::Status;
 use rand::random;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

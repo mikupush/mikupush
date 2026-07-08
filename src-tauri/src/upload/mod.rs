@@ -19,6 +19,8 @@ mod persistence;
 mod progress;
 mod request;
 mod upload;
+mod queue;
+mod status;
 
 pub use commands::*;
 pub use persistence::*;

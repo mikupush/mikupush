@@ -29,17 +29,16 @@ mod resources;
 mod schema;
 mod server;
 mod state;
-mod status;
 mod theme;
 mod upload;
 mod window;
 
-use crate::database::{DbPool, create_database_connection};
+use crate::database::{create_database_connection, DbPool};
 use crate::menu::setup_app_menu;
 use crate::resources::unpack_resources;
 use crate::server::initialize_current_server_state;
 use crate::upload::start_upload_for_collection;
-use crate::window::{MAIN_WINDOW, initialize_main_window, restore_main_window};
+use crate::window::{initialize_main_window, restore_main_window, MAIN_WINDOW};
 use log::{debug, warn};
 use state::{SelectedServerState, UploadsState};
 use std::env;
@@ -65,7 +64,7 @@ rust_i18n::i18n!("i18n", fallback = "en");
 pub use config::*;
 pub use server::Server;
 pub use theme::Theme;
-pub use upload::{Progress, Upload, UploadRequest};
+pub use upload::{Upload, UploadRequest};
 
 struct AppState {
     allow_quit: AtomicBool,

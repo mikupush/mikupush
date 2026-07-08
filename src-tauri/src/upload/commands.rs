@@ -16,24 +16,27 @@
 
 use crate::AppContext;
 use crate::MAIN_WINDOW;
-use crate::client::{Client, ClientError, FILE_INFO_ERROR_NOT_EXISTS, FileStatus, FileUploadError};
+use crate::client::{Client, ClientError, FileStatus, FileUploadError, FILE_INFO_ERROR_NOT_EXISTS};
 use crate::config::Configuration;
-use crate::config::{CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE, ConfigKey};
+use crate::config::{ConfigKey, CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE};
 use crate::events::*;
 use crate::state::{SelectedServerState, UploadsState};
-use crate::status::Status;
+use crate::upload::status::Status;
 use crate::upload::UploadRepository;
 use crate::upload::{Progress, Upload, UploadRequest};
 use crate::window::is_main_window_visible;
 use log::{debug, info, warn};
 use rust_i18n::t;
 use std::borrow::Cow;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::path::PathBuf;
+use std::sync::LazyLock;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 #[cfg(target_os = "macos")]
@@ -360,14 +363,13 @@ async fn upload_file(
     let state = app_handle.state::<UploadsState>();
     let upload_id = request.upload.id.clone().to_string();
     debug!("launching file upload for upload with id {}", upload_id);
-    let task = client.upload(&request).await?;
+    let cancellation_token = CancellationToken::new();
+    let (sender, mut receiver) = tokio::sync::watch::channel(Progress::from_upload(&request.upload));
 
-    state.add_cancellation_token(upload_id.clone(), task.get_cancellation_token());
+    state.add_cancellation_token(upload_id.clone(), cancellation_token.clone());
 
-    let mut progress_receiver = task.get_progress_receiver();
     let app_handle_clone = app_handle.clone();
     let upload_id_clone = upload_id.clone();
-    let handle = task.start();
 
     tauri::async_runtime::spawn(async move {
         let state = app_handle_clone.state::<UploadsState>();
@@ -381,10 +383,8 @@ async fn upload_file(
         }
 
         let mut request = request.unwrap();
-        while progress_receiver.changed().await.is_ok() {
-            let current = *progress_receiver.borrow();
-            let progress: Progress = current.clone().into();
-
+        while receiver.changed().await.is_ok() {
+            let progress = *receiver.borrow();
             request = request.update_progress(progress);
             state.update_request(request.clone());
 
@@ -392,9 +392,7 @@ async fn upload_file(
         }
     });
 
-    let result = handle.await.map_err(|err| FileUploadError::ClientError {
-        message: format!("upload task join error: {}", err.to_string()),
-    })?;
+    let result = client.upload(&request, cancellation_token, sender).await;
     state.remove_cancellation_token(upload_id.clone());
 
     debug!(

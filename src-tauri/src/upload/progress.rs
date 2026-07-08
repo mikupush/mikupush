@@ -15,34 +15,65 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use log::debug;
+use crate::Upload;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Progress {
+    pub upload_id: Uuid,
     pub progress: f32,
     pub total_size: u64,
     pub uploaded_bytes: u64,
     pub rate_bytes: u64,
+    last_uploaded_bytes: u64,
 }
 
 impl Progress {
-    pub fn new(total_size: u64) -> Self {
+    pub fn new(upload_id: Uuid, total_size: u64) -> Self {
         Self {
+            upload_id,
             progress: 0.0,
             total_size,
             uploaded_bytes: 0,
             rate_bytes: 0,
+            last_uploaded_bytes: 0,
         }
     }
-}
 
-impl Default for Progress {
-    fn default() -> Self {
-        Self {
-            progress: 0.0,
-            total_size: 0,
-            uploaded_bytes: 0,
-            rate_bytes: 0,
+    pub fn from_upload(upload: &Upload) -> Self {
+        Self::new(upload.id, upload.size)
+    }
+
+    pub fn update(&mut self, uploaded_bytes: u64) -> Self {
+        self.uploaded_bytes = uploaded_bytes;
+        self.progress = self.calculate_progress(uploaded_bytes);
+        self.rate_bytes = self.calculate_rate(uploaded_bytes);
+        self.clone()
+    }
+
+    fn calculate_progress(&self, uploaded_bytes: u64) -> f32 {
+        if self.total_size > 0 {
+            uploaded_bytes as f32 / self.total_size as f32
+        } else {
+            0.0
         }
+    }
+
+    fn calculate_rate(&mut self, uploaded_bytes: u64) -> u64 {
+        debug!("progress uploaded bytes: {}", uploaded_bytes);
+        debug!("progress last uploaded bytes: {}", self.last_uploaded_bytes);
+        let initial_last_uploaded_bytes = self.last_uploaded_bytes;
+        let rate_bytes = uploaded_bytes.saturating_sub(self.last_uploaded_bytes);
+        self.last_uploaded_bytes = uploaded_bytes;
+
+        if initial_last_uploaded_bytes == 0 {
+            debug!("progress rate bytes: 0");
+            return 0;
+        }
+
+        debug!("progress rate bytes: {}", rate_bytes);
+        rate_bytes
     }
 }

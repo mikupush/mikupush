@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::error::FileUploadError;
-use super::progress::ProgressTrack;
+use crate::upload::Progress;
 use super::response::ErrorResponse;
 use crate::upload::Upload;
 use bytes::Bytes;
@@ -40,28 +40,73 @@ use tokio_util::io::ReaderStream;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
+pub struct UploadContext {
+    pub cancellation_token: CancellationToken,
+    progress_sender: Sender<Progress>,
+    uploaded_bytes: Arc<AtomicU64>,
+    last_measured_rate: Arc<Mutex<Instant>>,
+    progress: Arc<Mutex<Progress>>,
+    total_size: u64
+}
+
+impl UploadContext {
+    pub fn new(
+        upload: &Upload,
+        cancellation_token: CancellationToken,
+        progress_sender: Sender<Progress>,
+    ) -> Self {
+        Self {
+            cancellation_token,
+            progress_sender,
+            progress: Arc::new(Mutex::new(Progress::from_upload(&upload))),
+            uploaded_bytes: Arc::new(AtomicU64::new(0)),
+            last_measured_rate: Arc::new(Mutex::new(Instant::now())),
+            total_size: upload.size,
+        }
+    }
+
+    pub fn emit_progress(&self, bytes_sent: &std::io::Result<Bytes>) {
+        let Ok(bytes_sent) = bytes_sent else { return };
+
+        let bytes_sent = bytes_sent.len() as u64;
+        let mut last_measured_rate = self.last_measured_rate.lock().unwrap();
+        let uploaded_bytes = self
+            .uploaded_bytes
+            .load(std::sync::atomic::Ordering::Acquire);
+        let uploaded_bytes_now = min(uploaded_bytes + bytes_sent, self.total_size);
+        self.uploaded_bytes
+            .store(uploaded_bytes_now, std::sync::atomic::Ordering::Release);
+        let elapsed = last_measured_rate.elapsed();
+
+        if elapsed >= Duration::from_secs(1) {
+            let mut progress = self.progress.lock().unwrap();
+            let updated_progress = progress.update(uploaded_bytes_now);
+            let _ = self.progress_sender.send(updated_progress);
+            *last_measured_rate = Instant::now();
+        }
+
+        #[cfg(test)]
+        {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct UploadStream {
     upload_id: String,
-    total_size: u64,
-    uploaded_bytes: u64,
-    cancellation_token: CancellationToken,
     stop_token: CancellationToken,
-    progress_sender: Sender<ProgressTrack>,
-    progress: ProgressTrack,
-    last_measured_rate: Instant,
     reader_stream: ReaderStream<File>,
+    context: UploadContext,
 }
 
 impl UploadStream {
     pub async fn new(
         path: String,
         upload_id: Uuid,
-        cancellation_token: CancellationToken,
         stop_token: CancellationToken,
-        total_size: u64,
-        progress: ProgressTrack,
-        progress_sender: Sender<ProgressTrack>,
+        context: UploadContext,
     ) -> Result<Self, std::io::Error> {
         let file = File::open(&path).await;
         if let Err(err) = &file {
@@ -71,33 +116,10 @@ impl UploadStream {
 
         Ok(Self {
             upload_id: upload_id.to_string(),
-            total_size,
-            uploaded_bytes: 0,
-            cancellation_token,
-            progress_sender,
-            progress,
-            last_measured_rate: Instant::now(),
             stop_token,
             reader_stream: ReaderStream::new(file?),
+            context,
         })
-    }
-
-    fn emit_progress(&mut self, chunk: &IoResult<Bytes>) {
-        if let Ok(chunk) = chunk {
-            self.uploaded_bytes = min(self.uploaded_bytes + (chunk.len() as u64), self.total_size);
-            let elapsed = self.last_measured_rate.elapsed();
-
-            if elapsed >= Duration::from_secs(1) {
-                let updated_progress = self.progress.update(self.uploaded_bytes);
-                let _ = self.progress_sender.send(updated_progress);
-                self.last_measured_rate = Instant::now();
-            }
-
-            #[cfg(test)]
-            {
-                std::thread::sleep(Duration::from_millis(5));
-            }
-        }
     }
 }
 
@@ -113,14 +135,14 @@ impl Stream for UploadStream {
             return Poll::Ready(None);
         }
 
-        if self.cancellation_token.is_cancelled() {
+        if self.context.cancellation_token.is_cancelled() {
             debug!("upload canceled for: {}", self.upload_id);
             return Poll::Ready(None);
         }
 
         match Pin::new(&mut self.reader_stream).poll_next(cx) {
             Poll::Ready(Some(chunk)) => {
-                self.emit_progress(&chunk);
+                self.context.emit_progress(&chunk);
                 Poll::Ready(Some(chunk))
             }
             Poll::Ready(None) => Poll::Ready(None),
@@ -130,56 +152,42 @@ impl Stream for UploadStream {
 }
 
 pub trait UploadTask {
-    fn get_progress_receiver(&self) -> Receiver<ProgressTrack>;
-    fn get_cancellation_token(&self) -> CancellationToken;
-    fn start(&self) -> JoinHandle<Result<(), FileUploadError>>;
+    async fn execute(&self) -> Result<(), FileUploadError>;
 }
 
 #[derive(Debug, Clone)]
 pub struct SingleUploadTask {
     base_url: String,
-    progress_sender: Sender<ProgressTrack>,
-    progress_receiver: Receiver<ProgressTrack>,
-    cancellation_token: CancellationToken,
     stop_token: CancellationToken,
     client: reqwest::Client,
     upload: Upload,
-    progress: ProgressTrack,
+    context: UploadContext,
 }
 
 impl SingleUploadTask {
-    pub async fn new(
+    pub fn new(
         base_url: String,
         upload: Upload,
         client: reqwest::Client,
-    ) -> Result<Self, std::io::Error> {
-        let progress = ProgressTrack::new(upload.id.clone(), upload.size);
-        let cancellation_token = CancellationToken::new();
+        context: UploadContext,
+    ) -> Self {
         let stop_token = CancellationToken::new();
 
-        let (progress_sender, progress_receiver) = watch::channel(progress.clone());
-
-        Ok(Self {
+        Self {
             base_url,
-            progress_sender,
-            progress_receiver,
-            cancellation_token,
             client,
             upload,
             stop_token,
-            progress,
-        })
+            context
+        }
     }
 
     async fn create_stream(&self) -> Result<UploadStream, std::io::Error> {
         UploadStream::new(
             self.upload.path.clone(),
             self.upload.id.clone(),
-            self.cancellation_token.clone(),
             self.stop_token.clone(),
-            self.upload.size,
-            self.progress.clone(),
-            self.progress_sender.clone(),
+            self.context.clone()
         )
         .await
     }
@@ -206,7 +214,7 @@ impl SingleUploadTask {
             res = send_future => res.map_err(|err| {
                 FileUploadError::ClientError { message: err.to_string() }
             })?,
-            _ = self.cancellation_token.cancelled() => {
+            _ = self.context.cancellation_token.cancelled() => {
                 return Err(FileUploadError::Canceled);
             }
         };
@@ -239,84 +247,34 @@ impl SingleUploadTask {
 }
 
 impl UploadTask for SingleUploadTask {
-    fn get_progress_receiver(&self) -> Receiver<ProgressTrack> {
-        self.progress_receiver.clone()
-    }
-
-    fn get_cancellation_token(&self) -> CancellationToken {
-        self.cancellation_token.clone()
-    }
-
-    fn start(&self) -> JoinHandle<Result<(), FileUploadError>> {
-        let task = self.clone();
-
-        tokio::spawn(async move { task.perform_upload().await })
+    async fn execute(&self) -> Result<(), FileUploadError> {
+        self.perform_upload().await
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ChunkedUploadTask {
     base_url: String,
-    progress_sender: Sender<ProgressTrack>,
-    progress_receiver: Receiver<ProgressTrack>,
-    cancellation_token: CancellationToken,
-    progress: Arc<Mutex<ProgressTrack>>,
     client: reqwest::Client,
-    upload: Upload,
-    uploaded_bytes: Arc<AtomicU64>,
-    last_measured_rate: Arc<Mutex<Instant>>,
     chunk_size: u64,
+    context: UploadContext,
+    upload: Upload,
 }
 
 impl ChunkedUploadTask {
-    pub async fn new(
+    pub fn new(
         base_url: String,
-        upload: Upload,
         client: reqwest::Client,
         chunk_size: u64,
-    ) -> Result<Self, std::io::Error> {
-        let progress = ProgressTrack::new(upload.id.clone(), upload.size);
-        let cancellation_token = CancellationToken::new();
-
-        let (progress_sender, progress_receiver) = watch::channel(progress.clone());
-
-        Ok(Self {
+        context: UploadContext,
+        upload: Upload,
+    ) -> Self {
+        Self {
             base_url,
-            progress_sender,
-            progress_receiver,
-            cancellation_token,
             client,
-            upload,
-            progress: Arc::new(Mutex::new(progress)),
-            uploaded_bytes: Arc::new(AtomicU64::new(0)),
-            last_measured_rate: Arc::new(Mutex::new(Instant::now())),
             chunk_size,
-        })
-    }
-
-    fn emit_progress(&self, bytes_sent: &std::io::Result<Bytes>) {
-        let Ok(bytes_sent) = bytes_sent else { return };
-
-        let bytes_sent = bytes_sent.len() as u64;
-        let mut last_measured_rate = self.last_measured_rate.lock().unwrap();
-        let uploaded_bytes = self
-            .uploaded_bytes
-            .load(std::sync::atomic::Ordering::Acquire);
-        let uploaded_bytes_now = min(uploaded_bytes + bytes_sent, self.upload.size);
-        self.uploaded_bytes
-            .store(uploaded_bytes_now, std::sync::atomic::Ordering::Release);
-        let elapsed = last_measured_rate.elapsed();
-
-        if elapsed >= Duration::from_secs(1) {
-            let mut progress = self.progress.lock().unwrap();
-            let updated_progress = progress.update(uploaded_bytes_now);
-            let _ = self.progress_sender.send(updated_progress);
-            *last_measured_rate = Instant::now();
-        }
-
-        #[cfg(test)]
-        {
-            std::thread::sleep(Duration::from_millis(5));
+            context,
+            upload,
         }
     }
 
@@ -331,9 +289,9 @@ impl ChunkedUploadTask {
             "{}/api/file/{}/upload/part/{}",
             self.base_url, self.upload.id, index
         );
-        let this = self.clone();
+        let context = self.context.clone();
         let stream = ReaderStream::new(std::io::Cursor::new(data)).map(move |chunk| {
-            this.emit_progress(&chunk);
+            context.emit_progress(&chunk);
             chunk
         });
         let body = reqwest::Body::wrap_stream(stream);
@@ -350,7 +308,7 @@ impl ChunkedUploadTask {
             res = send_future => res.map_err(|err| {
                 FileUploadError::ClientError { message: err.to_string() }
             })?,
-            _ = self.cancellation_token.cancelled() => {
+            _ = self.context.cancellation_token.cancelled() => {
                 return Err(FileUploadError::Canceled);
             }
         };
@@ -386,7 +344,7 @@ impl ChunkedUploadTask {
         Ok(())
     }
 
-    async fn perform_upload(&mut self) -> Result<(), FileUploadError> {
+    async fn perform_upload(&self) -> Result<(), FileUploadError> {
         let file = File::open(self.upload.path.clone()).await;
         if let Err(err) = &file {
             warn!("error opening file {:?}: {}", file, err);
@@ -403,7 +361,7 @@ impl ChunkedUploadTask {
         file.set_max_buf_size(chunk_size);
 
         loop {
-            if self.cancellation_token.is_cancelled() {
+            if self.context.cancellation_token.is_cancelled() {
                 debug!("upload canceled for: {}", self.upload.id);
                 return Ok(());
             }
@@ -466,17 +424,7 @@ impl ChunkedUploadTask {
 }
 
 impl UploadTask for ChunkedUploadTask {
-    fn get_progress_receiver(&self) -> Receiver<ProgressTrack> {
-        self.progress_receiver.clone()
-    }
-
-    fn get_cancellation_token(&self) -> CancellationToken {
-        self.cancellation_token.clone()
-    }
-
-    fn start(&self) -> JoinHandle<Result<(), FileUploadError>> {
-        let mut task = self.clone();
-
-        tokio::spawn(async move { task.perform_upload().await })
+    async fn execute(&self) -> Result<(), FileUploadError> {
+        self.perform_upload().await
     }
 }

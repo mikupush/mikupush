@@ -17,11 +17,13 @@
 use super::error::{FileDeleteError, FileInfoError, FileUploadError, HealthCheckError};
 use super::response::{ErrorResponse, FileInfo, HealthCheckStatus, ServerInfo};
 use super::upload::SingleUploadTask;
-use super::{ChunkedUploadTask, UploadTask};
+use super::{ChunkedUploadTask, UploadContext, UploadTask};
 use crate::server::Server;
-use crate::upload::{Upload, UploadRequest};
+use crate::upload::{Progress, Upload, UploadRequest};
 use log::debug;
 use serde_json::json;
+use tokio::sync::watch::Sender;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 const SINGLE_UPLOAD_MAX_SIZE_BYTES: u64 = 20971520; // 20MB
@@ -150,44 +152,47 @@ impl Client {
         Ok(())
     }
 
+    // TODO: event bus, ver como hacemos eso, para luego emitir eventos que puedan ser consumidos por varios listeners
+    // o en vez de event bus en el worker de los uploads le pasamos el AppHandle para que pueda emitir las notificaciones
+    // podemos crear un struct nuevo que se dedique a la emision de notificaciones
+    // TODO: crear listeners para enviar notificaciones cuando los uploads han terminado, podemos crear structs que inyecten AppHandle y que con un hilo escuchen al evento
     pub async fn upload(
         &self,
         request: &UploadRequest,
-    ) -> Result<Box<dyn UploadTask + Send + Sync>, FileUploadError> {
+        cancellation_token: CancellationToken,
+        sender: Sender<Progress>
+    ) -> Result<(), FileUploadError> {
         if request.upload.mime_type.is_empty() {
             return Err(FileUploadError::UnknownMimeType);
         }
 
         let client = self.client.clone();
         let size = request.upload.size;
+        let context = UploadContext::new(&request.upload, cancellation_token, sender);
 
         if request.chunked {
             debug!(
                 "uploading file {} with size {} as chunked upload",
                 request.upload.id, request.chunk_size
             );
-            let task = ChunkedUploadTask::new(
+            ChunkedUploadTask::new(
                 self.base_url.clone(),
-                request.upload.clone(),
                 client,
                 request.chunk_size,
-            )
-            .await
-            .map_err(|err| FileUploadError::ClientError {
-                message: err.to_string(),
-            })?;
-            Ok(Box::new(task))
+                context,
+                request.upload.clone(),
+            ).execute().await
         } else {
             debug!(
                 "uploading file {} with size {} as single upload",
                 request.upload.id, size
             );
-            let task = SingleUploadTask::new(self.base_url.clone(), request.upload.clone(), client)
-                .await
-                .map_err(|err| FileUploadError::ClientError {
-                    message: err.to_string(),
-                })?;
-            Ok(Box::new(task))
+            SingleUploadTask::new(
+                self.base_url.clone(),
+                request.upload.clone(),
+                client,
+                context
+            ).execute().await
         }
     }
 
