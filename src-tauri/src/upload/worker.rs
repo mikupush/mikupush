@@ -28,6 +28,7 @@ use crate::upload::{Progress, UploadRequest};
 use crate::window::is_main_window_visible;
 use log::{debug, info, warn};
 use rust_i18n::t;
+use std::path::Path;
 use std::sync::{LazyLock, OnceLock};
 use tauri::{AppHandle, Manager};
 use tokio_util::sync::CancellationToken;
@@ -75,10 +76,37 @@ pub async fn process_queued_upload(app_handle: &AppHandle, item: UploadQueueJob)
         return;
     };
 
-    request.upload.status = Status::InProgress;
     request.finished = false;
     request.canceled = false;
     request.error = None;
+
+    if request.upload.directory && Path::new(&request.upload.path).is_dir() {
+        request.upload.status = Status::Compressing;
+        state.update_request(request.clone());
+        emit_uploads_changed_event(app_handle, state.get_all_in_progress());
+
+        match compress_upload_directory(app_handle, &request) {
+            Ok(compressed_request) => {
+                if state.get_request(upload_id.clone()).is_none() {
+                    cleanup_upload_file(&compressed_request);
+                    return;
+                }
+
+                request = compressed_request;
+            }
+            Err(error) => {
+                fail_upload(
+                    app_handle,
+                    FileUploadError::ClientError { message: error },
+                    upload_id,
+                    item.always_notify,
+                );
+                return;
+            }
+        }
+    }
+
+    request.upload.status = Status::InProgress;
     state.update_request(request.clone());
     emit_uploads_changed_event(app_handle, state.get_all_in_progress());
 
@@ -127,6 +155,27 @@ pub async fn process_queued_upload(app_handle: &AppHandle, item: UploadQueueJob)
         Ok(_) => complete_upload(app_handle, upload_id, item.always_notify),
         Err(error) => fail_upload(app_handle, error, upload_id, item.always_notify),
     }
+}
+
+fn compress_upload_directory(
+    app_handle: &AppHandle,
+    request: &UploadRequest,
+) -> Result<UploadRequest, String> {
+    let output_directory = app_handle
+        .path()
+        .temp_dir()
+        .map_err(|err| err.to_string())?
+        .join("io.mikupush.client")
+        .join("uploads");
+    let result = super::zip::zip_directory(Path::new(&request.upload.path), &output_directory)?;
+
+    let zip_path = result
+        .path
+        .to_str()
+        .ok_or_else(|| "zip path is not valid unicode".to_string())?
+        .to_string();
+
+    Ok(request.with_upload_file(zip_path, result.size, "application/zip".to_string()))
 }
 
 fn shared_progress_sender() -> tokio::sync::watch::Sender<Progress> {
@@ -207,13 +256,15 @@ fn complete_upload(app_handle: &AppHandle, upload_id: String, always_notify: boo
 
     #[cfg(target_os = "macos")]
     {
-        let path = request.upload.path;
+        let path = request.upload.path.clone();
         if path.contains(MACOS_APP_GROUP_ID) {
             if let Err(err) = std::fs::remove_file(&path) {
                 warn!("failed to remove file ({}): {}", path, err);
             }
         }
     }
+
+    cleanup_upload_file(&request);
 }
 
 fn fail_upload(
@@ -237,6 +288,7 @@ fn fail_upload(
     if error == FileUploadError::Canceled {
         request.upload.status = Status::Aborted;
         request = request.canceled();
+        cleanup_upload_file(&request);
     } else {
         request.upload.status = Status::Failed;
         request = request.finish_with_error(error.code(), error.to_string());
@@ -259,4 +311,17 @@ fn fail_upload(
         .to_string(),
         always_notify,
     );
+}
+
+fn cleanup_upload_file(request: &UploadRequest) {
+    if !request.upload.directory || Path::new(&request.upload.path).is_dir() {
+        return;
+    }
+
+    if let Err(err) = std::fs::remove_file(&request.upload.path) {
+        warn!(
+            "failed to remove compressed upload file ({}): {}",
+            request.upload.path, err
+        );
+    }
 }

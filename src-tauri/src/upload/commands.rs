@@ -49,6 +49,27 @@ pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadR
 }
 
 #[tauri::command]
+pub async fn select_folders_to_upload(app_handle: AppHandle) -> Result<Vec<UploadRequest>, String> {
+    let folders = app_handle
+        .dialog()
+        .file()
+        .blocking_pick_folders()
+        .unwrap_or_default()
+        .iter()
+        .map(|file| file.to_string())
+        .collect();
+
+    debug!("attempting to upload folders {:?}", folders);
+    let in_progress_uploads = enqueue_uploads(app_handle, folders).await?;
+
+    debug!(
+        "returning in progress equeued uploads: {:?}",
+        in_progress_uploads
+    );
+    Ok(in_progress_uploads)
+}
+
+#[tauri::command]
 pub async fn enqueue_uploads(
     app_handle: AppHandle,
     paths: Vec<String>,
@@ -125,7 +146,10 @@ pub fn cancel_upload(
 ) -> Vec<UploadRequest> {
     debug!("canceling upload for: {}", upload_id);
     if let Err(error) = remove_upload_job(&upload_id) {
-        warn!("failed to remove upload {} from queue: {}", upload_id, error);
+        warn!(
+            "failed to remove upload {} from queue: {}",
+            upload_id, error
+        );
     }
     uploads_state.cancel_upload(upload_id.clone());
     uploads_state.delete_request(upload_id.clone())

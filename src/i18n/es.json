@@ -18,9 +18,10 @@
     "see_third_party_licenses": "Ver licencia y todas las licencias de terceros"
   },
   "uploads": {
-    "empty_state": "Parece que aún no has compartido ningún archivo.\nNo pasa nada, solo tienes que arrastrar y soltar para compartir. O, si lo prefieres, selecciona un archivo para empezar.",
+    "empty_state": "Parece que aún no has compartido ningún archivo o carpeta.\nNo pasa nada, solo tienes que arrastrar y soltar para compartir. O, si lo prefieres, selecciona algo para empezar.",
     "archived_empty_state": "No hay subidas archivadas para este servidor.",
     "select_file": "Seleccionar un archivo",
+    "select_folder": "Seleccionar carpeta",
     "link_copied": {
       "success": "Enlace copiado al portapapeles",
       "error": "No se pudo copiar el enlace al portapapeles"
@@ -33,7 +34,8 @@
       "error": "error al eliminar {{fileName}}"
     },
     "status": {
-      "enqueued": "Esperando turno en la cola de subida"
+      "enqueued": "Esperando turno en la cola de subida",
+      "compressing": "Comprimiendo carpeta"
     },
     "drop": "Suelta para subir"
   },

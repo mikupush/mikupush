@@ -22,6 +22,7 @@ use std::fmt::Display;
 pub enum Status {
     Enqueued,
     Pending,
+    Compressing,
     InProgress,
     Completed,
     Failed,
@@ -33,6 +34,7 @@ impl Display for Status {
         let str = match self {
             Status::Enqueued => "enqueued".to_string(),
             Status::Pending => "pending".to_string(),
+            Status::Compressing => "compressing".to_string(),
             Status::InProgress => "inProgress".to_string(),
             Status::Completed => "completed".to_string(),
             Status::Failed => "failed".to_string(),
@@ -47,6 +49,7 @@ impl From<String> for Status {
         match s.as_str() {
             "enqueued" => Status::Enqueued,
             "pending" => Status::Pending,
+            "compressing" => Status::Compressing,
             "inProgress" => Status::InProgress,
             "completed" => Status::Completed,
             "failed" => Status::Failed,

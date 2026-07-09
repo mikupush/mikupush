@@ -24,6 +24,7 @@ mod request;
 mod status;
 mod upload;
 mod worker;
+mod zip;
 
 pub use commands::*;
 pub use enqueue::{enqueue_upload_paths, enqueue_uploads_from_deep_link};

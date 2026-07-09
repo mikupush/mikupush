@@ -33,6 +33,7 @@ pub struct Upload {
     pub created_at: DateTimeUtc,
     pub status: Status,
     pub server_id: Uuid,
+    pub directory: bool,
 }
 
 impl Upload {
@@ -43,6 +44,7 @@ impl Upload {
         mime_type: String,
         path: String,
         server: Server,
+        directory: bool,
     ) -> Self {
         Self {
             id,
@@ -54,6 +56,7 @@ impl Upload {
             url: format!("{}/u/{}", server.url, id),
             created_at: chrono::Utc::now(),
             status: Status::Enqueued,
+            directory,
         }
     }
 
@@ -65,6 +68,7 @@ impl Upload {
             "application/zip".to_string(),
             "/path/to/zip".to_string(),
             Server::test(),
+            false,
         )
     }
 }

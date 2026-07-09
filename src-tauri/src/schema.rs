@@ -34,6 +34,7 @@ diesel::table! {
         server_id -> Text,
         created_at -> Timestamp,
         status -> Text,
+        directory -> Bool,
     }
 }
 

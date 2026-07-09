@@ -34,6 +34,7 @@ pub struct UploadModel {
     pub server_id: String,
     pub created_at: NaiveDateTime,
     pub status: String,
+    pub directory: bool,
 }
 
 impl TryFrom<UploadModel> for Upload {
@@ -50,6 +51,7 @@ impl TryFrom<UploadModel> for Upload {
             created_at: model.created_at.and_utc(),
             status: model.status.into(),
             server_id: Uuid::parse_str(model.server_id.as_str())?,
+            directory: model.directory,
         })
     }
 }
@@ -66,6 +68,7 @@ impl From<Upload> for UploadModel {
             created_at: model.created_at.naive_utc(),
             status: model.status.to_string(),
             server_id: model.server_id.to_string(),
+            directory: model.directory,
         }
     }
 }

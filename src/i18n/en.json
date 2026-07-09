@@ -18,9 +18,10 @@
     "see_third_party_licenses": "See license and all third-party licenses"
   },
   "uploads": {
-    "empty_state": "Looks like you haven't shared any files yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select a file to get started.",
+    "empty_state": "Looks like you haven't shared any files or folders yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select something to get started.",
     "archived_empty_state": "There are no archived uploads for this server.",
     "select_file": "Select a file",
+    "select_folder": "Select folder",
     "link_copied": {
       "success": "Link copied to the clipboard",
       "error": "Failed to copy link to the clipboard"
@@ -33,7 +34,8 @@
       "error": "error deleting {{fileName}}"
     },
     "status": {
-      "enqueued": "Waiting in upload queue"
+      "enqueued": "Waiting in upload queue",
+      "compressing": "Compressing folder"
     },
     "drop": "Drop to upload"
   },

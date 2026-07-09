@@ -72,7 +72,7 @@ pub(super) fn enqueue_upload_path(
     };
 
     let server = server_state.current_server();
-    let mut request = UploadRequest::from_file_path(file_path, server.clone())?;
+    let mut request = UploadRequest::from_path(file_path, server.clone())?;
     if chunked_mode {
         request = request.upload_by_chunks(chunk_size);
     }

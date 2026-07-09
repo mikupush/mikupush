@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next'
 import { Paragraph } from '@/components/Typography.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { FolderIcon } from 'lucide-react'
-import { selectFiles } from '@/helpers/file.ts'
+import { selectFiles, selectFolders } from '@/helpers/file.ts'
 import { UploadProgressList } from '@/components/UploadList.tsx'
 import { useUploadsStore } from '@/store/uploads.ts'
 import UploadDropZone from '@/components/UploadDropZone.tsx'
@@ -55,12 +55,14 @@ function EmptyState() {
     <div className="flex flex-1 flex-col justify-center items-center px-20">
       <FolderIcon width={60} height={60} />
       <Paragraph className="text-center">{t('uploads.empty_state')}</Paragraph>
-      <Button
-        className="mt-5"
-        onClick={() => selectFiles()}
-      >
-        {t('uploads.select_file')}
-      </Button>
+      <div className="flex gap-3 mt-5">
+        <Button onClick={() => selectFiles()}>
+          {t('uploads.select_file')}
+        </Button>
+        <Button variant="outline" onClick={() => selectFolders()}>
+          {t('uploads.select_folder')}
+        </Button>
+      </div>
     </div>
   )
 }

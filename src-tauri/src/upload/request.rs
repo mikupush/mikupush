@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{Progress, Upload};
-use crate::mime_type::{detect_mime_type, detect_mime_type_by_extension};
+use crate::mime_type::detect_mime_type;
 use crate::server::Server;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -48,11 +48,12 @@ impl UploadRequest {
         mime_type: String,
         path: String,
         server: Server,
+        directory: bool,
     ) -> Self {
         Self {
             progress: Progress::new(id, size),
             error: None,
-            upload: Upload::new(id, name, size, mime_type, path, server),
+            upload: Upload::new(id, name, size, mime_type, path, server, directory),
             finished: false,
             canceled: false,
             chunked: false,
@@ -64,6 +65,15 @@ impl UploadRequest {
         let mut this = self.clone();
         this.chunked = true;
         this.chunk_size = chunk_size;
+        this
+    }
+
+    pub fn with_upload_file(&self, path: String, size: u64, mime_type: String) -> Self {
+        let mut this = self.clone();
+        this.upload.path = path;
+        this.upload.size = size;
+        this.upload.mime_type = mime_type;
+        this.progress = Progress::new(this.upload.id, size);
         this
     }
 
@@ -130,6 +140,37 @@ impl UploadRequest {
             mime_type,
             path.to_str().unwrap().to_string(),
             server,
+            false,
         ))
+    }
+
+    pub fn from_directory_path(path: String, server: Server) -> Result<Self, String> {
+        let path = Path::new(&path);
+        let directory_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| "Failed to get directory name".to_string())?;
+        let name = format!("{}.zip", directory_name);
+
+        Ok(Self::new(
+            Uuid::new_v4(),
+            name,
+            0,
+            "application/zip".to_string(),
+            path.to_str().unwrap().to_string(),
+            server,
+            true,
+        ))
+    }
+
+    pub fn from_path(path: String, server: Server) -> Result<Self, String> {
+        let metadata =
+            std::fs::metadata(&path).map_err(|e| format!("Failed to get path metadata: {}", e))?;
+
+        if metadata.is_dir() {
+            return Self::from_directory_path(path, server);
+        }
+
+        Self::from_file_path(path, server)
     }
 }

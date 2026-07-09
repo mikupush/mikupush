@@ -124,6 +124,7 @@ pub fn run() {
         // Register command handlers
         .invoke_handler(tauri::generate_handler![
             upload::select_files_to_upload,
+            upload::select_folders_to_upload,
             upload::enqueue_upload,
             upload::enqueue_uploads,
             upload::retry_upload,

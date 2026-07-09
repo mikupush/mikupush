@@ -28,6 +28,14 @@ export function selectFiles() {
     .catch((error) => console.warn('files dialog error', error))
 }
 
+export function selectFolders() {
+  const store = useUploadsStore.getState()
+
+  invoke<UploadRequest[]>('select_folders_to_upload')
+    .then((requests) => store.setInProgressUploads(requests))
+    .catch((error) => console.warn('folders dialog error', error))
+}
+
 export function extractExtension(path: string): string {
   const baseName = (path.split(/[\\/]/).pop() ?? '').trim()
   const lastDot = baseName.lastIndexOf('.')
@@ -38,3 +46,11 @@ export function extractExtension(path: string): string {
 
   return baseName.slice(lastDot + 1).toLowerCase()
 };
+
+export function uploadDisplayName(name: string, directory: boolean): string {
+  if (directory && name.toLowerCase().endsWith('.zip')) {
+    return name.slice(0, -4)
+  }
+
+  return name
+}
