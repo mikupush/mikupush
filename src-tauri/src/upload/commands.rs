@@ -16,6 +16,7 @@
 
 use super::enqueue;
 use super::helpers::copy_upload_link_to_clipboard;
+use super::queue::remove_upload_job;
 use crate::AppContext;
 use crate::state::{SelectedServerState, UploadsState};
 use crate::upload::UploadRepository;
@@ -123,6 +124,9 @@ pub fn cancel_upload(
     upload_id: String,
 ) -> Vec<UploadRequest> {
     debug!("canceling upload for: {}", upload_id);
+    if let Err(error) = remove_upload_job(&upload_id) {
+        warn!("failed to remove upload {} from queue: {}", upload_id, error);
+    }
     uploads_state.cancel_upload(upload_id.clone());
     uploads_state.delete_request(upload_id.clone())
 }

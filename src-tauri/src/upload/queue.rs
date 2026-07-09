@@ -60,6 +60,19 @@ impl UploadQueue {
         Ok(())
     }
 
+    pub fn remove(&self, upload_id: &str) -> Result<bool, String> {
+        let (queue, _) = &*self.queue;
+        let mut queue = match queue.lock() {
+            Ok(queue) => queue,
+            Err(err) => return Err(format!("error removing request from upload queue: {}", err)),
+        };
+        let initial_len = queue.len();
+
+        queue.retain(|item| item.request.upload.id.to_string() != upload_id);
+
+        Ok(queue.len() != initial_len)
+    }
+
     /// blocks until new [UploadRequest] is available
     pub fn pop_next_blocking(&self) -> UploadQueueJob {
         let (queue, queue_changed) = &*self.queue;
@@ -84,6 +97,11 @@ impl UploadQueue {
 pub fn enqueue_upload_job(item: UploadQueueJob) -> Result<(), String> {
     debug!("enqueue upload request {}", item.request.upload.id);
     UploadQueue::get().push(item)
+}
+
+pub fn remove_upload_job(upload_id: &str) -> Result<bool, String> {
+    debug!("remove upload request {} from queue", upload_id);
+    UploadQueue::get().remove(upload_id)
 }
 
 pub fn start_upload_queue_worker(app_handle: AppHandle) -> Result<(), String> {
