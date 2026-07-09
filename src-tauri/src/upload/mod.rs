@@ -15,15 +15,21 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod commands;
+mod enqueue;
+mod helpers;
 mod persistence;
 mod progress;
-mod request;
-mod upload;
 mod queue;
+mod request;
 mod status;
+mod upload;
+mod worker;
 
 pub use commands::*;
+pub use enqueue::{enqueue_upload_paths, enqueue_uploads_from_deep_link};
 pub use persistence::*;
 pub use progress::*;
+pub use queue::start_upload_queue_worker;
 pub use request::*;
 pub use upload::*;
+pub use worker::start_upload_progress_sync;

@@ -33,12 +33,12 @@ mod theme;
 mod upload;
 mod window;
 
-use crate::database::{create_database_connection, DbPool};
+use crate::database::{DbPool, create_database_connection};
 use crate::menu::setup_app_menu;
 use crate::resources::unpack_resources;
 use crate::server::initialize_current_server_state;
-use crate::upload::start_upload_for_collection;
-use crate::window::{initialize_main_window, restore_main_window, MAIN_WINDOW};
+use crate::upload::{enqueue_upload_paths, start_upload_progress_sync, start_upload_queue_worker};
+use crate::window::{MAIN_WINDOW, initialize_main_window, restore_main_window};
 use log::{debug, warn};
 use state::{SelectedServerState, UploadsState};
 use std::env;
@@ -125,14 +125,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             upload::select_files_to_upload,
             upload::enqueue_upload,
-            upload::enqueue_many_uploads,
+            upload::enqueue_uploads,
             upload::retry_upload,
             upload::delete_upload,
             upload::delete_archived_upload,
             upload::copy_upload_link,
             upload::copy_archived_upload_link,
             upload::cancel_upload,
-            upload::get_all_in_progress_uploads,
+            upload::list_active_uploads,
             upload::get_archived_uploads,
             config::get_config_value,
             config::set_config_value,
@@ -197,6 +197,8 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     language::configure_current_language(app.app_handle())?;
     setup_app_menu(app.app_handle())?;
     initialize_current_server_state(app.app_handle())?;
+    start_upload_progress_sync(app.app_handle().clone());
+    start_upload_queue_worker(app.app_handle().clone())?;
 
     #[cfg(target_os = "macos")]
     if only_tray {
@@ -242,7 +244,7 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     let app_handle = app.app_handle().clone();
     let requested_paths = get_requested_paths_from_args(args);
     if requested_paths.len() > 0 {
-        if let Err(err) = start_upload_for_collection(&app_handle, requested_paths, true) {
+        if let Err(err) = enqueue_upload_paths(&app_handle, requested_paths, true) {
             warn!("error starting upload from program args: {:?}", err);
         }
     }
@@ -304,7 +306,10 @@ fn process_deep_links(app_handle: &AppHandle, urls: Vec<Url>) {
         let path = url.path();
 
         if path.starts_with("/share") {
-            upload::handle_upload_deep_link(&app_handle, path.replace("/share/", "").as_str());
+            upload::enqueue_uploads_from_deep_link(
+                &app_handle,
+                path.replace("/share/", "").as_str(),
+            );
         }
     }
 }
@@ -326,7 +331,7 @@ fn on_single_instance(app_handle: &AppHandle, argv: Vec<String>) {
 
     let requested_paths = get_requested_paths_from_args(argv);
     if requested_paths.len() > 0 {
-        if let Err(err) = start_upload_for_collection(app_handle, requested_paths, true) {
+        if let Err(err) = enqueue_upload_paths(app_handle, requested_paths, true) {
             warn!(
                 "error starting upload from single instance event: {:?}",
                 err

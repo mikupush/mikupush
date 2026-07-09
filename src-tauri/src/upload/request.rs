@@ -19,7 +19,6 @@ use crate::mime_type::{detect_mime_type, detect_mime_type_by_extension};
 use crate::server::Server;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use mimetype_detector::detect_file;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,7 +101,9 @@ impl UploadRequest {
     pub fn reset_progress(&self) -> Self {
         let mut this = self.clone();
         this.progress = Progress::from_upload(&this.upload);
+        this.upload.status = super::status::Status::Enqueued;
         this.finished = false;
+        this.canceled = false;
         this.error = None;
         this
     }

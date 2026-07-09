@@ -39,7 +39,7 @@ export function fetchCurrentUploads() {
   const store = useUploadsStore.getState()
 
   store.setIsLoading(true)
-  invoke<UploadRequest[]>('get_all_in_progress_uploads')
+  invoke<UploadRequest[]>('list_active_uploads')
     .then((requests) => store.setInProgressUploads(requests))
     .finally(() => store.setIsLoading(false))
 }

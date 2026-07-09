@@ -20,6 +20,7 @@ use std::fmt::Display;
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Status {
+    Enqueued,
     Pending,
     InProgress,
     Completed,
@@ -30,6 +31,7 @@ pub enum Status {
 impl Display for Status {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
+            Status::Enqueued => "enqueued".to_string(),
             Status::Pending => "pending".to_string(),
             Status::InProgress => "inProgress".to_string(),
             Status::Completed => "completed".to_string(),
@@ -43,6 +45,7 @@ impl Display for Status {
 impl From<String> for Status {
     fn from(s: String) -> Self {
         match s.as_str() {
+            "enqueued" => Status::Enqueued,
             "pending" => Status::Pending,
             "inProgress" => Status::InProgress,
             "completed" => Status::Completed,

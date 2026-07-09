@@ -100,6 +100,14 @@ function UploadProgressBody({ item }: UploadItemProps) {
     )
   }
 
+  if (item.upload.status === 'enqueued') {
+    return (
+      <Small className="mt-3 line-clamp-1">
+        {t('uploads.status.enqueued')}
+      </Small>
+    )
+  }
+
   return (
     <>
       <Progress className="h-3 mt-3" value={item.progress.progress * 100}></Progress>

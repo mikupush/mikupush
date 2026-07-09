@@ -32,6 +32,9 @@
       "success": "{{fileName}} have been deleted",
       "error": "error deleting {{fileName}}"
     },
+    "status": {
+      "enqueued": "Waiting in upload queue"
+    },
     "drop": "Drop to upload"
   },
   "server": {

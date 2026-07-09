@@ -32,6 +32,9 @@
       "success": "{{fileName}} se ha eliminado",
       "error": "error al eliminar {{fileName}}"
     },
+    "status": {
+      "enqueued": "Esperando turno en la cola de subida"
+    },
     "drop": "Suelta para subir"
   },
   "server": {

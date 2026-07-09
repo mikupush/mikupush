@@ -53,7 +53,7 @@ impl Upload {
             server_id: server.id,
             url: format!("{}/u/{}", server.url, id),
             created_at: chrono::Utc::now(),
-            status: Status::Pending,
+            status: Status::Enqueued,
         }
     }
 
