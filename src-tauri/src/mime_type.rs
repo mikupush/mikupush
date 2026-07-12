@@ -20,7 +20,6 @@ use mimetype_detector::detect_file;
 use regex::Regex;
 use std::error::Error;
 use std::fs;
-use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -102,7 +101,7 @@ pub fn detect_mime_type(path: PathBuf) -> Result<String, MimeTypeDetectError> {
         Err(err) => return Err(MimeTypeDetectError::IOError(err.to_string())),
     };
 
-    let size = stats.size();
+    let size = stats.len();
     if size > MAX_FILE_SIZE {
         debug!("file {} is too large, detecting mime type by its extension", path.display());
         let mime_type = detect_mime_type_by_extension(path.to_path_buf())
