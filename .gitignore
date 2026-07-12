@@ -67,5 +67,8 @@ DerivedData/
 .env
 !.env.example
 
+# Env for Diesel ORM
+!/src-tauri/.env
+
 # Certificates
 *.pfx

@@ -17,10 +17,12 @@
  */
 
 import { Large } from '@/components/Typography'
+import { FolderIcon } from 'lucide-react'
 
 interface FileIconProps {
   extension: string
   thumbnail?: string
+  directory?: boolean
 }
 
 export default function FileIcon(props: FileIconProps) {
@@ -28,7 +30,11 @@ export default function FileIcon(props: FileIconProps) {
 
 	return (
     <div className="flex items-center justify-center rounded-xl bg-accent shadow-xs border w-[80px] h-[80px]">
-      <Large className="text-accent-foreground uppercase">{extension}</Large>
+      {props.directory ? (
+        <FolderIcon className="text-accent-foreground" size={36} />
+      ) : (
+        <Large className="text-accent-foreground uppercase">{extension}</Large>
+      )}
     </div>
   )
 }

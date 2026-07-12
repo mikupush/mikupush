@@ -15,13 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use log::{debug, warn};
-use mikupush_common::encode_image_base64;
 use rust_i18n::t;
-use std::io;
-use std::path::{Path, PathBuf};
-use tauri::utils::platform::resource_dir;
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_fs::FsExt;
 
 pub enum ResourceType {
     ServerIcon,
@@ -110,33 +106,6 @@ pub fn unpack_resources(app_handle: &AppHandle) -> Result<(), String> {
     unpack_resource(app_handle, Resource::MikupushSvg)?;
     unpack_resource(app_handle, Resource::ThirdPartyLicenses)?;
     Ok(())
-}
-
-#[tauri::command]
-pub fn server_icon_url(app_handle: AppHandle, icon: String) -> Result<String, String> {
-    debug!("encoding server icon to base64 url: {}", icon);
-    let path = ResourceType::ServerIcon
-        .dir_path(&app_handle)
-        .map_err(|err| {
-            warn!("unable to get server icons directory path: {}", err);
-            t!("errors.file_system.server_icon_access").to_string()
-        })?;
-
-    let icon_path = path.join(icon);
-    if !icon_path.exists() {
-        warn!(
-            "server icon file not found: {}",
-            icon_path.to_string_lossy()
-        );
-        return Err(t!("errors.server.server_icon_not_found").to_string());
-    }
-
-    let base64 = encode_image_base64(icon_path).map_err(|err| {
-        warn!("failed to encode server icon to base64: {}", err);
-        return t!("errors.server.server_icon_encoding").to_string();
-    })?;
-
-    Ok(base64)
 }
 
 #[tauri::command]

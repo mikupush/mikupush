@@ -4,7 +4,9 @@
       "danger_zone": "Danger Zone",
       "save": "Save"
     },
-    "in_development": "Coming Soon! This feature is currently in development 🚧"
+    "in_development": "Coming Soon! This feature is currently in development 🚧",
+    "cancel": "Cancel",
+    "delete": "Delete"
   },
   "about": {
     "version": "Version {{version}}",
@@ -16,8 +18,10 @@
     "see_third_party_licenses": "See license and all third-party licenses"
   },
   "uploads": {
-    "empty_state": "Looks like you haven't shared any files yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select a file to get started.",
+    "empty_state": "Looks like you haven't shared any files or folders yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select something to get started.",
+    "archived_empty_state": "There are no archived uploads for this server.",
     "select_file": "Select a file",
+    "select_folder": "Select folder",
     "link_copied": {
       "success": "Link copied to the clipboard",
       "error": "Failed to copy link to the clipboard"
@@ -29,11 +33,79 @@
       "success": "{{fileName}} have been deleted",
       "error": "error deleting {{fileName}}"
     },
+    "status": {
+      "enqueued": "Waiting in upload queue",
+      "compressing": "Compressing folder"
+    },
     "drop": "Drop to upload"
   },
   "server": {
     "recent": "Recently used servers",
-    "manage": "Manage servers"
+    "manage": "Manage servers",
+    "add": "Add server",
+    "empty": "There isn't servers, add one to be able to upload files",
+    "delete": {
+      "confirmation": {
+        "title": "Are you absolutely sure?",
+        "message": "This action cannot be undone. This will permanently delete the server. You can add again later"
+      },
+      "success": "Server deleted",
+      "error": "An error occurred deleting the server"
+    },
+    "connect": {
+      "loading": "Connecting to the server...",
+      "success": "Server connected successfully"
+    },
+    "form": {
+      "heading": "Edit server",
+      "add_heading": "Add server",
+      "server_id": "Server ID: {{id}}",
+      "use_alias": "Use custom alias instead of server name",
+      "name": {
+        "label": "Name",
+        "error": {
+          "required": "The server name is required"
+        }
+      },
+      "alias": {
+        "label": "Alias",
+        "placeholder": "My awesome server",
+        "error": {
+          "max": "The alias cannot exceed 255 characters"
+        }
+      },
+      "url": {
+        "label": "Url",
+        "error": {
+          "required": "The server URL is required",
+          "format": "The server URL should be a valid URL"
+        }
+      },
+      "save": {
+        "loading": "Saving server...",
+        "success": "Server saved successfully"
+      },
+      "save_and_connect": {
+        "label": "Save and connect",
+        "loading": "Checking and saving server...",
+        "success": "Server saved and connected successfully"
+      },
+      "test_connection": "Test connection",
+      "health_check": {
+        "success": {
+          "title": "Connection success",
+          "message": "- Server name: {{name}}\n- Server url: {{url}}\n- Server version: {{version}}"
+        },
+        "error": {
+          "title": "Connection failed"
+        }
+      },
+      "danger_zone": {
+        "delete_server_and_uploads": "Delete from the list and all uploaded files",
+        "delete_uploads": "Delete all uploaded files",
+        "delete_server": "Delete from the list"
+      }
+    }
   },
   "sidebar": {
     "uploads": "Now uploading",
@@ -59,6 +131,14 @@
         "error": {
           "invalid": "The theme should be Dark, Light or System",
           "required": "The theme is required"
+        }
+      },
+      "language": {
+        "label": "Language",
+        "placeholder": "Select a language",
+        "option": {
+          "en": "English",
+          "es": "Spanish"
         }
       }
     },
@@ -102,7 +182,8 @@
       "client_error": "A client error occurred while deleting the file."
     },
     "server": {
-      "not_available": "There is no server available to upload files. Please check your server configuration."
+      "not_available": "There is no server available to upload files. Please check your server configuration.",
+      "fetch_list": "Failed to retrieve saved servers."
     },
     "about": {
       "third_party_licenses_open": "Failed to open the third-party licenses file"

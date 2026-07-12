@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createServerFromUrl, undefinedServer, Server, ServerNotFoundError } from '@/model/server.ts'
+import { undefinedServer, Server, ServerNotFoundError } from '@/model/server.ts'
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import toast from 'react-hot-toast'
@@ -24,8 +24,8 @@ import { useTranslation } from 'react-i18next'
 
 interface ServerContext {
   current: Server
-  setCurrentById: (serverId: string) => Promise<void>
-  setCurrentByUrl: (url: string) => Promise<void>
+  setCurrentById: (serverId: string) => Promise<Server>
+  setCurrentByUrl: (url: string) => Promise<Server>
 }
 
 const ServerContext = createContext<ServerContext>({} as ServerContext)
@@ -53,23 +53,33 @@ export function ServerProvider({ children }: ServerProviderProps) {
 
     if (!server) {
       server = await invoke<Server>('create_server', {
-        newServer: createServerFromUrl(url)
+        newServer: {
+          alias: null,
+          useAlias: false,
+          url,
+        }
       })
     }
 
-    await invoke<Server>('set_connected_server', { id: server.id })
-    setCurrent(server)
+    return await setCurrentById(server.id)
   }
 
   const setCurrentById = async (serverId: string) => {
-    await invoke<Server>('set_connected_server', { id: serverId })
+    await invoke<void>('set_connected_server', { id: serverId })
     const server = await invoke<Server | null>('get_server_by_id', { id: serverId })
 
     if (!server) {
       throw new ServerNotFoundError(`server with id ${serverId} not found`)
     }
 
-    setCurrent(server)
+    const connectedServer = {
+      ...server,
+      connected: true,
+      healthy: true
+    }
+
+    setCurrent(connectedServer)
+    return connectedServer
   }
 
   const context = {

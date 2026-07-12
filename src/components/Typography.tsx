@@ -76,6 +76,16 @@ export function Small(props: TypographyProps) {
   return React.createElement(Component, { className: classes }, props.children)
 }
 
+export function Muted(props: TypographyProps) {
+  const classes = cn(
+    'text-sm text-muted-foreground',
+    props.className
+  )
+
+  const Component = props.as ?? 'p'
+  return React.createElement(Component, { className: classes }, props.children)
+}
+
 export function Paragraph(props: TypographyProps) {
   const classes = cn(
     'leading-7 [&:not(:first-child)]:mt-6',

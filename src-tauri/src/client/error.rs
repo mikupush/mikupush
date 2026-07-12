@@ -1,0 +1,210 @@
+// Miku Push! is a simple, lightweight, and open-source WeTransfer alternative for desktop.
+// Copyright (C) 2025  Miku Push! Team
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+use super::response::ErrorResponse;
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
+
+pub trait ClientError: Debug + Display + Error {
+    fn code(&self) -> String;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileUploadError {
+    Exists { message: String },
+    NotExists { message: String },
+    MaxFileSizeExceeded { message: String },
+    NotCompleted { message: String },
+    UnknownMimeType,
+    Canceled,
+    InternalServerError { message: String },
+    ClientError { message: String },
+}
+
+impl From<ErrorResponse> for FileUploadError {
+    fn from(value: ErrorResponse) -> Self {
+        match value.code.as_str() {
+            "Exists" => Self::Exists {
+                message: value.message,
+            },
+            "NotExists" => Self::NotExists {
+                message: value.message,
+            },
+            "MaxFileSizeExceeded" => Self::MaxFileSizeExceeded {
+                message: value.message,
+            },
+            _ => Self::InternalServerError {
+                message: value.message,
+            },
+        }
+    }
+}
+
+impl Display for FileUploadError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exists { message } => write!(f, "{}", message),
+            Self::NotExists { message } => write!(f, "{}", message),
+            Self::MaxFileSizeExceeded { message } => write!(f, "{}", message),
+            Self::NotCompleted { message } => write!(f, "{}", message),
+            Self::UnknownMimeType => write!(f, "unknown mime type for the provided file to upload"),
+            Self::Canceled => write!(f, "file upload has been canceled"),
+            Self::InternalServerError { message } => write!(f, "{}", message),
+            Self::ClientError { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl Error for FileUploadError {}
+
+impl ClientError for FileUploadError {
+    fn code(&self) -> String {
+        match self {
+            Self::Exists { .. } => FILE_UPLOAD_ERROR_EXISTS.to_string(),
+            Self::NotExists { .. } => FILE_UPLOAD_ERROR_NOT_EXISTS.to_string(),
+            Self::MaxFileSizeExceeded { .. } => {
+                FILE_UPLOAD_ERROR_MAX_FILE_SIZE_EXCEEDED.to_string()
+            }
+            Self::NotCompleted { .. } => FILE_UPLOAD_ERROR_NOT_COMPLETED.to_string(),
+            Self::UnknownMimeType => FILE_UPLOAD_ERROR_UNKNOWN_MIME_TYPE.to_string(),
+            Self::Canceled => FILE_UPLOAD_ERROR_CANCELED.to_string(),
+            Self::InternalServerError { .. } => FILE_UPLOAD_ERROR_INTERNAL_SERVER_ERROR.to_string(),
+            Self::ClientError { .. } => FILE_UPLOAD_ERROR_CLIENT_ERROR.to_string(),
+        }
+    }
+}
+
+pub const FILE_UPLOAD_ERROR_EXISTS: &str = "exists";
+pub const FILE_UPLOAD_ERROR_NOT_EXISTS: &str = "not_exists";
+pub const FILE_UPLOAD_ERROR_MAX_FILE_SIZE_EXCEEDED: &str = "max_file_size_exceeded";
+pub const FILE_UPLOAD_ERROR_NOT_COMPLETED: &str = "not_completed";
+pub const FILE_UPLOAD_ERROR_UNKNOWN_MIME_TYPE: &str = "unknown_mime_type";
+pub const FILE_UPLOAD_ERROR_CANCELED: &str = "canceled";
+pub const FILE_UPLOAD_ERROR_INTERNAL_SERVER_ERROR: &str = "internal_server_error";
+pub const FILE_UPLOAD_ERROR_CLIENT_ERROR: &str = "client_error";
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileDeleteError {
+    NotExists { message: String },
+    InternalServerError { message: String },
+    ClientError { message: String },
+}
+
+impl From<ErrorResponse> for FileDeleteError {
+    fn from(value: ErrorResponse) -> Self {
+        match value.code.as_str() {
+            "NotExists" => Self::NotExists {
+                message: value.message,
+            },
+            _ => Self::InternalServerError {
+                message: value.message,
+            },
+        }
+    }
+}
+
+impl Display for FileDeleteError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotExists { message } => write!(f, "{}", message),
+            Self::InternalServerError { message } => write!(f, "{}", message),
+            Self::ClientError { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl Error for FileDeleteError {}
+
+impl ClientError for FileDeleteError {
+    fn code(&self) -> String {
+        match self {
+            Self::NotExists { .. } => FILE_DELETE_ERROR_NOT_EXISTS.to_string(),
+            Self::InternalServerError { .. } => FILE_DELETE_ERROR_INTERNAL_SERVER_ERROR.to_string(),
+            Self::ClientError { .. } => FILE_DELETE_ERROR_CLIENT_ERROR.to_string(),
+        }
+    }
+}
+
+pub const FILE_DELETE_ERROR_NOT_EXISTS: &str = "not_exists";
+pub const FILE_DELETE_ERROR_INTERNAL_SERVER_ERROR: &str = "internal_server_error";
+pub const FILE_DELETE_ERROR_CLIENT_ERROR: &str = "client_error";
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileInfoError {
+    NotExists { message: String },
+    InternalServerError { message: String },
+    ClientError { message: String },
+}
+
+impl From<ErrorResponse> for FileInfoError {
+    fn from(value: ErrorResponse) -> Self {
+        match value.code.as_str() {
+            "NotExists" => Self::NotExists {
+                message: value.message,
+            },
+            _ => Self::InternalServerError {
+                message: value.message,
+            },
+        }
+    }
+}
+
+impl Display for FileInfoError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotExists { message } => write!(f, "{}", message),
+            Self::InternalServerError { message } => write!(f, "{}", message),
+            Self::ClientError { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl Error for FileInfoError {}
+
+impl ClientError for FileInfoError {
+    fn code(&self) -> String {
+        match self {
+            Self::NotExists { .. } => FILE_INFO_ERROR_NOT_EXISTS.to_string(),
+            Self::InternalServerError { .. } => FILE_INFO_ERROR_INTERNAL_SERVER_ERROR.to_string(),
+            Self::ClientError { .. } => FILE_INFO_ERROR_CLIENT_ERROR.to_string(),
+        }
+    }
+}
+
+pub const FILE_INFO_ERROR_NOT_EXISTS: &str = "not_exists";
+pub const FILE_INFO_ERROR_INTERNAL_SERVER_ERROR: &str = "internal_server_error";
+pub const FILE_INFO_ERROR_CLIENT_ERROR: &str = "client_error";
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HealthCheckError {
+    pub(crate) message: String,
+}
+
+impl Display for HealthCheckError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl Error for HealthCheckError {}
+
+impl ClientError for HealthCheckError {
+    fn code(&self) -> String {
+        HEALTH_CHECK_ERROR_HEALTH_CHECK_ERROR.to_string()
+    }
+}
+
+pub const HEALTH_CHECK_ERROR_HEALTH_CHECK_ERROR: &str = "health_check_error";

@@ -24,16 +24,23 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { ChevronsUpDown, Server } from 'lucide-react'
+import { ChevronsUpDown, Server as ServerIconLucide } from 'lucide-react'
 import { Small } from '@/components/Typography.tsx'
 import { useServer } from '@/context/ServerProvider.tsx'
-import { useServerIcon } from '@/hooks/server.ts'
 import { useTranslation } from 'react-i18next'
+import { NavLink } from 'react-router'
+import { ServerIcon } from '@/components/ServerIcon.tsx'
+import { useEffect, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import { Server } from '@/model/server.ts'
+import toast from 'react-hot-toast'
 
 export function SelectedServerSidebarMenu() {
   const { isMobile } = useSidebar()
   const { current } = useServer()
-  const icon = useServerIcon(current)
+  const name = current.useAlias && current.alias != null && current.alias !== ''
+    ? current.alias
+    : current.name
 
   return (
     <SidebarMenu>
@@ -44,11 +51,9 @@ export function SelectedServerSidebarMenu() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
-                <img className="h-full" src={icon} alt="" />
-              </div>
+              <ServerIcon className="size-8" icon={current.icon} />
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{current.alias ?? current.name}</span>
+                <span className="truncate font-medium">{name}</span>
                 {/*<span className="truncate text-xs">Premium</span>*/}
               </div>
               <ChevronsUpDown className="ml-auto" />
@@ -63,14 +68,14 @@ export function SelectedServerSidebarMenu() {
 
 export function SelectedServerDropdown() {
   const { current } = useServer()
-  const icon = useServerIcon(current)
+  const name = current.useAlias && current.alias ? current.alias : current.name
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost">
-          <img className="h-full" src={icon} alt="" />
-          <Small>{current.alias ?? current.name}</Small>
+          <ServerIcon className="size-full" icon={current.icon} />
+          <Small>{name}</Small>
           <ChevronsUpDown className="ml-auto" />
         </Button>
       </DropdownMenuTrigger>
@@ -85,6 +90,28 @@ interface DropdownProps {
 
 function DropdownMenuItems({ side = 'bottom' }: DropdownProps) {
   const { t } = useTranslation()
+  const { current, setCurrentById } = useServer()
+  const [recentServers, setRecentServers] = useState<Server[]>([])
+
+  useEffect(() => {
+    invoke<Server[]>('find_recent_servers')
+      .then(setRecentServers)
+      .catch((error) => {
+        console.error('error getting recent servers', error)
+      })
+  }, [current.id])
+
+  const selectServer = (server: Server) => {
+    const connectPromise = setCurrentById(server.id)
+      .then(() => invoke<Server[]>('find_recent_servers'))
+      .then(setRecentServers)
+
+    toast.promise(connectPromise, {
+      loading: t('server.connect.loading'),
+      success: t('server.connect.success'),
+      error: (error) => typeof error === 'string' ? error : t('errors.unknown')
+    })
+  }
 
   return (
     <DropdownMenuContent
@@ -93,23 +120,39 @@ function DropdownMenuItems({ side = 'bottom' }: DropdownProps) {
       side={side}
       sideOffset={4}
     >
-      <DropdownMenuLabel className="text-muted-foreground text-xs">
-        {t('server.recent')} 🚧
-      </DropdownMenuLabel>
-      <DropdownMenuItem
-        className="gap-2 p-2"
-      >
-        <div className="flex size-6 items-center justify-center rounded-md">
-          <Server className="size-4" />
-        </div>
-        Example server
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem className="gap-2 p-2">
-        <div className="flex size-6 items-center justify-center bg-transparent">
-          <Server className="size-4" />
-        </div>
-        <div className="font-medium">{t('server.manage')} 🚧</div>
+      {recentServers.length > 0 && (
+        <>
+          <DropdownMenuLabel className="text-muted-foreground text-xs">
+            {t('server.recent')}
+          </DropdownMenuLabel>
+          {recentServers.map((server) => {
+            const name = server.useAlias && server.alias ? server.alias : server.name
+
+            return (
+              <DropdownMenuItem
+                key={server.id}
+                className="gap-2 p-2"
+                disabled={server.id === current.id}
+                onSelect={() => selectServer(server)}
+              >
+                <ServerIcon className="size-6" icon={server.icon} />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate font-medium">{name}</span>
+                  <span className="text-muted-foreground truncate text-xs">{server.url}</span>
+                </div>
+              </DropdownMenuItem>
+            )
+          })}
+          <DropdownMenuSeparator />
+        </>
+      )}
+      <DropdownMenuItem asChild className="gap-2 p-2">
+        <NavLink to="/servers">
+          <div className="flex size-6 items-center justify-center bg-transparent">
+            <ServerIconLucide className="size-4" />
+          </div>
+          <div className="font-medium">{t('server.manage')}</div>
+        </NavLink>
       </DropdownMenuItem>
     </DropdownMenuContent>
   )

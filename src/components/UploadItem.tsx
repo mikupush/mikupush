@@ -30,12 +30,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
-import { extractExtension } from '@/helpers/file'
+import { extractExtension, uploadDisplayName } from '@/helpers/file'
 import { formatDate, formatRate, formatSizeBytes } from '@/helpers/format'
-import { UploadRequest } from '@/model/upload'
+import { Upload, UploadRequest } from '@/model/upload'
 import { useUploadsStore } from '@/store/uploads'
 import { invoke } from '@tauri-apps/api/core'
-import { LinkIcon, RotateCwIcon, TrashIcon, XIcon } from 'lucide-react'
+import { LinkIcon, LoaderCircle, RotateCwIcon, TrashIcon, XIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 import { JSX } from 'react/jsx-runtime'
@@ -51,6 +51,20 @@ export function UploadItem({ item }: UploadItemProps) {
       item={item}
       body={<FinishedUploadBody item={item}/>}
       actions={<FinishedUploadActions item={item}/>}
+    />
+  )
+}
+
+interface ArchivedUploadItemProps {
+  upload: Upload
+}
+
+export function ArchivedUploadItem({ upload }: ArchivedUploadItemProps) {
+  return (
+    <ArchivedUploadItemLayout
+      upload={upload}
+      body={<ArchivedUploadBody upload={upload}/>}
+      actions={<ArchivedUploadActions upload={upload}/>}
     />
   )
 }
@@ -86,6 +100,23 @@ function UploadProgressBody({ item }: UploadItemProps) {
     )
   }
 
+  if (item.upload.status === 'enqueued') {
+    return (
+      <Small className="mt-3 line-clamp-1">
+        {t('uploads.status.enqueued')}
+      </Small>
+    )
+  }
+
+  if (item.upload.status === 'compressing') {
+    return (
+      <div className="mt-3 flex items-center gap-2 text-sm leading-none font-medium">
+        <LoaderCircle size={14} className="animate-spin" />
+        {t('uploads.status.compressing')}
+      </div>
+    )
+  }
+
   return (
     <>
       <Progress className="h-3 mt-3" value={item.progress.progress * 100}></Progress>
@@ -101,6 +132,14 @@ function FinishedUploadBody({ item }: UploadItemProps) {
   return (
     <Small className="mt-3 line-clamp-1">
       {formatSizeBytes(item.upload.size)} · {formatDate(item.upload.createdAt)}
+    </Small>
+  )
+}
+
+function ArchivedUploadBody({ upload }: ArchivedUploadItemProps) {
+  return (
+    <Small className="mt-3 line-clamp-1">
+      {formatSizeBytes(upload.size)} · {formatDate(upload.createdAt)}
     </Small>
   )
 }
@@ -165,17 +204,62 @@ function FinishedUploadActions({ item }: UploadItemProps) {
   )
 }
 
+function ArchivedUploadActions({ upload }: ArchivedUploadItemProps) {
+  const { t } = useTranslation()
+
+  return (
+    <>
+      <Button
+        onClick={() => {
+          invoke('copy_archived_upload_link', { uploadId: upload.id })
+            .then(() => toast.success(t('uploads.link_copied.success')))
+            .catch(() => toast.error(t('uploads.link_copied.error')))
+        }}
+        variant="ghost"
+        size="icon"
+      >
+        <LinkIcon/>
+      </Button>
+      <DeleteArchivedAction upload={upload}/>
+    </>
+  )
+}
+
 interface UploadItemLayout extends UploadItemProps {
   body: JSX.Element
   actions: JSX.Element
 }
 
 function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
+  const displayName = uploadDisplayName(item.upload.name, item.upload.directory)
+
   return (
     <li className="flex py-3 px-5">
-      <FileIcon extension={extractExtension(item.upload.name)}/>
+      <FileIcon extension={extractExtension(item.upload.name)} directory={item.upload.directory}/>
       <div className="flex flex-1 flex-col mx-3">
-        <Large className="line-clamp-1 break-all">{item.upload.name}</Large>
+        <Large className="line-clamp-1 break-all">{displayName}</Large>
+        {body}
+      </div>
+      <div className="flex items-center space-x-3">
+        {actions}
+      </div>
+    </li>
+  )
+}
+
+interface ArchivedUploadItemLayoutProps extends ArchivedUploadItemProps {
+  body: JSX.Element
+  actions: JSX.Element
+}
+
+function ArchivedUploadItemLayout({ body, actions, upload }: ArchivedUploadItemLayoutProps) {
+  const displayName = uploadDisplayName(upload.name, upload.directory)
+
+  return (
+    <li className="flex py-3 px-5">
+      <FileIcon extension={extractExtension(upload.name)} directory={upload.directory}/>
+      <div className="flex flex-1 flex-col mx-3">
+        <Large className="line-clamp-1 break-all">{displayName}</Large>
         {body}
       </div>
       <div className="flex items-center space-x-3">
@@ -188,14 +272,54 @@ function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
 function DeleteAction({ item }: UploadItemProps) {
   const { t } = useTranslation()
   const { setInProgressUploads } = useUploadsStore()
+  const displayName = uploadDisplayName(item.upload.name, item.upload.directory)
 
   const performDelete = () => {
     invoke<UploadRequest[]>('delete_upload', { uploadId: item.upload.id })
       .then((uploadsRequests) => {
-        toast.success(t('uploads.delete.success', { fileName: item.upload.name }))
+        toast.success(t('uploads.delete.success', { fileName: displayName }))
         setInProgressUploads(uploadsRequests)
       })
-      .catch(() => toast.error(t('uploads.delete.error', { fileName: item.upload.name })))
+      .catch(() => toast.error(t('uploads.delete.error', { fileName: displayName })))
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <TrashIcon color="red"/>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('dialog.heading.danger')}</DialogTitle>
+          <DialogDescription>{t('uploads.delete.warning')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">{t('uploads.delete.cancel')}</Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button variant="destructive" onClick={performDelete}>{t('uploads.delete.confirm')}</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteArchivedAction({ upload }: ArchivedUploadItemProps) {
+  const { t } = useTranslation()
+  const { setArchivedUploads } = useUploadsStore()
+  const displayName = uploadDisplayName(upload.name, upload.directory)
+
+  const performDelete = () => {
+    invoke<Upload[]>('delete_archived_upload', { uploadId: upload.id })
+      .then((uploads) => {
+        toast.success(t('uploads.delete.success', { fileName: displayName }))
+        setArchivedUploads(uploads)
+      })
+      .catch(() => toast.error(t('uploads.delete.error', { fileName: displayName })))
   }
 
   return (

@@ -1,0 +1,198 @@
+{
+  "common": {
+    "form": {
+      "danger_zone": "Danger zone",
+      "save": "Guardar"
+    },
+    "in_development": "Próximamente. Esta funcionalidad está actualmente en desarrollo 🚧",
+    "cancel": "Cancelar",
+    "delete": "Eliminar"
+  },
+  "about": {
+    "version": "Versión {{version}}",
+    "copyright": "Copyright © 2025 Miku Push! Team",
+    "licensed": "Licenciado bajo la Licencia Pública General GNU v3.0",
+    "hatsune_miku_copyright": "La mascota de Miku Push! es Hatsune Miku, un personaje creado por\nCrypton Future Media, INC. © Crypton Future Media, INC. 2007.",
+    "not_affiliated": "Este proyecto no está afiliado ni respaldado por Crypton Future Media, INC.",
+    "why_hatsune_miku": "Elegimos a Hatsune Miku como mascota de Miku Push! simplemente porque la apreciamos, nos encanta su música y porque es muy mona.",
+    "see_third_party_licenses": "Ver licencia y todas las licencias de terceros"
+  },
+  "uploads": {
+    "empty_state": "Parece que aún no has compartido ningún archivo o carpeta.\nNo pasa nada, solo tienes que arrastrar y soltar para compartir. O, si lo prefieres, selecciona algo para empezar.",
+    "archived_empty_state": "No hay subidas archivadas para este servidor.",
+    "select_file": "Seleccionar un archivo",
+    "select_folder": "Seleccionar carpeta",
+    "link_copied": {
+      "success": "Enlace copiado al portapapeles",
+      "error": "No se pudo copiar el enlace al portapapeles"
+    },
+    "delete": {
+      "warning": "Esta acción no se puede deshacer. Esto eliminará permanentemente el archivo del servidor y no podrá descargarse más tarde.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar",
+      "success": "{{fileName}} se ha eliminado",
+      "error": "error al eliminar {{fileName}}"
+    },
+    "status": {
+      "enqueued": "Esperando turno en la cola de subida",
+      "compressing": "Comprimiendo carpeta"
+    },
+    "drop": "Suelta para subir"
+  },
+  "server": {
+    "recent": "Servidores usados recientemente",
+    "manage": "Gestionar servidores",
+    "add": "Añadir servidor",
+    "empty": "No hay servidores, añade uno para poder subir archivos",
+    "delete": {
+      "confirmation": {
+        "title": "¿Estás completamente seguro?",
+        "message": "Esta acción no se puede deshacer. Esto eliminará permanentemente el servidor. Puedes añadirlo de nuevo más tarde"
+      },
+      "success": "Servidor eliminado",
+      "error": "Se produjo un error al eliminar el servidor"
+    },
+    "connect": {
+      "loading": "Conectando al servidor...",
+      "success": "Servidor conectado correctamente"
+    },
+    "form": {
+      "heading": "Editar servidor",
+      "add_heading": "Añadir servidor",
+      "server_id": "ID del servidor: {{id}}",
+      "use_alias": "Usar alias personalizado en lugar del nombre del servidor",
+      "name": {
+        "label": "Nombre",
+        "error": {
+          "required": "El nombre del servidor es obligatorio"
+        }
+      },
+      "alias": {
+        "label": "Alias",
+        "placeholder": "Mi servidor genial",
+        "error": {
+          "max": "El alias no puede superar los 255 caracteres"
+        }
+      },
+      "url": {
+        "label": "Url",
+        "error": {
+          "required": "La URL del servidor es obligatoria",
+          "format": "La URL del servidor debe ser una URL valida"
+        }
+      },
+      "save": {
+        "loading": "Guardando servidor...",
+        "success": "Servidor guardado correctamente"
+      },
+      "save_and_connect": {
+        "label": "Guardar y conectar",
+        "loading": "Comprobando y guardando servidor...",
+        "success": "Servidor guardado y conectado correctamente"
+      },
+      "test_connection": "Probar conexión",
+      "health_check": {
+        "success": {
+          "title": "Conexión correcta",
+          "message": "- Nombre del servidor: {{name}}\n- URL del servidor: {{url}}\n- Versión del servidor: {{version}}"
+        },
+        "error": {
+          "title": "Conexión fallida"
+        }
+      },
+      "danger_zone": {
+        "delete_server_and_uploads": "Eliminar de la lista y todos los archivos subidos",
+        "delete_uploads": "Eliminar todos los archivos subidos",
+        "delete_server": "Eliminar de la lista"
+      }
+    }
+  },
+  "sidebar": {
+    "uploads": "Subiendo ahora",
+    "archived_uploads": "Subidas archivadas",
+    "about": "Acerca de",
+    "settings": "Ajustes"
+  },
+  "settings": {
+    "heading": "Ajustes",
+    "general": {
+      "heading": "Apariencia y comportamiento",
+      "autostart": {
+        "label": "Iniciar la aplicación minimizada al arrancar el sistema"
+      },
+      "theme": {
+        "label": "Tema",
+        "placeholder": "Selecciona un tema",
+        "option": {
+          "dark": "Oscuro",
+          "light": "Claro",
+          "system": "Sistema"
+        },
+        "error": {
+          "invalid": "El tema debe ser Oscuro, Claro o Sistema",
+          "required": "El tema es obligatorio"
+        }
+      },
+      "language": {
+        "label": "Idioma",
+        "placeholder": "Selecciona un idioma",
+        "option": {
+          "en": "Inglés",
+          "es": "Español"
+        }
+      }
+    },
+    "upload": {
+      "heading": "Subida",
+      "upload_in_chunks": {
+        "label": "Subir el archivo por partes",
+        "description": "Recomendado para redes con poco ancho de banda o inestables. Esto puede aumentar el tiempo de subida."
+      },
+      "chunk_size": {
+        "label": "Tamaño de parte de subida en MB",
+        "description": "El valor recomendado está entre 50 y 100 MB; si tu red es lenta, prueba entre 5 y 10 MB. El valor mínimo es 5 MB y el máximo 1000 MB."
+      }
+    },
+    "server": {
+      "label": "URL del servidor",
+      "description": "Cambia la URL del servidor de destino para subir archivos. Puede producir errores inesperados al subir nuevos archivos. Cámbiala bajo tu responsabilidad.",
+      "apply": "Cambiar servidor",
+      "success": "URL del servidor cambiada correctamente",
+      "error": {
+        "invalid": "La URL del servidor debe ser una cadena",
+        "format": "La URL del servidor debe ser una URL válida",
+        "required": "La URL del servidor es obligatoria"
+      }
+    }
+  },
+  "errors": {
+    "upload": {
+      "exists": "Ya existe un archivo con el mismo id en el servidor.",
+      "not_exists": "El archivo no está registrado previamente en el servidor antes de la subida.",
+      "max_file_size_exceeded": "El archivo supera el tamaño máximo permitido por el servidor.",
+      "not_completed": "La subida aún no se ha completado. Es posible que el archivo proporcionado esté dañado.",
+      "unknown_mime_type": "tipo de archivo no compatible.",
+      "canceled": "La subida fue cancelada.",
+      "internal_server_error": "Se produjo un error interno del servidor: {{message}}",
+      "client_error": "Se produjo un error del cliente al subir."
+    },
+    "delete": {
+      "not_exists": "El archivo que intentas eliminar no existe en el servidor.",
+      "internal_server_error": "Se produjo un error interno del servidor al eliminar el archivo: {{message}}",
+      "client_error": "Se produjo un error del cliente al eliminar el archivo."
+    },
+    "server": {
+      "not_available": "No hay ningún servidor disponible para subir archivos. Revisa la configuración del servidor.",
+      "fetch_list": "No se pudieron obtener los servidores guardados."
+    },
+    "about": {
+      "third_party_licenses_open": "No se pudo abrir el archivo de licencias de terceros"
+    },
+    "unknown": "Se produjo un error desconocido."
+  },
+  "dialog": {
+    "heading": {
+      "danger": "¿Estás completamente seguro?"
+    }
+  }
+}

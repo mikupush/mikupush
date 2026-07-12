@@ -1,5 +1,5 @@
 [workspace]
-members = ["src-tauri", "lib/common", "lib/client", "lib/database"]
+members = ["src-tauri"]
 
 resolver = "3"
 
