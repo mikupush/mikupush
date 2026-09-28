@@ -97,8 +97,7 @@ pub fn enqueue_upload_paths_with_preferences(
     let requests = file_paths
         .into_iter()
         .map(|path| {
-            let mut request = UploadRequest::from_path(path, server.clone())?;
-            request.preferences = preferences.clone();
+            let mut request = UploadRequest::from_path(path, server.clone(), preferences.clone())?;
             if chunked_mode {
                 request = request.upload_by_chunks(chunk_size);
             }

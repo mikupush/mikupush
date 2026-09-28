@@ -15,30 +15,115 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::error::FileUploadError;
-use crate::upload::Progress;
 use super::response::ErrorResponse;
-use crate::upload::Upload;
-use bytes::Bytes;
-use futures_core::Stream;
-use log::{debug, warn};
+use crate::cipher::{Cipher, ENCRYPTION_BLOCK_SIZE};
+use crate::upload::{Progress, Upload};
+use bytes::{Bytes, BytesMut};
+use log::debug;
 use std::cmp::min;
 use std::io::Result as IoResult;
-use std::pin::Pin;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::select;
-use tokio::sync::watch;
-use tokio::sync::watch::Receiver;
+use tokio::sync::mpsc;
 use tokio::sync::watch::Sender;
-use tokio::task::JoinHandle;
-use tokio_stream::StreamExt;
+use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 use tokio_util::io::ReaderStream;
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
+
+const READ_BUFFER_SIZE: usize = 64 * 1024;
+
+struct FixedBufferFileReader {
+    file: File,
+    buffer: [u8; READ_BUFFER_SIZE],
+}
+
+impl FixedBufferFileReader {
+    async fn open(path: &str) -> IoResult<Self> {
+        Ok(Self {
+            file: File::open(path).await?,
+            buffer: [0u8; READ_BUFFER_SIZE],
+        })
+    }
+
+    async fn read_block(&mut self, block_size: usize) -> IoResult<Option<Vec<u8>>> {
+        let mut block = Vec::with_capacity(block_size);
+
+        while block.len() < block_size {
+            let remaining = block_size - block.len();
+            let read_size = min(READ_BUFFER_SIZE, remaining);
+            let bytes_read = self.file.read(&mut self.buffer[..read_size]).await?;
+
+            if bytes_read == 0 {
+                break;
+            }
+
+            block.extend_from_slice(&self.buffer[..bytes_read]);
+        }
+
+        if block.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(block))
+        }
+    }
+}
+
+async fn file_stream(
+    upload: &Upload,
+    cancellation: CancellationToken,
+) -> IoResult<ReceiverStream<IoResult<Bytes>>> {
+    let mut reader = FixedBufferFileReader::open(&upload.path).await?;
+
+    // When encryption is enabled always will be an encryption key
+    let cipher = upload
+        .encryption_key
+        .as_deref()
+        .map(Cipher::new)
+        .transpose()?;
+    let (sender, receiver) = mpsc::channel(2);
+
+    tokio::spawn(async move {
+        loop {
+            let block = select! {
+                result = reader.read_block(ENCRYPTION_BLOCK_SIZE) => result,
+                _ = cancellation.cancelled() => break,
+                _ = sender.closed() => break,
+            };
+
+            let block = match block {
+                Ok(Some(block)) => block,
+                Ok(None) => break,
+                Err(error) => {
+                    let _ = sender.send(Err(error)).await;
+                    break;
+                }
+            };
+
+            let output = match &cipher {
+                Some(cipher) => cipher.encrypt_block(&block),
+                None => Ok(block),
+            };
+
+            let output = match output {
+                Ok(output) => output,
+                Err(error) => {
+                    let _ = sender.send(Err(error)).await;
+                    break;
+                }
+            };
+
+            if sender.send(Ok(Bytes::from(output))).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    Ok(ReceiverStream::new(receiver))
+}
 
 #[derive(Debug, Clone)]
 pub struct UploadContext {
@@ -47,7 +132,7 @@ pub struct UploadContext {
     uploaded_bytes: Arc<AtomicU64>,
     last_measured_rate: Arc<Mutex<Instant>>,
     progress: Arc<Mutex<Progress>>,
-    total_size: u64
+    total_size: u64,
 }
 
 impl UploadContext {
@@ -93,64 +178,6 @@ impl UploadContext {
     }
 }
 
-#[derive(Debug)]
-pub struct UploadStream {
-    upload_id: String,
-    stop_token: CancellationToken,
-    reader_stream: ReaderStream<File>,
-    context: UploadContext,
-}
-
-impl UploadStream {
-    pub async fn new(
-        path: String,
-        upload_id: Uuid,
-        stop_token: CancellationToken,
-        context: UploadContext,
-    ) -> Result<Self, std::io::Error> {
-        let file = File::open(&path).await;
-        if let Err(err) = &file {
-            warn!("error opening file {:?}: {}", file, err);
-            return Err(file.unwrap_err());
-        }
-
-        Ok(Self {
-            upload_id: upload_id.to_string(),
-            stop_token,
-            reader_stream: ReaderStream::new(file?),
-            context,
-        })
-    }
-}
-
-impl Stream for UploadStream {
-    type Item = IoResult<Bytes>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.stop_token.is_cancelled() {
-            debug!(
-                "upload stopped because maybe server returned an error for id: {}",
-                self.upload_id
-            );
-            return Poll::Ready(None);
-        }
-
-        if self.context.cancellation_token.is_cancelled() {
-            debug!("upload canceled for: {}", self.upload_id);
-            return Poll::Ready(None);
-        }
-
-        match Pin::new(&mut self.reader_stream).poll_next(cx) {
-            Poll::Ready(Some(chunk)) => {
-                self.context.emit_progress(&chunk);
-                Poll::Ready(Some(chunk))
-            }
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
 pub trait UploadTask {
     async fn execute(&self) -> Result<(), FileUploadError>;
 }
@@ -158,7 +185,6 @@ pub trait UploadTask {
 #[derive(Debug, Clone)]
 pub struct SingleUploadTask {
     base_url: String,
-    stop_token: CancellationToken,
     client: reqwest::Client,
     upload: Upload,
     context: UploadContext,
@@ -171,25 +197,24 @@ impl SingleUploadTask {
         client: reqwest::Client,
         context: UploadContext,
     ) -> Self {
-        let stop_token = CancellationToken::new();
-
         Self {
             base_url,
             client,
             upload,
-            stop_token,
-            context
+            context,
         }
     }
 
-    async fn create_stream(&self) -> Result<UploadStream, std::io::Error> {
-        UploadStream::new(
-            self.upload.path.clone(),
-            self.upload.id.clone(),
-            self.stop_token.clone(),
-            self.context.clone()
-        )
-        .await
+    async fn create_stream(
+        &self,
+    ) -> IoResult<impl tokio_stream::Stream<Item = IoResult<Bytes>> + use<>> {
+        let context = self.context.clone();
+        let stream = file_stream(&self.upload, self.context.cancellation_token.clone()).await?;
+
+        Ok(stream.map(move |chunk| {
+            context.emit_progress(&chunk);
+            chunk
+        }))
     }
 
     async fn perform_upload(&self) -> Result<(), FileUploadError> {
@@ -199,14 +224,16 @@ impl SingleUploadTask {
             .map_err(|err| FileUploadError::ClientError {
                 message: err.to_string(),
             })?;
+
         let body = reqwest::Body::wrap_stream(stream);
         let url = format!("{}/api/file/{}/upload", self.base_url, self.upload.id);
+
         let send_future = self
             .client
             .post(&url)
             .header("Connection", "keep-alive")
-            .header("Content-Type", &self.upload.mime_type)
-            .header("Content-Length", self.upload.size)
+            .header("Content-Type", "application/octet-stream")
+            .header("Content-Length", self.upload.encrypted_size())
             .body(body)
             .send();
 
@@ -218,11 +245,11 @@ impl SingleUploadTask {
                 return Err(FileUploadError::Canceled);
             }
         };
+
         let status = response.status().clone();
         debug!("POST {}: {}", url, status);
 
         if status != 200 {
-            self.stop_token.cancel();
             let response_body =
                 response
                     .text()
@@ -239,6 +266,7 @@ impl SingleUploadTask {
                     message: err.to_string(),
                 }
             })?;
+
             return Err(error_response.into());
         }
 
@@ -289,12 +317,15 @@ impl ChunkedUploadTask {
             "{}/api/file/{}/upload/part/{}",
             self.base_url, self.upload.id, index
         );
+
         let context = self.context.clone();
         let stream = ReaderStream::new(std::io::Cursor::new(data)).map(move |chunk| {
             context.emit_progress(&chunk);
             chunk
         });
+
         let body = reqwest::Body::wrap_stream(stream);
+
         let send_future = self
             .client
             .post(&url)
@@ -312,6 +343,7 @@ impl ChunkedUploadTask {
                 return Err(FileUploadError::Canceled);
             }
         };
+
         let status = response.status().clone();
         debug!("POST {}: {}", url, status);
 
@@ -332,6 +364,7 @@ impl ChunkedUploadTask {
                     message: err.to_string(),
                 }
             })?;
+
             return Err(error_response.into());
         }
 
@@ -345,51 +378,46 @@ impl ChunkedUploadTask {
     }
 
     async fn perform_upload(&self) -> Result<(), FileUploadError> {
-        let file = File::open(self.upload.path.clone()).await;
-        if let Err(err) = &file {
-            warn!("error opening file {:?}: {}", file, err);
+        if self.chunk_size == 0 || self.chunk_size > usize::MAX as u64 {
             return Err(FileUploadError::ClientError {
-                message: err.to_string(),
+                message: "invalid upload part size".into(),
             });
         }
 
-        let mut file = file.unwrap();
-        let chunk_size = self.chunk_size as usize;
-        let mut buffer = vec![0u8; chunk_size];
-        let mut index: u64 = 0;
+        let mut stream = file_stream(&self.upload, self.context.cancellation_token.clone())
+            .await
+            .map_err(|err| FileUploadError::ClientError {
+                message: err.to_string(),
+            })?;
 
-        file.set_max_buf_size(chunk_size);
+        let part_size = self.chunk_size as usize;
+        let mut pending = BytesMut::new();
+        let mut index = 0;
 
-        loop {
-            if self.context.cancellation_token.is_cancelled() {
-                debug!("upload canceled for: {}", self.upload.id);
-                return Ok(());
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|err| FileUploadError::ClientError {
+                message: err.to_string(),
+            })?;
+
+            pending.extend_from_slice(&chunk);
+
+            while pending.len() >= part_size {
+                let part = pending.split_to(part_size).to_vec();
+                self.perform_chunk_upload(part, index).await?;
+
+                index += 1;
             }
-
-            let bytes_read = file.read(&mut buffer).await;
-            if let Err(err) = &bytes_read {
-                warn!("error reading file {:?}: {}", file, err);
-                return Err(FileUploadError::ClientError {
-                    message: err.to_string(),
-                });
-            }
-
-            let bytes_read = bytes_read.unwrap();
-            if bytes_read == 0 {
-                debug!("finish uploading file chunks");
-                self.acknowledge().await?;
-                return Ok(());
-            }
-
-            let chunk = &buffer[..bytes_read];
-            debug!(
-                "attempting to upload chunk of {} bytes ({} bytes read by the reader)",
-                chunk.len(),
-                bytes_read
-            );
-            self.perform_chunk_upload(Vec::from(chunk), index).await?;
-            index += 1;
         }
+
+        if !pending.is_empty() {
+            self.perform_chunk_upload(pending.to_vec(), index).await?;
+        }
+
+        if self.context.cancellation_token.is_cancelled() {
+            return Err(FileUploadError::Canceled);
+        }
+
+        self.acknowledge().await
     }
 
     async fn acknowledge(&self) -> Result<(), FileUploadError> {
@@ -426,5 +454,70 @@ impl ChunkedUploadTask {
 impl UploadTask for ChunkedUploadTask {
     async fn execute(&self) -> Result<(), FileUploadError> {
         self.perform_upload().await
+    }
+}
+
+#[cfg(test)]
+mod encryption_tests {
+    use super::*;
+    use crate::server::Server;
+
+    #[tokio::test]
+    async fn encrypted_stream_round_trips_across_transport_boundaries() {
+        let path =
+            std::env::temp_dir().join(format!("mikupush-encryption-{}", uuid::Uuid::new_v4()));
+        let plaintext = vec![0x5a; ENCRYPTION_BLOCK_SIZE + 19];
+
+        tokio::fs::write(&path, &plaintext).await.unwrap();
+
+        let upload = Upload::new(
+            uuid::Uuid::new_v4(),
+            "test.bin".into(),
+            plaintext.len() as u64,
+            "application/octet-stream".into(),
+            path.to_string_lossy().into_owned(),
+            Server::test(),
+            false,
+            Some(crate::cipher::generate_key()),
+        );
+
+        assert_eq!(upload.encryption_key.as_deref().unwrap().len(), 64);
+        assert!(upload.url.contains('#'));
+
+        let mut stream = file_stream(&upload, CancellationToken::new())
+            .await
+            .unwrap();
+        let mut wire = Vec::new();
+
+        while let Some(chunk) = stream.next().await {
+            wire.extend_from_slice(&chunk.unwrap());
+        }
+
+        assert_eq!(wire.len() as u64, upload.encrypted_size());
+
+        let key = upload.encryption_key.as_deref().unwrap();
+        let key = (0..32)
+            .map(|index| u8::from_str_radix(&key[index * 2..index * 2 + 2], 16).unwrap())
+            .collect::<Vec<_>>();
+        use aes_gcm::aead::Aead;
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+
+        let cipher = Aes256Gcm::new_from_slice(&key).unwrap();
+        let mut decrypted = Vec::new();
+
+        for chunk in
+            wire.chunks(ENCRYPTION_BLOCK_SIZE + crate::cipher::NONCE_SIZE + crate::cipher::TAG_SIZE)
+        {
+            decrypted.extend_from_slice(
+                cipher
+                    .decrypt(Nonce::from_slice(&chunk[..12]), &chunk[12..])
+                    .unwrap()
+                    .as_slice(),
+            );
+        }
+
+        assert_eq!(decrypted, plaintext);
+
+        tokio::fs::remove_file(path).await.unwrap();
     }
 }

@@ -31,6 +31,7 @@ diesel::table! {
         mime_type -> Text,
         path -> Text,
         url -> Text,
+        encryption_key -> Nullable<Text>,
         server_id -> Text,
         created_at -> Timestamp,
         status -> Text,
