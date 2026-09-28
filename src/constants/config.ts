@@ -23,7 +23,12 @@ export const CONFIG_START_MINIMIZED = 'start_minimized'
 export const CONFIG_UPLOAD_IN_CHUNKS = 'upload_in_chunks'
 export const CONFIG_UPLOAD_CHUNK_SIZE = 'upload_chunk_size'
 
+export const CONFIG_ASK_UPLOAD_PREFERENCES = 'ask_upload_preferences'
+export const CONFIG_UPLOAD_PREFERENCES = 'upload_preferences'
+
 export type ConfigKey = typeof CONFIG_THEME
+  | typeof CONFIG_ASK_UPLOAD_PREFERENCES
+  | typeof CONFIG_UPLOAD_PREFERENCES
   | typeof CONFIG_LANGUAGE
   | typeof CONFIG_START_ON_SYSTEM_STARTUP
   | typeof CONFIG_START_MINIMIZED

@@ -22,10 +22,12 @@ import { useUploadsStore } from '@/store/uploads'
 import { UploadRequest } from '@/model/upload'
 import { listen } from '@tauri-apps/api/event'
 import { ThemeProvider } from '@/context/ThemeProvider.tsx'
-import { fetchCurrentUploads } from '@/helpers/upload.ts'
+import { fetchCurrentUploads, requestUploads } from '@/helpers/upload.ts'
 import Router from '@/router.tsx'
 import { ServerProvider } from '@/context/ServerProvider.tsx'
 import { ToastContainer } from '@/components/ToastContainer.tsx'
+import { UploadPreferencesDialog } from '@/components/UploadPreferencesDialog'
+import toast from 'react-hot-toast'
 import { LanguageProvider } from '@/context/LanguageProvider.tsx'
 
 await getCurrentWebview().onDragDropEvent((event) => {
@@ -34,9 +36,7 @@ await getCurrentWebview().onDragDropEvent((event) => {
   if (event.payload.type === 'over') {
     store.showDropZone(true)
   } else if (event.payload.type === 'drop') {
-    invoke<UploadRequest[]>('enqueue_uploads', { paths: event.payload.paths })
-      .then((requests) => store.setInProgressUploads(requests))
-      .catch((error) => console.warn('files dialog error', error))
+    requestUploads(event.payload.paths).catch(error => toast.error(String(error)))
     store.showDropZone(false)
   } else {
     store.showDropZone(false)
@@ -51,6 +51,16 @@ await listen<UploadRequest[]>('uploads-changed', (event) => {
   }, 100)
 })
 
+// Drain after registering the listener as native requests can arrive before the UI loads.
+async function takePendingUploads() {
+  const batches = await invoke<string[][]>('take_pending_upload_paths')
+  batches.forEach(paths => useUploadsStore.getState().queueUploadPreferences(paths))
+}
+await listen('upload-preferences-requested', () => {
+  takePendingUploads().catch(error => toast.error(String(error)))
+})
+await takePendingUploads()
+
 fetchCurrentUploads()
 
 function MainWindow() {
@@ -60,6 +70,7 @@ function MainWindow() {
         <ServerProvider>
           <Router />
           <ToastContainer />
+          <UploadPreferencesDialog />
         </ServerProvider>
       </ThemeProvider>
     </LanguageProvider>

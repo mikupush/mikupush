@@ -28,53 +28,41 @@ use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 
 #[tauri::command]
-pub async fn select_files_to_upload(app_handle: AppHandle) -> Result<Vec<UploadRequest>, String> {
-    let files = app_handle
+pub async fn select_files_to_upload(app_handle: AppHandle) -> Vec<String> {
+    app_handle
         .dialog()
         .file()
         .blocking_pick_files()
         .unwrap_or_default()
         .iter()
         .map(|file| file.to_string())
-        .collect();
-
-    debug!("attempting to upload files {:?}", files);
-    let in_progress_uploads = enqueue_uploads(app_handle, files).await?;
-
-    debug!(
-        "returning in progress equeued uploads: {:?}",
-        in_progress_uploads
-    );
-    Ok(in_progress_uploads)
+        .collect()
 }
 
 #[tauri::command]
-pub async fn select_folders_to_upload(app_handle: AppHandle) -> Result<Vec<UploadRequest>, String> {
-    let folders = app_handle
+pub async fn select_folders_to_upload(app_handle: AppHandle) -> Vec<String> {
+    app_handle
         .dialog()
         .file()
         .blocking_pick_folders()
         .unwrap_or_default()
         .iter()
         .map(|file| file.to_string())
-        .collect();
-
-    debug!("attempting to upload folders {:?}", folders);
-    let in_progress_uploads = enqueue_uploads(app_handle, folders).await?;
-
-    debug!(
-        "returning in progress equeued uploads: {:?}",
-        in_progress_uploads
-    );
-    Ok(in_progress_uploads)
+        .collect()
 }
 
 #[tauri::command]
 pub async fn enqueue_uploads(
     app_handle: AppHandle,
     paths: Vec<String>,
+    preferences: Option<super::UploadPreferences>,
 ) -> Result<Vec<UploadRequest>, String> {
-    enqueue::enqueue_upload_paths(&app_handle, paths, false)
+    match preferences {
+        Some(preferences) => {
+            enqueue::enqueue_upload_paths_with_preferences(&app_handle, paths, false, preferences)
+        }
+        None => enqueue::enqueue_upload_paths(&app_handle, paths, false),
+    }
 }
 
 #[tauri::command]
@@ -82,7 +70,12 @@ pub async fn enqueue_upload(
     app_handle: AppHandle,
     file_path: String,
 ) -> Result<Vec<UploadRequest>, String> {
-    enqueue::enqueue_upload_path(&app_handle, file_path, false)
+    enqueue::enqueue_upload_paths(&app_handle, vec![file_path], false)
+}
+
+#[tauri::command]
+pub fn take_pending_upload_paths() -> Vec<Vec<String>> {
+    enqueue::take_pending_upload_paths()
 }
 
 #[tauri::command]

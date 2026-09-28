@@ -18,7 +18,13 @@
 
 import { useUploadsStore } from '@/store/uploads.ts'
 import { invoke } from '@tauri-apps/api/core'
-import { UploadRequest } from '@/model/upload.ts'
+import { UploadPreferences, UploadRequest } from '@/model/upload.ts'
+import { applyConfig, getConfig } from '@/helpers/config.ts'
+import {
+  CONFIG_ASK_UPLOAD_PREFERENCES,
+  CONFIG_TRUE_VALUE,
+  CONFIG_UPLOAD_PREFERENCES
+} from '@/constants/config.ts'
 
 export function cancelUpload(uploadId: string) {
   const store = useUploadsStore.getState()
@@ -42,4 +48,41 @@ export function fetchCurrentUploads() {
   invoke<UploadRequest[]>('list_active_uploads')
     .then((requests) => store.setInProgressUploads(requests))
     .finally(() => store.setIsLoading(false))
+}
+
+export async function getUploadPreferences(): Promise<UploadPreferences> {
+  const value: unknown = JSON.parse(await getConfig(CONFIG_UPLOAD_PREFERENCES))
+
+  if (typeof value !== 'object' || value === null
+    || !('encryption' in value) || typeof value.encryption !== 'boolean') {
+    throw new Error('Invalid upload preferences')
+  }
+
+  return { encryption: value.encryption }
+}
+
+export async function saveUploadPreferences(preferences: UploadPreferences) {
+  await applyConfig(CONFIG_UPLOAD_PREFERENCES, JSON.stringify(preferences))
+}
+
+export async function startUploads(paths: string[], preferences: UploadPreferences) {
+  if (paths.length === 0) return
+
+  const requests = await invoke<UploadRequest[]>('enqueue_uploads', {
+    paths: [...paths],
+    preferences: { ...preferences }
+  })
+
+  useUploadsStore.getState().setInProgressUploads(requests)
+}
+
+export async function requestUploads(paths: string[]) {
+  if (paths.length === 0) return
+
+  if (await getConfig(CONFIG_ASK_UPLOAD_PREFERENCES) === CONFIG_TRUE_VALUE) {
+    useUploadsStore.getState().queueUploadPreferences(paths)
+    return
+  }
+
+  await startUploads(paths, await getUploadPreferences())
 }

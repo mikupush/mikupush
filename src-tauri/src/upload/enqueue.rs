@@ -23,35 +23,55 @@ use super::queue::{UploadQueueJob, enqueue_upload_job};
 use crate::config::Configuration;
 use crate::config::{CONFIG_CHUNK_SIZE_DEFAULT, CONFIG_TRUE_VALUE, ConfigKey};
 use crate::state::{SelectedServerState, UploadsState};
-use crate::upload::UploadRequest;
+use crate::upload::{UploadPreferences, UploadRequest};
 use log::{debug, warn};
 use rust_i18n::t;
 use std::borrow::Cow;
 use std::fs::File;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Manager};
+
+static PENDING_UPLOAD_PATHS: Mutex<Vec<Vec<String>>> = Mutex::new(Vec::new());
+
+pub fn take_pending_upload_paths() -> Vec<Vec<String>> {
+    std::mem::take(&mut *PENDING_UPLOAD_PATHS.lock().unwrap())
+}
 
 pub fn enqueue_upload_paths(
     app_handle: &AppHandle,
     file_paths: Vec<String>,
     always_notify: bool,
 ) -> Result<Vec<UploadRequest>, String> {
-    debug!("enqueue many files to uploads: {}", file_paths.join(";"));
-    let mut in_progress_uploads: Vec<UploadRequest> = vec![];
-
-    for path in file_paths {
-        in_progress_uploads = enqueue_upload_path(app_handle, path, always_notify)?;
+    if file_paths.is_empty() {
+        return Ok(app_handle.state::<UploadsState>().get_all_in_progress());
     }
 
-    Ok(in_progress_uploads)
+    let config = Configuration::from_app_handle(app_handle)?;
+
+    if config.get(ConfigKey::AskUploadPreferences) == CONFIG_TRUE_VALUE {
+        PENDING_UPLOAD_PATHS.lock().unwrap().push(file_paths);
+        crate::window::restore_main_window(app_handle, false);
+        app_handle
+            .emit("upload-preferences-requested", ())
+            .map_err(|err| err.to_string())?;
+
+        return Ok(app_handle.state::<UploadsState>().get_all_in_progress());
+    }
+
+    let preferences = serde_json::from_str(&config.get(ConfigKey::UploadPreferences))
+        .map_err(|err| format!("Invalid upload preferences: {}", err))?;
+
+    enqueue_upload_paths_with_preferences(app_handle, file_paths, always_notify, preferences)
 }
 
-pub(super) fn enqueue_upload_path(
+pub fn enqueue_upload_paths_with_preferences(
     app_handle: &AppHandle,
-    file_path: String,
+    file_paths: Vec<String>,
     always_notify: bool,
+    preferences: UploadPreferences,
 ) -> Result<Vec<UploadRequest>, String> {
-    debug!("starting upload for path: {}", file_path);
+    debug!("enqueue many files to uploads: {}", file_paths.join(";"));
     let server_state = app_handle.state::<SelectedServerState>();
     let upload_state = app_handle.state::<UploadsState>();
 
@@ -72,37 +92,47 @@ pub(super) fn enqueue_upload_path(
     };
 
     let server = server_state.current_server();
-    let mut request = UploadRequest::from_path(file_path, server.clone())?;
-    if chunked_mode {
-        request = request.upload_by_chunks(chunk_size);
+    // Validate the whole selection before starting any transfer. A missing path
+    // must not leave a partly started batch that the modal could submit again.
+    let requests = file_paths
+        .into_iter()
+        .map(|path| {
+            let mut request = UploadRequest::from_path(path, server.clone())?;
+            request.preferences = preferences.clone();
+            if chunked_mode {
+                request = request.upload_by_chunks(chunk_size);
+            }
+            Ok(request)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    for request in requests {
+        let in_progress_uploads = upload_state.add_request(request.clone());
+        emit_uploads_changed_event(app_handle, in_progress_uploads.clone());
+
+        show_upload_notification(
+            app_handle,
+            t!(
+                "notifications.upload.enqueued.title",
+                name = request.upload.name
+            )
+            .to_string(),
+            t!(
+                "notifications.upload.enqueued.body",
+                name = request.upload.name
+            )
+            .to_string(),
+            always_notify,
+        );
+
+        enqueue_upload_job(UploadQueueJob {
+            request,
+            server: server.clone(),
+            always_notify,
+            retry: false,
+        })?;
     }
-
-    let in_progress_uploads = upload_state.add_request(request.clone());
-    emit_uploads_changed_event(app_handle, in_progress_uploads.clone());
-
-    show_upload_notification(
-        app_handle,
-        t!(
-            "notifications.upload.enqueued.title",
-            name = request.upload.name
-        )
-        .to_string(),
-        t!(
-            "notifications.upload.enqueued.body",
-            name = request.upload.name
-        )
-        .to_string(),
-        always_notify,
-    );
-
-    enqueue_upload_job(UploadQueueJob {
-        request,
-        server,
-        always_notify,
-        retry: false,
-    })?;
-
-    Ok(in_progress_uploads)
+    Ok(upload_state.get_all_in_progress())
 }
 
 pub fn enqueue_upload_retry(
@@ -182,19 +212,18 @@ pub fn enqueue_uploads_from_deep_link(app_handle: &AppHandle, request_file: &str
         }
     };
 
-    debug!("launching enqueue uploads task");
-    for path in paths {
-        #[cfg(target_os = "macos")]
-        let path = {
-            let original = path.as_str();
-            let decoded = urlencoding::decode(original).unwrap_or(Cow::from(original));
-            String::from(decoded)
-        };
+    // A share action is one selection, even when it contains several paths.
+    #[cfg(target_os = "macos")]
+    let paths = paths
+        .into_iter()
+        .map(|path| {
+            urlencoding::decode(&path)
+                .unwrap_or(Cow::from(path.as_str()))
+                .into_owned()
+        })
+        .collect();
 
-        let result = enqueue_upload_path(app_handle, path, true);
-
-        if let Err(err) = result {
-            warn!("failed handling share deep-link: {}", err)
-        }
+    if let Err(err) = enqueue_upload_paths(app_handle, paths, true) {
+        warn!("failed handling share deep-link: {}", err);
     }
 }

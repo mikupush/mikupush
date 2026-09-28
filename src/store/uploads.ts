@@ -20,6 +20,7 @@ import { Upload, UploadRequest } from '@/model/upload'
 import { create } from 'zustand'
 
 interface UploadsStoreState {
+  preferenceDialogs: { id: number, paths: string[] | null }[]
   inProgressUploads: UploadRequest[]
   archivedUploads: Upload[]
   activeDropZone: boolean
@@ -27,6 +28,8 @@ interface UploadsStoreState {
 }
 
 interface UploadsStoreActions {
+  queueUploadPreferences(paths?: string[]): void
+  closeUploadPreferences(id: number): void
   setInProgressUploads(uploadsRequests: UploadRequest[]): void
   setArchivedUploads(uploads: Upload[]): void
   showDropZone(show: boolean): void
@@ -35,7 +38,18 @@ interface UploadsStoreActions {
 
 type UploadsStore = UploadsStoreState & UploadsStoreActions
 
+let nextPreferenceDialogId = 0
+
 export const useUploadsStore = create<UploadsStore>((set) => ({
+  preferenceDialogs: [],
+  queueUploadPreferences: (paths) => {
+    set(state => ({ preferenceDialogs: [...state.preferenceDialogs, {
+      id: nextPreferenceDialogId++, paths: paths ? [...paths] : null
+    }] }))
+  },
+  closeUploadPreferences: (id) => {
+    set(state => ({ preferenceDialogs: state.preferenceDialogs.filter(dialog => dialog.id !== id) }))
+  },
   inProgressUploads: [],
   archivedUploads: [],
   activeDropZone: false,

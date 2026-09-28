@@ -37,7 +37,19 @@
       "enqueued": "Waiting in upload queue",
       "compressing": "Compressing folder"
     },
-    "drop": "Drop to upload"
+    "drop": "Drop to upload",
+    "preferences": {
+      "title": "Upload preferences",
+      "security": "Security",
+      "encryption": "End to end encryption",
+      "encryption_description": "Encrypts the file so the server cannot read it. Media previews, such as images and videos, will be disabled.",
+      "automatic_description": "These preferences apply only to the selected files or folders.",
+      "manual_description": "Save defaults for future uploads. Active uploads will keep their preferences.",
+      "start": "Start upload",
+      "save": "Save preferences",
+      "load_error": "Could not load upload preferences. Close the dialog and try again.",
+      "save_error": "Could not complete the action. Please try again."
+    }
   },
   "server": {
     "recent": "Recently used servers",
@@ -151,6 +163,10 @@
       "chunk_size": {
         "label": "Upload chunk size in MB",
         "description": "The recommended value is between 50 and 100 MB, if your network is slow try between 5 and 10 MB. The minimum value is 5 MB and the maximum 1000 MB."
+      },
+      "ask_preferences": {
+        "label": "Ask for upload preferences every time",
+        "description": "Show upload preferences before starting each upload."
       }
     },
     "server": {
