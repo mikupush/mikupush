@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use log::debug;
 use crate::Upload;
+use log::debug;
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use uuid::Uuid;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,10 +47,10 @@ impl Progress {
         Self::new(upload.id, upload.size)
     }
 
-    pub fn update(&mut self, uploaded_bytes: u64) -> Self {
+    pub fn update(&mut self, uploaded_bytes: u64, elapsed: Duration) -> Self {
         self.uploaded_bytes = uploaded_bytes;
         self.progress = self.calculate_progress(uploaded_bytes);
-        self.rate_bytes = self.calculate_rate(uploaded_bytes);
+        self.rate_bytes = self.calculate_rate(uploaded_bytes, elapsed);
         self.clone()
     }
 
@@ -61,19 +62,53 @@ impl Progress {
         }
     }
 
-    fn calculate_rate(&mut self, uploaded_bytes: u64) -> u64 {
+    fn calculate_rate(&mut self, uploaded_bytes: u64, elapsed: Duration) -> u64 {
         debug!("progress uploaded bytes: {}", uploaded_bytes);
         debug!("progress last uploaded bytes: {}", self.last_uploaded_bytes);
-        let initial_last_uploaded_bytes = self.last_uploaded_bytes;
-        let rate_bytes = uploaded_bytes.saturating_sub(self.last_uploaded_bytes);
+        let transferred_bytes = uploaded_bytes.saturating_sub(self.last_uploaded_bytes);
         self.last_uploaded_bytes = uploaded_bytes;
 
-        if initial_last_uploaded_bytes == 0 {
-            debug!("progress rate bytes: 0");
-            return 0;
-        }
+        let rate_bytes = if elapsed.is_zero() {
+            0
+        } else {
+            (transferred_bytes as f64 / elapsed.as_secs_f64()) as u64
+        };
 
         debug!("progress rate bytes: {}", rate_bytes);
         rate_bytes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rate_uses_elapsed_time_including_the_first_measurement() {
+        let mut progress = Progress::new(Uuid::nil(), 20_000);
+
+        assert_eq!(
+            progress.update(6_000, Duration::from_secs(3)).rate_bytes,
+            2_000
+        );
+        assert_eq!(
+            progress
+                .update(11_000, Duration::from_millis(2_500))
+                .rate_bytes,
+            2_000
+        );
+        assert_eq!(
+            progress.update(12_000, Duration::from_secs(2)).rate_bytes,
+            500
+        );
+    }
+
+    #[test]
+    fn rate_handles_zero_elapsed_time_and_non_increasing_bytes() {
+        let mut progress = Progress::new(Uuid::nil(), 20_000);
+
+        assert_eq!(progress.update(1_000, Duration::ZERO).rate_bytes, 0);
+        assert_eq!(progress.update(1_000, Duration::from_secs(1)).rate_bytes, 0);
+        assert_eq!(progress.update(500, Duration::from_secs(1)).rate_bytes, 0);
     }
 }

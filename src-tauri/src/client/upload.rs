@@ -162,13 +162,14 @@ impl UploadContext {
         let uploaded_bytes_now = min(uploaded_bytes + bytes_sent, self.total_size);
         self.uploaded_bytes
             .store(uploaded_bytes_now, std::sync::atomic::Ordering::Release);
-        let elapsed = last_measured_rate.elapsed();
+        let measured_at = Instant::now();
+        let elapsed = measured_at.duration_since(*last_measured_rate);
 
         if elapsed >= Duration::from_secs(1) {
             let mut progress = self.progress.lock().unwrap();
-            let updated_progress = progress.update(uploaded_bytes_now);
+            let updated_progress = progress.update(uploaded_bytes_now, elapsed);
             let _ = self.progress_sender.send(updated_progress);
-            *last_measured_rate = Instant::now();
+            *last_measured_rate = measured_at;
         }
 
         #[cfg(test)]
