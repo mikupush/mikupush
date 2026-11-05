@@ -30,11 +30,15 @@ pub enum ConfigKey {
     StartMinimized,
     UploadInChunks,
     UploadChunkSize,
+    AskUploadPreferences,
+    UploadPreferences,
 }
 
 impl ConfigKey {
     pub fn key(&self) -> String {
         match self {
+            ConfigKey::AskUploadPreferences => "ask_upload_preferences".to_string(),
+            ConfigKey::UploadPreferences => "upload_preferences".to_string(),
             ConfigKey::Theme => "theme".to_string(),
             ConfigKey::Language => "language".to_string(),
             ConfigKey::StartOnSystemStartup => "start_on_system_startup".to_string(),
@@ -46,6 +50,8 @@ impl ConfigKey {
 
     pub fn default_value(&self) -> ConfigValue {
         match self {
+            ConfigKey::AskUploadPreferences => CONFIG_FALSE_VALUE.to_string(),
+            ConfigKey::UploadPreferences => r#"{"encryption":true}"#.to_string(),
             ConfigKey::Theme => Theme::default().to_string(),
             ConfigKey::Language => "en".to_string(),
             ConfigKey::StartOnSystemStartup => CONFIG_FALSE_VALUE.to_string(),
@@ -57,6 +63,8 @@ impl ConfigKey {
 
     pub fn from_string(key: String) -> Option<Self> {
         match key.as_str() {
+            "ask_upload_preferences" => Some(ConfigKey::AskUploadPreferences),
+            "upload_preferences" => Some(ConfigKey::UploadPreferences),
             "theme" => Some(ConfigKey::Theme),
             "language" => Some(ConfigKey::Language),
             "start_on_system_startup" => Some(ConfigKey::StartOnSystemStartup),

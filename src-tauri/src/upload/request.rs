@@ -15,11 +15,31 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{Progress, Upload};
+use crate::cipher;
 use crate::mime_type::detect_mime_type;
 use crate::server::Server;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct UploadPreferences {
+    #[serde(default = "default_encryption")]
+    pub encryption: bool,
+}
+
+fn default_encryption() -> bool {
+    true
+}
+
+impl Default for UploadPreferences {
+    fn default() -> Self {
+        Self {
+            encryption: default_encryption(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +51,8 @@ pub struct UploadRequestError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadRequest {
+    #[serde(default)]
+    pub preferences: UploadPreferences,
     pub progress: Progress,
     pub error: Option<UploadRequestError>,
     pub upload: Upload,
@@ -49,11 +71,24 @@ impl UploadRequest {
         path: String,
         server: Server,
         directory: bool,
+        preferences: UploadPreferences,
     ) -> Self {
+        let encryption_key = preferences.encryption.then(cipher::generate_key);
+
         Self {
+            preferences,
             progress: Progress::new(id, size),
             error: None,
-            upload: Upload::new(id, name, size, mime_type, path, server, directory),
+            upload: Upload::new(
+                id,
+                name,
+                size,
+                mime_type,
+                path,
+                server,
+                directory,
+                encryption_key,
+            ),
             finished: false,
             canceled: false,
             chunked: false,
@@ -118,7 +153,11 @@ impl UploadRequest {
         this
     }
 
-    pub fn from_file_path(path: String, server: Server) -> Result<Self, String> {
+    pub fn from_file_path(
+        path: String,
+        server: Server,
+        preferences: UploadPreferences,
+    ) -> Result<Self, String> {
         let path = Path::new(&path);
         let file_name = path
             .file_name()
@@ -141,10 +180,15 @@ impl UploadRequest {
             path.to_str().unwrap().to_string(),
             server,
             false,
+            preferences,
         ))
     }
 
-    pub fn from_directory_path(path: String, server: Server) -> Result<Self, String> {
+    pub fn from_directory_path(
+        path: String,
+        server: Server,
+        preferences: UploadPreferences,
+    ) -> Result<Self, String> {
         let path = Path::new(&path);
         let directory_name = path
             .file_name()
@@ -160,17 +204,102 @@ impl UploadRequest {
             path.to_str().unwrap().to_string(),
             server,
             true,
+            preferences,
         ))
     }
 
-    pub fn from_path(path: String, server: Server) -> Result<Self, String> {
+    pub fn from_path(
+        path: String,
+        server: Server,
+        preferences: UploadPreferences,
+    ) -> Result<Self, String> {
         let metadata =
             std::fs::metadata(&path).map_err(|e| format!("Failed to get path metadata: {}", e))?;
 
         if metadata.is_dir() {
-            return Self::from_directory_path(path, server);
+            return Self::from_directory_path(path, server, preferences);
         }
 
-        Self::from_file_path(path, server)
+        Self::from_file_path(path, server, preferences)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upload_preferences_are_owned_and_survive_transfer_updates() {
+        let mut defaults = UploadPreferences { encryption: true };
+        let request = UploadRequest::new(
+            Uuid::new_v4(),
+            "test.txt".into(),
+            10,
+            "text/plain".into(),
+            "/tmp/test.txt".into(),
+            Server::test(),
+            false,
+            defaults.clone(),
+        );
+        defaults.encryption = false;
+        assert_ne!(request.preferences, defaults);
+        assert!(request.preferences.encryption);
+        assert_eq!(request.upload.encryption_key.as_ref().unwrap().len(), 64);
+
+        let compressed =
+            request.with_upload_file("/tmp/test.zip".into(), 20, "application/zip".into());
+        let failed = compressed
+            .upload_by_chunks(5)
+            .finish_with_error("test".into(), "test".into());
+        assert!(failed.reset_progress().preferences.encryption);
+        assert_eq!(failed.upload.encryption_key, request.upload.encryption_key);
+
+        let serialized = serde_json::to_string(&request).unwrap();
+        let restored: UploadRequest = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(restored.preferences, request.preferences);
+        assert_eq!(
+            restored.upload.encryption_key,
+            request.upload.encryption_key
+        );
+    }
+
+    #[test]
+    fn request_without_encryption_has_no_key_or_link_fragment() {
+        let request = UploadRequest::new(
+            Uuid::new_v4(),
+            "test.txt".into(),
+            10,
+            "text/plain".into(),
+            "/tmp/test.txt".into(),
+            Server::test(),
+            false,
+            UploadPreferences { encryption: false },
+        );
+
+        assert!(request.upload.encryption_key.is_none());
+        assert!(!request.upload.url.contains('#'));
+        assert_eq!(request.upload.encrypted_size(), request.upload.size);
+    }
+
+    #[test]
+    fn older_requests_and_missing_preference_fields_use_defaults() {
+        let request = UploadRequest::new(
+            Uuid::new_v4(),
+            "test.txt".into(),
+            10,
+            "text/plain".into(),
+            "/tmp/test.txt".into(),
+            Server::test(),
+            false,
+            UploadPreferences::default(),
+        );
+        let mut value = serde_json::to_value(request).unwrap();
+        value.as_object_mut().unwrap().remove("preferences");
+        let restored: UploadRequest = serde_json::from_value(value).unwrap();
+        assert!(restored.preferences.encryption);
+        assert_eq!(
+            serde_json::from_str::<UploadPreferences>("{}").unwrap(),
+            UploadPreferences::default()
+        );
     }
 }

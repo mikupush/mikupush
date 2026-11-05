@@ -204,6 +204,46 @@ mod tests {
         assert_eq!(true, existing.is_none());
     }
 
+    #[test]
+    #[serial]
+    fn upload_preferences_persist_across_configuration_instances() {
+        use crate::config::Configuration;
+        let db = test_database_connection();
+        clean(&mut db.get().unwrap());
+        let configuration = Configuration::new(db.clone());
+        assert_eq!(configuration.get(ConfigKey::AskUploadPreferences), "false");
+        assert_eq!(
+            configuration.get(ConfigKey::UploadPreferences),
+            r#"{"encryption":true}"#
+        );
+        configuration
+            .apply(ConfigKey::AskUploadPreferences, "true".into())
+            .unwrap();
+        configuration
+            .apply(
+                ConfigKey::UploadPreferences,
+                r#"{"encryption":true}"#.into(),
+            )
+            .unwrap();
+        let reloaded = Configuration::new(db.clone());
+        assert_eq!(reloaded.get(ConfigKey::AskUploadPreferences), "true");
+        assert_eq!(
+            reloaded.get(ConfigKey::UploadPreferences),
+            r#"{"encryption":true}"#
+        );
+        reloaded
+            .apply(
+                ConfigKey::UploadPreferences,
+                r#"{"encryption":false}"#.into(),
+            )
+            .unwrap();
+        assert_eq!(
+            configuration.get(ConfigKey::UploadPreferences),
+            r#"{"encryption":false}"#
+        );
+        clean(&mut db.get().unwrap());
+    }
+
     fn insert_test_config(db: &DbPool) -> ConfigKeyValue {
         let mut connection = db.get().unwrap();
         let model: ConfigKeyValue = (ConfigKey::Theme, "system".to_string());

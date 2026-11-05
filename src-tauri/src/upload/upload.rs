@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::cipher;
 use crate::date_time::DateTimeUtc;
 use crate::server::Server;
 use crate::upload::status::Status;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::random;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -30,6 +32,7 @@ pub struct Upload {
     pub mime_type: String,
     pub path: String,
     pub url: String,
+    pub encryption_key: Option<String>,
     pub created_at: DateTimeUtc,
     pub status: Status,
     pub server_id: Uuid,
@@ -45,7 +48,14 @@ impl Upload {
         path: String,
         server: Server,
         directory: bool,
+        encryption_key: Option<String>,
     ) -> Self {
+        let url = format!("{}/u/{}", server.url, id);
+        let url = match &encryption_key {
+            Some(key) => format!("{}#{}", url, URL_SAFE_NO_PAD.encode(key.as_bytes())),
+            None => url,
+        };
+
         Self {
             id,
             name,
@@ -53,11 +63,22 @@ impl Upload {
             mime_type,
             path,
             server_id: server.id,
-            url: format!("{}/u/{}", server.url, id),
+            url,
+            encryption_key,
             created_at: chrono::Utc::now(),
             status: Status::Enqueued,
             directory,
         }
+    }
+
+    /// Returns the file size if there isn't an encryption key, otherwise return the size including
+    /// encryption extra bytes
+    pub fn encrypted_size(&self) -> u64 {
+        if self.encryption_key.is_none() {
+            return self.size;
+        }
+
+        cipher::encrypted_size(self.size)
     }
 
     pub fn test() -> Self {
@@ -69,6 +90,7 @@ impl Upload {
             "/path/to/zip".to_string(),
             Server::test(),
             false,
+            None,
         )
     }
 }

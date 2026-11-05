@@ -37,7 +37,19 @@
       "enqueued": "Esperando turno en la cola de subida",
       "compressing": "Comprimiendo carpeta"
     },
-    "drop": "Suelta para subir"
+    "drop": "Suelta para subir",
+    "preferences": {
+      "title": "Preferencias de subida",
+      "security": "Seguridad",
+      "encryption": "Cifrado de extremo a extremo",
+      "encryption_description": "Cifra el archivo para que el servidor no pueda leerlo. Se desactivará la previsualización de archivos multimedia, como imágenes y vídeos.",
+      "automatic_description": "Estas preferencias solo se aplican a los archivos o carpetas seleccionados.",
+      "manual_description": "Guardar valores por defecto para futuras subidas. Las subidas activas conservarán sus preferencias.",
+      "start": "Iniciar subida",
+      "save": "Guardar preferencias",
+      "load_error": "No se pudieron cargar las preferencias. Cierra el diálogo e inténtalo de nuevo.",
+      "save_error": "No se pudo completar la acción. Inténtalo de nuevo."
+    }
   },
   "server": {
     "recent": "Servidores usados recientemente",
@@ -151,6 +163,10 @@
       "chunk_size": {
         "label": "Tamaño de parte de subida en MB",
         "description": "El valor recomendado está entre 50 y 100 MB; si tu red es lenta, prueba entre 5 y 10 MB. El valor mínimo es 5 MB y el máximo 1000 MB."
+      },
+      "ask_preferences": {
+        "label": "Preguntar las preferencias en cada subida",
+        "description": "Mostrar las preferencias antes de iniciar cada subida."
       }
     },
     "server": {

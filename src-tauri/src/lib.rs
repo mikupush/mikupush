@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod cipher;
 mod client;
 mod config;
 mod database;
@@ -127,6 +128,7 @@ pub fn run() {
             upload::select_folders_to_upload,
             upload::enqueue_upload,
             upload::enqueue_uploads,
+            upload::take_pending_upload_paths,
             upload::retry_upload,
             upload::delete_upload,
             upload::delete_archived_upload,

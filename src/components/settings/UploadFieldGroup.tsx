@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/switch.tsx'
 import { Input } from '@/components/ui/input.tsx'
 import { useConfigField } from '@/hooks/form.ts'
 import {
+  CONFIG_ASK_UPLOAD_PREFERENCES,
   CONFIG_FALSE_VALUE,
   CONFIG_TRUE_VALUE,
   CONFIG_UPLOAD_CHUNK_SIZE,
@@ -30,11 +31,25 @@ import {
 
 export function UploadFieldGroup() {
   const { t } = useTranslation()
+  const [askPreferences, setAskPreferences] = useConfigField(CONFIG_ASK_UPLOAD_PREFERENCES, CONFIG_FALSE_VALUE)
   const [chunkMode, setChunkMode] = useConfigField(CONFIG_UPLOAD_IN_CHUNKS, CONFIG_TRUE_VALUE)
   const [chunkSize, setChunkSize] = useConfigField(CONFIG_UPLOAD_CHUNK_SIZE, '50')
 
   return (
     <FieldGroup>
+      <Field orientation="horizontal">
+        <Switch
+          id="switch-ask-upload-preferences"
+          checked={askPreferences === CONFIG_TRUE_VALUE}
+          onCheckedChange={checked => setAskPreferences(checked ? CONFIG_TRUE_VALUE : CONFIG_FALSE_VALUE)}
+        />
+        <FieldContent>
+          <FieldLabel htmlFor="switch-ask-upload-preferences">
+            {t('settings.upload.ask_preferences.label')}
+          </FieldLabel>
+          <FieldDescription>{t('settings.upload.ask_preferences.description')}</FieldDescription>
+        </FieldContent>
+      </Field>
       <Field orientation="horizontal">
         <Switch
           id="switch-chunk-mode"

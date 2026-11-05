@@ -32,7 +32,12 @@ export interface UploadRequestError {
   message: string
 }
 
+export interface UploadPreferences {
+  encryption: boolean
+}
+
 export interface UploadRequest {
+  preferences: UploadPreferences;
   progress: Progress;
   error?: UploadRequestError;
   upload: Upload;

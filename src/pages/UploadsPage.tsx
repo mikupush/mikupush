@@ -24,6 +24,7 @@ import { selectFiles, selectFolders } from '@/helpers/file.ts'
 import { UploadProgressList } from '@/components/UploadList.tsx'
 import { useUploadsStore } from '@/store/uploads.ts'
 import UploadDropZone from '@/components/UploadDropZone.tsx'
+import { UploadPreferencesButton } from '@/components/UploadPreferencesDialog'
 import LoadingSpinner from '@/components/LoadingSpinner.tsx'
 
 export default function UploadsPage() {
@@ -36,7 +37,10 @@ export default function UploadsPage() {
       {(isLoading) ? (
         <LoadingSpinner size={50} />
       ) : (inProgressUploads.length > 0) ? (
-        <UploadProgressList items={inProgressUploads} />
+        <div className="flex flex-1 flex-col">
+          <div className="flex justify-end px-5 py-2"><UploadPreferencesButton /></div>
+          <UploadProgressList items={inProgressUploads} />
+        </div>
       ) : (
         <EmptyState />
       )}
@@ -63,6 +67,7 @@ function EmptyState() {
           {t('uploads.select_folder')}
         </Button>
       </div>
+      <div className="mt-3"><UploadPreferencesButton /></div>
     </div>
   )
 }

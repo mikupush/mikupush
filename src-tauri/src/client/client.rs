@@ -51,7 +51,7 @@ impl Client {
             "id": upload.id,
             "name": upload.name,
             "mime_type": upload.mime_type,
-            "size": upload.size
+            "size": upload.encrypted_size()
         });
 
         let url = format!("{}/api/file", self.base_url);
@@ -156,7 +156,7 @@ impl Client {
         &self,
         request: &UploadRequest,
         cancellation_token: CancellationToken,
-        sender: Sender<Progress>
+        sender: Sender<Progress>,
     ) -> Result<(), FileUploadError> {
         if request.upload.mime_type.is_empty() {
             return Err(FileUploadError::UnknownMimeType);
@@ -177,7 +177,9 @@ impl Client {
                 request.chunk_size,
                 context,
                 request.upload.clone(),
-            ).execute().await
+            )
+            .execute()
+            .await
         } else {
             debug!(
                 "uploading file {} with size {} as single upload",
@@ -187,8 +189,10 @@ impl Client {
                 self.base_url.clone(),
                 request.upload.clone(),
                 client,
-                context
-            ).execute().await
+                context,
+            )
+            .execute()
+            .await
         }
     }
 

@@ -16,24 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { UploadRequest } from '@/model/upload'
-import { useUploadsStore } from '@/store/uploads'
 import { invoke } from '@tauri-apps/api/core'
+import { requestUploads } from '@/helpers/upload.ts'
+import toast from 'react-hot-toast'
 
 export function selectFiles() {
-  const store = useUploadsStore.getState()
-
-  invoke<UploadRequest[]>('select_files_to_upload')
-    .then((requests) => store.setInProgressUploads(requests))
-    .catch((error) => console.warn('files dialog error', error))
+  invoke<string[]>('select_files_to_upload')
+    .then(requestUploads)
+    .catch(error => toast.error(String(error)))
 }
 
 export function selectFolders() {
-  const store = useUploadsStore.getState()
-
-  invoke<UploadRequest[]>('select_folders_to_upload')
-    .then((requests) => store.setInProgressUploads(requests))
-    .catch((error) => console.warn('folders dialog error', error))
+  invoke<string[]>('select_folders_to_upload')
+    .then(requestUploads)
+    .catch(error => toast.error(String(error)))
 }
 
 export function extractExtension(path: string): string {
