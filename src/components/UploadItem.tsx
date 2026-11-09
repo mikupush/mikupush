@@ -17,7 +17,6 @@
  */
 
 import FileIcon from '@/components/FileIcon'
-import { Large, Small } from '@/components/Typography'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -29,7 +28,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Progress } from '@/components/ui/progress'
 import { extractExtension, uploadDisplayName } from '@/helpers/file'
 import { formatDate, formatRate, formatSizeBytes } from '@/helpers/format'
 import { Upload, UploadRequest } from '@/model/upload'
@@ -38,7 +36,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { LinkIcon, LoaderCircle, RotateCwIcon, TrashIcon, XIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
-import { JSX } from 'react/jsx-runtime'
+import { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 import { cancelUpload, retryUpload } from '@/helpers/upload'
 
 interface UploadItemProps {
@@ -46,13 +45,7 @@ interface UploadItemProps {
 }
 
 export function UploadItem({ item }: UploadItemProps) {
-  return (
-    <UploadItemLayout
-      item={item}
-      body={<FinishedUploadBody item={item}/>}
-      actions={<FinishedUploadActions item={item}/>}
-    />
-  )
+  return <UploadProgressItem item={item} />
 }
 
 interface ArchivedUploadItemProps {
@@ -60,92 +53,66 @@ interface ArchivedUploadItemProps {
 }
 
 export function ArchivedUploadItem({ upload }: ArchivedUploadItemProps) {
-  return (
-    <ArchivedUploadItemLayout
-      upload={upload}
-      body={<ArchivedUploadBody upload={upload}/>}
-      actions={<ArchivedUploadActions upload={upload}/>}
-    />
-  )
+  return <UploadRow upload={upload} actions={<ArchivedUploadActions upload={upload} />} />
 }
 
-interface UploadProgressProps {
-  item: UploadRequest
+export function UploadProgressItem({ item }: UploadItemProps) {
+  return <UploadRow upload={item.upload} item={item} actions={<UploadActions item={item} />} />
 }
 
-export function UploadProgressItem({ item }: UploadProgressProps) {
-  return (
-    <UploadItemLayout
-      item={item}
-      body={<UploadProgressBody item={item}/>}
-      actions={<UploadActions item={item}/>}
-    />
-  )
+interface UploadRowProps {
+  upload: Upload
+  item?: UploadRequest
+  actions: ReactNode
 }
 
-function UploadProgressBody({ item }: UploadItemProps) {
+function UploadRow({ upload, item, actions }: UploadRowProps) {
   const { t } = useTranslation()
-
-  if (item.finished && item.error == null) {
-    return <FinishedUploadBody item={item}/>
-  }
-
-  if (item.finished && item.error != null) {
-    return (
-      <Small className="mt-3 text-red-600 line-clamp-1">
-        {t(`errors.upload.${item.error.code}`, {
-          message: item.error.message
-        })}
-      </Small>
-    )
-  }
-
-  if (item.upload.status === 'enqueued') {
-    return (
-      <Small className="mt-3 line-clamp-1">
-        {t('uploads.status.enqueued')}
-      </Small>
-    )
-  }
-
-  if (item.upload.status === 'compressing') {
-    return (
-      <div className="mt-3 flex items-center gap-2 text-sm leading-none font-medium">
-        <LoaderCircle size={14} className="animate-spin" />
-        {t('uploads.status.compressing')}
-      </div>
-    )
-  }
+  const displayName = uploadDisplayName(upload.name, upload.directory)
+  const failed = item?.error != null || upload.status === 'failed'
+  const canceled = item?.canceled || upload.status === 'aborted'
+  const completed = !failed && !canceled && (item ? item.finished : upload.status === 'completed')
+  const status = canceled ? 'aborted' : failed ? 'failed' : completed ? 'completed' : upload.status
+  const transferring = status === 'inProgress' && !item?.finished
+  const preparing = ['enqueued', 'pending', 'compressing'].includes(status)
+  const fraction = preparing ? 0 : item?.progress.progress ?? 0
+  const percentage = completed ? 100 : Number.isFinite(fraction) ? Math.min(99, Math.max(0, Math.floor(fraction * 100))) : 0
+  const error = item?.error ? t(`errors.upload.${item.error.code}`, { message: item.error.message }) : undefined
 
   return (
-    <>
-      <Progress className="h-3 mt-3" value={item.progress.progress * 100}></Progress>
-      <div className="flex place-content-between mt-3">
-        <Small>{formatRate(item.progress.rateBytes)}</Small>
-        <Small>{formatSizeBytes(item.progress.uploadedBytes)} / {formatSizeBytes(item.upload.size)}</Small>
-      </div>
-    </>
-  )
-}
-
-function FinishedUploadBody({ item }: UploadItemProps) {
-  return (
-    <Small className="mt-3 line-clamp-1">
-      {formatSizeBytes(item.upload.size)} · {formatDate(item.upload.createdAt)}
-    </Small>
-  )
-}
-
-function ArchivedUploadBody({ upload }: ArchivedUploadItemProps) {
-  return (
-    <Small className="mt-3 line-clamp-1">
-      {formatSizeBytes(upload.size)} · {formatDate(upload.createdAt)}
-    </Small>
+    <tr className="transition-colors hover:bg-muted/50">
+      <td className="px-3 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <FileIcon extension={extractExtension(upload.name)} directory={upload.directory} />
+          <span className="truncate font-medium" title={displayName}>{displayName}</span>
+        </div>
+      </td>
+      <td className="px-3 py-4 text-right tabular-nums whitespace-nowrap">{formatSizeBytes(upload.size)}</td>
+      <td className="px-3 py-4 text-right tabular-nums whitespace-nowrap text-muted-foreground">
+        {transferring && item ? formatRate(item.progress.rateBytes) : '—'}
+      </td>
+      <td className="px-3 py-4">
+        <div className={cn('flex items-center gap-2', (failed || canceled) && 'text-destructive', completed && 'text-file-spreadsheet')}>
+          {status === 'compressing' && <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin" />}
+          <span>{t(`uploads.status.${status}`)}</span>
+        </div>
+        {error && <p className="mt-1 text-xs text-destructive break-words">{error}</p>}
+      </td>
+      <td className="px-3 py-4 text-right font-medium tabular-nums">{percentage}%</td>
+      <td className="px-3 py-4 text-xs tabular-nums whitespace-nowrap text-muted-foreground">
+        <time dateTime={upload.createdAt}>{formatDate(upload.createdAt)}</time>
+      </td>
+      <td className="px-2 py-4">
+        <div className="flex items-center justify-end gap-1">{actions}</div>
+      </td>
+    </tr>
   )
 }
 
 function UploadActions({ item }: UploadItemProps) {
-  if (item.finished && item.error == null) {
+  const { t } = useTranslation()
+
+  if (item.finished && item.error == null && !item.canceled && !['failed', 'aborted'].includes(item.upload.status)) {
     return <FinishedUploadActions item={item}/>
   }
 
@@ -154,17 +121,19 @@ function UploadActions({ item }: UploadItemProps) {
       <>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
+          aria-label={t('uploads.actions.retry')}
           onClick={() => retryUpload(item.upload.id)}
         >
           <RotateCwIcon/>
         </Button>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
+          aria-label={t('uploads.actions.cancel')}
           onClick={() => cancelUpload(item.upload.id)}
         >
-          <XIcon color="red"/>
+          <XIcon className="text-destructive"/>
         </Button>
       </>
     )
@@ -174,10 +143,11 @@ function UploadActions({ item }: UploadItemProps) {
     <>
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
+        aria-label={t('uploads.actions.cancel')}
         onClick={() => cancelUpload(item.upload.id)}
       >
-        <XIcon color="red"/>
+        <XIcon className="text-destructive"/>
       </Button>
     </>
   )
@@ -189,13 +159,14 @@ function FinishedUploadActions({ item }: UploadItemProps) {
   return (
     <>
       <Button
+        aria-label={t('uploads.actions.copy_link')}
         onClick={() => {
           invoke('copy_upload_link', { uploadId: item.upload.id })
             .then(() => toast.success(t('uploads.link_copied.success')))
             .catch(() => toast.error(t('uploads.link_copied.error')))
         }}
         variant="ghost"
-        size="icon"
+        size="icon-sm"
       >
         <LinkIcon/>
       </Button>
@@ -210,62 +181,19 @@ function ArchivedUploadActions({ upload }: ArchivedUploadItemProps) {
   return (
     <>
       <Button
+        aria-label={t('uploads.actions.copy_link')}
         onClick={() => {
           invoke('copy_archived_upload_link', { uploadId: upload.id })
             .then(() => toast.success(t('uploads.link_copied.success')))
             .catch(() => toast.error(t('uploads.link_copied.error')))
         }}
         variant="ghost"
-        size="icon"
+        size="icon-sm"
       >
         <LinkIcon/>
       </Button>
       <DeleteArchivedAction upload={upload}/>
     </>
-  )
-}
-
-interface UploadItemLayout extends UploadItemProps {
-  body: JSX.Element
-  actions: JSX.Element
-}
-
-function UploadItemLayout({ body, actions, item }: UploadItemLayout) {
-  const displayName = uploadDisplayName(item.upload.name, item.upload.directory)
-
-  return (
-    <li className="flex py-3 px-5">
-      <FileIcon extension={extractExtension(item.upload.name)} directory={item.upload.directory}/>
-      <div className="flex flex-1 flex-col mx-3">
-        <Large className="line-clamp-1 break-all">{displayName}</Large>
-        {body}
-      </div>
-      <div className="flex items-center space-x-3">
-        {actions}
-      </div>
-    </li>
-  )
-}
-
-interface ArchivedUploadItemLayoutProps extends ArchivedUploadItemProps {
-  body: JSX.Element
-  actions: JSX.Element
-}
-
-function ArchivedUploadItemLayout({ body, actions, upload }: ArchivedUploadItemLayoutProps) {
-  const displayName = uploadDisplayName(upload.name, upload.directory)
-
-  return (
-    <li className="flex py-3 px-5">
-      <FileIcon extension={extractExtension(upload.name)} directory={upload.directory}/>
-      <div className="flex flex-1 flex-col mx-3">
-        <Large className="line-clamp-1 break-all">{displayName}</Large>
-        {body}
-      </div>
-      <div className="flex items-center space-x-3">
-        {actions}
-      </div>
-    </li>
   )
 }
 
@@ -286,8 +214,8 @@ function DeleteAction({ item }: UploadItemProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <TrashIcon color="red"/>
+        <Button variant="ghost" size="icon-sm" aria-label={t('uploads.actions.delete')}>
+          <TrashIcon className="text-destructive"/>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -325,8 +253,8 @@ function DeleteArchivedAction({ upload }: ArchivedUploadItemProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <TrashIcon color="red"/>
+        <Button variant="ghost" size="icon-sm" aria-label={t('uploads.actions.delete')}>
+          <TrashIcon className="text-destructive"/>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

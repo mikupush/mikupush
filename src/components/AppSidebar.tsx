@@ -24,21 +24,26 @@ import {
   SidebarHeader,
   SidebarMenu,
 } from '@/components/ui/sidebar.tsx'
-import { ArchiveIcon, InfoIcon, SettingsIcon, UploadIcon } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { SelectedServerSidebarMenu } from '@/components/SelectedServer.tsx'
-import { platform } from '@tauri-apps/plugin-os'
+import {CircleCheck, InfoIcon, SettingsIcon, UploadIcon} from 'lucide-react'
+import {useTranslation} from 'react-i18next'
+import {SelectedServerSidebarMenu} from '@/components/SelectedServer.tsx'
+import {platform} from '@tauri-apps/plugin-os'
 import SidebarLinkMenuItem from '@/components/SidebarLinkMenuItem.tsx'
 import SidebarButtonMenuItem from '@/components/SidebarButtonMenuItem.tsx'
-import { openAboutWindow } from '@/helpers/open.ts'
+import {openAboutWindow} from '@/helpers/open.ts'
 
 export default function AppSidebar() {
   const { t } = useTranslation()
 
   return (
     <Sidebar variant="sidebar" collapsible="offcanvas">
-      <SidebarHeader className={platform() === 'macos' ? 'mt-10': ''}>
-        <SelectedServerSidebarMenu />
+      <SidebarHeader>
+        <>
+          {platform() === 'macos' && (
+            <div className="h-10" data-tauri-drag-region></div>
+          )}
+          <SelectedServerSidebarMenu />
+        </>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -48,8 +53,8 @@ export default function AppSidebar() {
               <span>{t('sidebar.uploads')}</span>
             </SidebarLinkMenuItem>
             <SidebarLinkMenuItem to="/archived">
-              <ArchiveIcon />
-              <span>{t('sidebar.archived_uploads')}</span>
+              <CircleCheck />
+              <span>{t('sidebar.completed_uploads')}</span>
             </SidebarLinkMenuItem>
           </SidebarMenu>
         </SidebarGroup>

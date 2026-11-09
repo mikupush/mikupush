@@ -33,11 +33,11 @@ export default function UploadsPage() {
   const isLoading = useUploadsStore(state => state.isLoading)
 
   return (
-    <div className="flex flex-1">
+    <div className="flex min-w-0 flex-1">
       {(isLoading) ? (
         <LoadingSpinner size={50} />
       ) : (inProgressUploads.length > 0) ? (
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex justify-end px-5 py-2"><UploadPreferencesButton /></div>
           <UploadProgressList items={inProgressUploads} />
         </div>

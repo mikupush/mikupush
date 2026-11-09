@@ -18,25 +18,52 @@
 
 import { ArchivedUploadItem, UploadProgressItem, UploadItem } from '@/components/UploadItem'
 import { Upload, UploadRequest } from '@/model/upload'
+import { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface UploadListProps {
   items: UploadRequest[]
 }
 
-export default function UploadList({ items }: UploadListProps) {
+function UploadTable({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
+
   return (
-    <ul className="flex-1">
-      {items.map(item => <UploadItem key={item.upload.id} item={item} />)}
-    </ul>
+    <div className="min-w-0 flex-1 px-5">
+      <table className="w-full table-fixed text-sm">
+        <caption className="sr-only">{t('uploads.table.caption')}</caption>
+        <colgroup>
+          <col />
+          <col className="w-24" />
+          <col className="w-28" />
+          <col className="w-40" />
+          <col className="w-24" />
+          <col className="w-36" />
+          <col className="w-20" />
+        </colgroup>
+        <thead className="sticky top-0 z-10 border-b bg-background text-left text-muted-foreground">
+          <tr>
+            <th scope="col" className="px-3 py-4 font-medium">{t('uploads.table.name')}</th>
+            <th scope="col" className="px-3 py-4 text-right font-medium">{t('uploads.table.size')}</th>
+            <th scope="col" className="px-3 py-4 text-right font-medium">{t('uploads.table.speed')}</th>
+            <th scope="col" className="px-3 py-4 font-medium">{t('uploads.table.status')}</th>
+            <th scope="col" className="px-3 py-4 text-right font-medium">{t('uploads.table.progress')}</th>
+            <th scope="col" className="px-3 py-4 font-medium">{t('uploads.table.created_at')}</th>
+            <th scope="col" className="px-3 py-4"><span className="sr-only">{t('uploads.table.actions')}</span></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">{children}</tbody>
+      </table>
+    </div>
   )
 }
 
+export default function UploadList({ items }: UploadListProps) {
+  return <UploadTable>{items.map(item => <UploadItem key={item.upload.id} item={item} />)}</UploadTable>
+}
+
 export function UploadProgressList({ items }: UploadListProps) {
-  return (
-    <ul className="flex-1">
-      {items.map(item => <UploadProgressItem key={item.upload.id} item={item} />)}
-    </ul>
-  )
+  return <UploadTable>{items.map(item => <UploadProgressItem key={item.upload.id} item={item} />)}</UploadTable>
 }
 
 interface ArchivedUploadListProps {
@@ -44,9 +71,5 @@ interface ArchivedUploadListProps {
 }
 
 export function ArchivedUploadList({ items }: ArchivedUploadListProps) {
-  return (
-    <ul className="flex-1">
-      {items.map(item => <ArchivedUploadItem key={item.id} upload={item} />)}
-    </ul>
-  )
+  return <UploadTable>{items.map(item => <ArchivedUploadItem key={item.id} upload={item} />)}</UploadTable>
 }

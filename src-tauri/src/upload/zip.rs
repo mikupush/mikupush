@@ -100,7 +100,10 @@ fn add_path_to_zip(
     if metadata.is_dir() {
         if !name.is_empty() {
             writer
-                .add_directory(name, options.unix_permissions(0o755).large_file(force_zip64))
+                .add_directory(
+                    name,
+                    options.unix_permissions(0o755).large_file(force_zip64),
+                )
                 .map_err(|err| format!("failed to add zip directory entry: {}", err))?;
         }
 

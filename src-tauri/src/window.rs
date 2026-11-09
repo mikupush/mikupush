@@ -27,7 +27,7 @@ pub fn initialize_main_window(app: &AppHandle, hidden: bool) -> WebviewWindow {
     debug!("creating {} window visible: {}", MAIN_WINDOW, !hidden);
     let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
         .title(MAIN_WINDOW_TITLE)
-        .inner_size(800.0, 600.0)
+        .inner_size(1240.0, 720.0)
         .visible(!hidden);
 
     #[cfg(target_os = "windows")]

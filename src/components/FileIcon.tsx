@@ -16,8 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Large } from '@/components/Typography'
-import { FolderIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  File, FileArchive, FileAudio, FileCode, FileImage, FileSpreadsheet,
+  FileText, FileVideo, FolderIcon, HardDrive, Presentation,
+} from 'lucide-react'
 
 interface FileIconProps {
   extension: string
@@ -25,16 +28,22 @@ interface FileIconProps {
   directory?: boolean
 }
 
-export default function FileIcon(props: FileIconProps) {
-  const extension = (props.extension !== '') ? props.extension : '?'
+export default function FileIcon({ extension, directory }: FileIconProps) {
+  const types = [
+    { extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'tif', 'tiff', 'heic'], icon: FileImage, color: 'text-file-image' },
+    { extensions: ['mp4', 'mov', 'mkv', 'webm', 'avi', 'm4v', 'mpeg'], icon: FileVideo, color: 'text-file-video' },
+    { extensions: ['mp3', 'wav', 'flac', 'ogg', 'aac', 'm4a', 'opus', 'aiff'], icon: FileAudio, color: 'text-file-audio' },
+    { extensions: ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz'], icon: FileArchive, color: 'text-file-archive' },
+    { extensions: ['pdf'], icon: FileText, color: 'text-destructive' },
+    { extensions: ['doc', 'docx', 'odt', 'txt', 'md', 'rtf'], icon: FileText, color: 'text-file-image' },
+    { extensions: ['xls', 'xlsx', 'ods', 'csv'], icon: FileSpreadsheet, color: 'text-file-spreadsheet' },
+    { extensions: ['ppt', 'pptx', 'odp'], icon: Presentation, color: 'text-file-archive' },
+    { extensions: ['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'rs', 'py', 'java', 'json', 'yaml', 'yml', 'sh', 'toml', 'xml'], icon: FileCode, color: 'text-file-audio' },
+    { extensions: ['dmg', 'iso', 'img'], icon: HardDrive, color: 'text-muted-foreground' },
+  ]
+  const type = types.find(type => type.extensions.includes(extension.toLowerCase().replace(/^\./, '')))
+  const Icon = directory ? FolderIcon : type?.icon ?? File
+  const color = directory ? 'text-file-archive' : type?.color ?? 'text-muted-foreground'
 
-	return (
-    <div className="flex items-center justify-center rounded-xl bg-accent shadow-xs border w-[80px] h-[80px]">
-      {props.directory ? (
-        <FolderIcon className="text-accent-foreground" size={36} />
-      ) : (
-        <Large className="text-accent-foreground uppercase">{extension}</Large>
-      )}
-    </div>
-  )
+  return <Icon aria-hidden="true" className={cn('size-9 shrink-0', color)} strokeWidth={1.5} />
 }

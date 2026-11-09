@@ -20,7 +20,7 @@ import { Route, Routes } from 'react-router'
 import DefaultLayout from '@/layout/DefaultLayout.tsx'
 import UploadsPage from '@/pages/UploadsPage.tsx'
 import SettingsPage from '@/pages/SettingsPage.tsx'
-import ArchivedUploadsPage from '@/pages/ArchivedUploadsPage.tsx'
+import CompletedUploadsPage from '@/pages/CompletedUploadsPage.tsx'
 import ServerListPage from '@/pages/ServerListPage.tsx'
 import ServerEditPage from '@/pages/ServerEditPage.tsx'
 import ServerAddPage from '@/pages/ServerAddPage.tsx'
@@ -31,7 +31,7 @@ export default function Router() {
       <Route element={<DefaultLayout />}>
         <Route index element={<UploadsPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="archived" element={<ArchivedUploadsPage />} />
+        <Route path="archived" element={<CompletedUploadsPage />} />
         <Route path="servers" element={<ServerListPage />} />
         <Route path="servers/add" element={<ServerAddPage />} />
         <Route path="servers/:id/edit" element={<ServerEditPage />} />

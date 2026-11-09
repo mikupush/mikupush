@@ -19,7 +19,7 @@
   },
   "uploads": {
     "empty_state": "Parece que aún no has compartido ningún archivo o carpeta.\nNo pasa nada, solo tienes que arrastrar y soltar para compartir. O, si lo prefieres, selecciona algo para empezar.",
-    "archived_empty_state": "No hay subidas archivadas para este servidor.",
+    "completed_empty_state": "No hay subidas completadas para este servidor.",
     "select_file": "Seleccionar un archivo",
     "select_folder": "Seleccionar carpeta",
     "link_copied": {
@@ -35,7 +35,12 @@
     },
     "status": {
       "enqueued": "Esperando turno en la cola de subida",
-      "compressing": "Comprimiendo carpeta"
+      "compressing": "Comprimiendo carpeta",
+      "pending": "Preparando subida",
+      "inProgress": "Subiendo",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "aborted": "Cancelada"
     },
     "drop": "Suelta para subir",
     "preferences": {
@@ -49,6 +54,22 @@
       "save": "Guardar preferencias",
       "load_error": "No se pudieron cargar las preferencias. Cierra el diálogo e inténtalo de nuevo.",
       "save_error": "No se pudo completar la acción. Inténtalo de nuevo."
+    },
+    "table": {
+      "caption": "Subidas",
+      "name": "Nombre",
+      "size": "Tamaño",
+      "speed": "Velocidad",
+      "status": "Estado",
+      "progress": "Progreso",
+      "created_at": "Creación",
+      "actions": "Acciones"
+    },
+    "actions": {
+      "retry": "Reintentar subida",
+      "cancel": "Cancelar subida",
+      "copy_link": "Copiar enlace",
+      "delete": "Eliminar subida"
     }
   },
   "server": {
@@ -121,7 +142,7 @@
   },
   "sidebar": {
     "uploads": "Subiendo ahora",
-    "archived_uploads": "Subidas archivadas",
+    "completed_uploads": "Subidas completadas",
     "about": "Acerca de",
     "settings": "Ajustes"
   },
