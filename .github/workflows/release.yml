@@ -37,7 +37,7 @@ jobs:
           version=$(cat VERSION)
           {
             echo 'body<<CHANGELOG_EOF'
-            cat "changelog/v${version}.md"
+            cat "changelogs/v${version}.md"
             printf '\nCHANGELOG_EOF\n'
           } >> "$GITHUB_OUTPUT"
 
