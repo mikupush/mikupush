@@ -52,6 +52,11 @@
 }
 
 :root {
+  --file-image: #2563eb;
+  --file-video: #be185d;
+  --file-audio: #7c3aed;
+  --file-archive: #a16207;
+  --file-spreadsheet: #15803d;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -124,11 +129,16 @@ html, body {
 .content {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  overflow-y: scroll;
+  flex: 1;
+  overflow: auto;
 }
 
 @theme inline {
+  --color-file-image: var(--file-image);
+  --color-file-video: var(--file-video);
+  --color-file-audio: var(--file-audio);
+  --color-file-archive: var(--file-archive);
+  --color-file-spreadsheet: var(--file-spreadsheet);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -167,6 +177,11 @@ html, body {
 }
 
 .dark {
+  --file-image: #93c5fd;
+  --file-video: #f9a8d4;
+  --file-audio: #c4b5fd;
+  --file-archive: #fcd34d;
+  --file-spreadsheet: #86efac;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

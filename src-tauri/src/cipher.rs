@@ -16,10 +16,10 @@
 
 use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+use log::debug;
 use rand::RngCore;
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
-use log::debug;
 
 pub const ENCRYPTION_BLOCK_SIZE: usize = 8 * 1024 * 1024;
 pub const NONCE_SIZE: usize = 12;
@@ -79,7 +79,11 @@ impl Cipher {
         block.extend_from_slice(&nonce);
         block.extend_from_slice(&encrypted);
 
-        debug!("encrypted {} bytes in {:?}", encrypted.len(), start.elapsed());
+        debug!(
+            "encrypted {} bytes in {:?}",
+            encrypted.len(),
+            start.elapsed()
+        );
         Ok(block)
     }
 }

@@ -26,7 +26,7 @@ import { ArchiveIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export default function ArchivedUploadsPage() {
+export default function CompletedUploadsPage() {
   const { current } = useServerConnector()
   const archivedUploads = useUploadsStore(state => state.archivedUploads)
   const setArchivedUploads = useUploadsStore(state => state.setArchivedUploads)
@@ -49,7 +49,7 @@ export default function ArchivedUploadsPage() {
   }, [ current.id, setArchivedUploads ])
 
   return (
-    <div className="flex flex-1">
+    <div className="flex min-w-0 flex-1">
       {(isLoading) ? (
         <LoadingSpinner size={50} />
       ) : (archivedUploads.length > 0) ? (
@@ -67,7 +67,7 @@ function EmptyState() {
   return (
     <div className="flex flex-1 flex-col justify-center items-center px-20">
       <ArchiveIcon width={60} height={60} />
-      <Paragraph className="text-center">{t('uploads.archived_empty_state')}</Paragraph>
+      <Paragraph className="text-center">{t('uploads.completed_empty_state')}</Paragraph>
     </div>
   )
 }

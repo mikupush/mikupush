@@ -67,7 +67,11 @@ pub fn detect_mime_type_by_content(path: PathBuf) -> Result<String, MimeTypeDete
         MimeTypeDetectError::DetectError(err.to_string())
     })?;
 
-    debug!("resolved mime-type: {:?} in {:?}", path_str, start.elapsed());
+    debug!(
+        "resolved mime-type: {:?} in {:?}",
+        path_str,
+        start.elapsed()
+    );
     Ok(mime_type.mime().to_string())
 }
 
@@ -76,12 +80,18 @@ pub fn detect_mime_type_by_extension(path: PathBuf) -> Result<String, MimeTypeDe
     let mime_type = from_path(&path)
         .first()
         .map(|mime_type| mime_type.essence_str().to_string())
-        .ok_or_else(|| MimeTypeDetectError::DetectError(format!(
-            "failed to detect mime type by contents or extension for path {}",
-            path.display(),
-        )));
+        .ok_or_else(|| {
+            MimeTypeDetectError::DetectError(format!(
+                "failed to detect mime type by contents or extension for path {}",
+                path.display(),
+            ))
+        });
 
-    debug!("resolved from extension mime-type: {:?} in {:?}", mime_type, start.elapsed());
+    debug!(
+        "resolved from extension mime-type: {:?} in {:?}",
+        mime_type,
+        start.elapsed()
+    );
     mime_type
 }
 
@@ -103,11 +113,14 @@ pub fn detect_mime_type(path: PathBuf) -> Result<String, MimeTypeDetectError> {
 
     let size = stats.len();
     if size > MAX_FILE_SIZE {
-        debug!("file {} is too large, detecting mime type by its extension", path.display());
+        debug!(
+            "file {} is too large, detecting mime type by its extension",
+            path.display()
+        );
         let mime_type = detect_mime_type_by_extension(path.to_path_buf())
             .unwrap_or(FALLBACK_MIME_TYPE.to_string());
 
-        return Ok(mime_type)
+        return Ok(mime_type);
     }
 
     let mime_type = match detect_mime_type_by_content(path.to_path_buf()) {
