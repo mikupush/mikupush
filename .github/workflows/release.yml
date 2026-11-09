@@ -30,6 +30,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read release changelog
+        id: changelog
+        shell: bash
+        run: |
+          version=$(cat VERSION)
+          {
+            echo 'body<<CHANGELOG_EOF'
+            cat "changelog/v${version}.md"
+            printf '\nCHANGELOG_EOF\n'
+          } >> "$GITHUB_OUTPUT"
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
@@ -125,6 +136,7 @@ jobs:
         with:
           tagName: __VERSION__
           releaseName: v__VERSION__
+          releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
