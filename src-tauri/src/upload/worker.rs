@@ -228,8 +228,9 @@ fn complete_upload(app_handle: &AppHandle, upload_id: String, always_notify: boo
     let mut request = request.unwrap();
     request.upload.status = Status::Completed;
     request = request.finish();
-    state.update_request(request.clone());
+    // Persist before making the finished request available for deletion.
     persist_completed_upload(app_handle, &request);
+    state.update_request(request.clone());
 
     emit_uploads_changed_event(app_handle, state.get_all_in_progress());
 

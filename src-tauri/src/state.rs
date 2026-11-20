@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::client::Client;
 use crate::server::Server;
 use crate::upload::UploadRequest;
 use log::warn;
@@ -148,9 +147,5 @@ impl SelectedServerState {
 
     pub fn current_server(&self) -> Server {
         self.server.lock().unwrap().clone()
-    }
-
-    pub fn client(&self) -> Client {
-        Client::new(self.current_server())
     }
 }

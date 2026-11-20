@@ -51,11 +51,7 @@ impl Upload {
         directory: bool,
         encryption_key: Option<String>,
     ) -> Self {
-        let url = format!("{}/u/{}", server.url, id);
-        let url = match &encryption_key {
-            Some(key) => format!("{}#{}", url, URL_SAFE_NO_PAD.encode(key.as_bytes())),
-            None => url,
-        };
+        let url = Self::share_url(&server, id, encryption_key.as_deref());
 
         Self {
             id,
@@ -70,6 +66,19 @@ impl Upload {
             status: Status::Enqueued,
             last_status_updated: None,
             directory,
+        }
+    }
+
+    pub(super) fn set_server(&mut self, server: &Server) {
+        self.server_id = server.id;
+        self.url = Self::share_url(server, self.id, self.encryption_key.as_deref());
+    }
+
+    fn share_url(server: &Server, id: Uuid, encryption_key: Option<&str>) -> String {
+        let url = format!("{}/u/{}", server.url, id);
+        match encryption_key {
+            Some(key) => format!("{}#{}", url, URL_SAFE_NO_PAD.encode(key.as_bytes())),
+            None => url,
         }
     }
 
@@ -94,5 +103,30 @@ impl Upload {
             false,
             None,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn changing_server_updates_the_share_url_and_preserves_the_key() {
+        let mut upload = Upload::new(
+            Uuid::new_v4(),
+            "test.txt".into(),
+            10,
+            "text/plain".into(),
+            "/tmp/test.txt".into(),
+            Server::test(),
+            false,
+            Some("abcd".into()),
+        );
+        let server = Server::new_from_url("https://new-server.example".into()).unwrap();
+        let expected_url = format!("https://new-server.example/u/{}#YWJjZA", upload.id);
+
+        upload.set_server(&server);
+
+        assert_eq!((upload.server_id, upload.url), (server.id, expected_url));
     }
 }

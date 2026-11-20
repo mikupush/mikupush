@@ -19,6 +19,7 @@ use super::helpers::copy_upload_link_to_clipboard;
 use super::queue::remove_upload_job;
 use crate::AppContext;
 use crate::client::{Client, FileDeleteError, FileInfoError};
+use crate::database::DbError;
 use crate::events::ARCHIVED_UPLOADS_CHANGED_EVENT;
 use crate::server::ServerRepository;
 use crate::state::{SelectedServerState, UploadsState};
@@ -94,19 +95,42 @@ pub async fn retry_upload(
 
 #[tauri::command]
 pub async fn delete_upload(
-    server_state: State<'_, SelectedServerState>,
+    app_handle: AppHandle,
+    app_context: State<'_, AppContext>,
     uploads_state: State<'_, UploadsState>,
     upload_id: String,
 ) -> Result<Vec<UploadRequest>, String> {
-    debug!("deleting upload with id {}", upload_id.clone());
+    debug!("deleting current upload with id {upload_id}");
 
-    let id = Uuid::parse_str(upload_id.as_str()).map_err(|err| err.to_string())?;
-    let client = server_state.client();
-    client.delete(id).await.map_err(|err| err.to_string())?;
-    let uploads = uploads_state.delete_request(upload_id.clone());
+    let id = Uuid::parse_str(&upload_id).map_err(|err| err.to_string())?;
+    let request = uploads_state
+        .get_request(upload_id.clone())
+        .filter(|request| request.finished && !request.canceled && request.error.is_none())
+        .ok_or_else(|| t!("errors.upload.not_found").to_string())?;
+    let server_id = request.upload.server_id;
+    let pool = app_context
+        .db_connection
+        .get()
+        .cloned()
+        .ok_or_else(|| "database connection is not initialized".to_string())?;
 
-    debug!("deleted upload with id {}", upload_id.clone());
-    Ok(uploads)
+    let read_pool = pool.clone();
+    let server = spawn_blocking(move || ServerRepository::new(read_pool).find_by_id(server_id))
+        .await
+        .map_err(|err| err.to_string())?
+        .map_err(|err| err.to_string())?
+        .ok_or_else(|| format!("server {server_id} not found"))?;
+    delete_remote_upload(&Client::new(server), id).await?;
+
+    spawn_blocking(move || {
+        delete_local_upload(&app_handle, &UploadRepository::new(pool), id, server_id)
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(|err| err.to_string())?;
+
+    debug!("deleted current upload with id {upload_id}");
+    Ok(uploads_state.delete_request(upload_id))
 }
 
 #[tauri::command]
@@ -139,31 +163,41 @@ pub async fn delete_archived_upload(
     .map_err(|err| err.to_string())??;
 
     let server_id = server.id;
-    let client = Client::new(server);
-
-    match client.info(id).await {
-        Ok(_) => match client.delete(id).await {
-            Ok(()) | Err(FileDeleteError::NotExists { .. }) => {}
-            Err(error) => return Err(error.to_string()),
-        },
-        Err(FileInfoError::NotExists { .. }) => {
-            debug!("archived upload {id} is already absent from server {server_id}");
-        }
-        Err(error) => return Err(error.to_string()),
-    }
+    delete_remote_upload(&Client::new(server), id).await?;
 
     spawn_blocking(move || {
         let repository = UploadRepository::new(pool);
-        repository.delete(id)?;
-        if let Err(error) = app_handle.emit(ARCHIVED_UPLOADS_CHANGED_EVENT, &server_id) {
-            warn!("could not notify the upload history about deletion: {error}");
-        }
+        delete_local_upload(&app_handle, &repository, id, server_id)?;
         debug!("deleted archived upload with id {upload_id}");
         repository.find_by_server_id(server_id.to_string())
     })
     .await
     .map_err(|err| err.to_string())?
     .map_err(|err| err.to_string())
+}
+
+async fn delete_remote_upload(client: &Client, id: Uuid) -> Result<(), String> {
+    match client.info(id).await {
+        Ok(_) => match client.delete(id).await {
+            Ok(()) | Err(FileDeleteError::NotExists { .. }) => Ok(()),
+            Err(error) => Err(error.to_string()),
+        },
+        Err(FileInfoError::NotExists { .. }) => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn delete_local_upload(
+    app_handle: &AppHandle,
+    repository: &UploadRepository,
+    id: Uuid,
+    server_id: Uuid,
+) -> Result<(), DbError> {
+    repository.delete(id)?;
+    if let Err(error) = app_handle.emit(ARCHIVED_UPLOADS_CHANGED_EVENT, server_id) {
+        warn!("could not notify the upload history about deletion: {error}");
+    }
+    Ok(())
 }
 
 #[tauri::command]

@@ -151,12 +151,13 @@ pub fn enqueue_upload_retry(
         return Ok(());
     }
 
-    let upload_request = upload_request.unwrap();
-    let upload_request = upload_request.reset_progress();
+    let server = server_state.current_server();
+    let mut upload_request = upload_request.unwrap().reset_progress();
+    upload_request.upload.set_server(&server);
     update_upload_request_and_emit(app_handle, upload_request.clone());
     enqueue_upload_job(UploadQueueJob {
         request: upload_request,
-        server: server_state.current_server(),
+        server,
         always_notify: false,
         retry: true,
     })?;
