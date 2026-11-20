@@ -71,7 +71,7 @@ function UploadRow({ upload, item, actions }: UploadRowProps) {
   const displayName = uploadDisplayName(upload.name, upload.directory)
   const failed = item?.error != null || upload.status === 'failed'
   const canceled = item?.canceled || upload.status === 'aborted'
-  const completed = !failed && !canceled && (item ? item.finished : upload.status === 'completed')
+  const completed = !failed && !canceled && item?.finished
   const status = canceled ? 'aborted' : failed ? 'failed' : completed ? 'completed' : upload.status
   const transferring = status === 'inProgress' && !item?.finished
   const preparing = ['enqueued', 'pending', 'compressing'].includes(status)
@@ -87,19 +87,26 @@ function UploadRow({ upload, item, actions }: UploadRowProps) {
           <span className="truncate font-medium" title={displayName}>{displayName}</span>
         </div>
       </td>
-      <td className="px-3 py-4 text-right tabular-nums whitespace-nowrap">{formatSizeBytes(upload.size)}</td>
-      <td className="px-3 py-4 text-right tabular-nums whitespace-nowrap text-muted-foreground">
-        {transferring && item ? formatRate(item.progress.rateBytes) : '—'}
-      </td>
-      <td className="px-3 py-4">
-        <div className={cn('flex items-center gap-2', (failed || canceled) && 'text-destructive', completed && 'text-file-spreadsheet')}>
-          {status === 'compressing' && <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin" />}
-          <span>{t(`uploads.status.${status}`)}</span>
-        </div>
-        {error && <p className="mt-1 text-xs text-destructive break-words">{error}</p>}
-      </td>
-      <td className="px-3 py-4 text-right font-medium tabular-nums">{percentage}%</td>
-      <td className="px-3 py-4 text-xs tabular-nums whitespace-nowrap text-muted-foreground">
+      <td data-column="size" className="px-3 py-4 text-right tabular-nums whitespace-nowrap">{formatSizeBytes(upload.size)}</td>
+      {item && (
+        <>
+          <td data-column="speed" className="px-3 py-4 text-right tabular-nums whitespace-nowrap text-muted-foreground">
+            {transferring ? formatRate(item.progress.rateBytes) : '—'}
+          </td>
+          <td className="px-3 py-4">
+            <div className={cn('flex items-center gap-2', (failed || canceled) && 'text-destructive', completed && 'text-file-spreadsheet')}>
+              {status === 'compressing' && <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin" />}
+              <span>
+                {t(`uploads.status.${status}`)}
+                <span className="upload-inline-progress whitespace-nowrap tabular-nums"> · {percentage}%</span>
+              </span>
+            </div>
+            {error && <p className="mt-1 text-xs text-destructive break-words">{error}</p>}
+          </td>
+          <td data-column="progress" className="px-3 py-4 text-right font-medium tabular-nums">{percentage}%</td>
+        </>
+      )}
+      <td data-column="created-at" className="px-3 py-4 text-xs tabular-nums whitespace-nowrap text-muted-foreground">
         <time dateTime={upload.createdAt}>{formatDate(upload.createdAt)}</time>
       </td>
       <td className="px-2 py-4">

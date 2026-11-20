@@ -35,7 +35,7 @@ export default function AppTitleBar() {
 
   return (
     <div className="flex place-content-between" data-tauri-drag-region={isDragArea}>
-      <div className={`flex items-center space-x-3 ${leftSafeArea} ${margin}`}>
+      <div className={`flex min-w-0 items-center gap-3 ${leftSafeArea} ${margin}`}>
         <Button variant="outline" size="icon" hidden={true}>
           <SidebarOpenIcon/>
         </Button>
@@ -88,7 +88,7 @@ export function WindowControls() {
     <>
       {(platform() === 'windows') && (
         <div
-          className="flex items-center justify-between h-8 select-none"
+          className="flex shrink-0 items-center justify-between h-8 select-none"
           style={{ fontFamily: 'Segoe UI, sans-serif' }}
           data-tauri-drag-region
         >

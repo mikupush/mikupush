@@ -73,9 +73,9 @@ export function SelectedServerDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost">
-          <ServerIcon className="size-full" icon={current.icon} />
-          <Small>{name}</Small>
+        <Button variant="ghost" className="min-w-0 shrink" title={name}>
+          <ServerIcon className="size-4 shrink-0" icon={current.icon} />
+          <Small className="truncate">{name}</Small>
           <ChevronsUpDown className="ml-auto" />
         </Button>
       </DropdownMenuTrigger>

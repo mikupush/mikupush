@@ -36,6 +36,7 @@ describe('upload tables', () => {
     expect(within(table).getAllByRole('columnheader')).toHaveLength(7)
     expect(within(table).getAllByRole('cell')).toHaveLength(7)
     expect(screen.getByText('42%')).toBeTruthy()
+    expect(screen.getByText('· 42%').closest('td')?.textContent).toBe('uploads.status.inProgress · 42%')
     expect(screen.getByText('1 KB/s')).toBeTruthy()
     expect(screen.queryByRole('progressbar')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'uploads.actions.cancel' }))
@@ -74,7 +75,15 @@ describe('upload tables', () => {
     const item = request({ finished: true })
     item.upload.status = 'completed'
     render(archived ? <ArchivedUploadList items={[item.upload]} /> : <UploadProgressList items={[item]} />)
-    expect(screen.getByText('100%')).toBeTruthy()
+    if (archived) {
+      const table = screen.getByRole('table')
+      expect(within(table).getAllByRole('columnheader').map(header => header.textContent)).toEqual([
+        'uploads.table.name', 'uploads.table.size', 'uploads.table.created_at', 'uploads.table.actions',
+      ])
+      expect(within(table).getAllByRole('cell')).toHaveLength(4)
+    } else {
+      expect(screen.getByText('100%')).toBeTruthy()
+    }
     fireEvent.click(screen.getByRole('button', { name: 'uploads.actions.copy_link' }))
     expect(invoke).toHaveBeenCalledWith(archived ? 'copy_archived_upload_link' : 'copy_upload_link', { uploadId: 'upload-1' })
     fireEvent.click(screen.getByRole('button', { name: 'uploads.actions.delete' }))

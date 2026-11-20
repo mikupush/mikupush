@@ -133,6 +133,43 @@ html, body {
   overflow: auto;
 }
 
+@container uploads (width < 960px) {
+  .upload-table [data-column="speed"] {
+    display: none;
+  }
+}
+
+@container uploads (width < 840px) {
+  .upload-table[data-archived="false"] [data-column="created-at"] {
+    display: none;
+  }
+}
+
+@container uploads (width < 680px) {
+  .upload-table[data-archived="false"] [data-column="size"] {
+    display: none;
+  }
+}
+
+@container uploads (width < 580px) {
+  .upload-table [data-column="progress"],
+  .upload-table[data-archived="true"] [data-column="created-at"] {
+    display: none;
+  }
+}
+
+@container uploads (width >= 580px) {
+  .upload-table .upload-inline-progress {
+    display: none;
+  }
+}
+
+@container uploads (width < 500px) {
+  .upload-table[data-archived="true"] [data-column="size"] {
+    display: none;
+  }
+}
+
 @theme inline {
   --color-file-image: var(--file-image);
   --color-file-video: var(--file-video);

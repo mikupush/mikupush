@@ -28,6 +28,7 @@ pub fn initialize_main_window(app: &AppHandle, hidden: bool) -> WebviewWindow {
     let win_builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
         .title(MAIN_WINDOW_TITLE)
         .inner_size(1240.0, 720.0)
+        .min_inner_size(480.0, 400.0)
         .visible(!hidden);
 
     #[cfg(target_os = "windows")]

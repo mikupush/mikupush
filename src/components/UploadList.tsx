@@ -25,31 +25,26 @@ interface UploadListProps {
   items: UploadRequest[]
 }
 
-function UploadTable({ children }: { children: ReactNode }) {
+function UploadTable({ children, archived = false }: { children: ReactNode; archived?: boolean }) {
   const { t } = useTranslation()
 
   return (
-    <div className="min-w-0 flex-1 px-5">
-      <table className="w-full table-fixed text-sm">
+    <div className="@container/uploads min-w-0 flex-1 px-5">
+      <table className="upload-table w-full table-fixed text-sm" data-archived={archived}>
         <caption className="sr-only">{t('uploads.table.caption')}</caption>
-        <colgroup>
-          <col />
-          <col className="w-24" />
-          <col className="w-28" />
-          <col className="w-40" />
-          <col className="w-24" />
-          <col className="w-36" />
-          <col className="w-20" />
-        </colgroup>
         <thead className="sticky top-0 z-10 border-b bg-background text-left text-muted-foreground">
           <tr>
             <th scope="col" className="px-3 py-4 font-medium">{t('uploads.table.name')}</th>
-            <th scope="col" className="px-3 py-4 text-right font-medium">{t('uploads.table.size')}</th>
-            <th scope="col" className="px-3 py-4 text-right font-medium">{t('uploads.table.speed')}</th>
-            <th scope="col" className="px-3 py-4 font-medium">{t('uploads.table.status')}</th>
-            <th scope="col" className="px-3 py-4 text-right font-medium">{t('uploads.table.progress')}</th>
-            <th scope="col" className="px-3 py-4 font-medium">{t('uploads.table.created_at')}</th>
-            <th scope="col" className="px-3 py-4"><span className="sr-only">{t('uploads.table.actions')}</span></th>
+            <th scope="col" data-column="size" className="w-24 px-3 py-4 text-right font-medium">{t('uploads.table.size')}</th>
+            {!archived && (
+              <>
+                <th scope="col" data-column="speed" className="w-28 px-3 py-4 text-right font-medium">{t('uploads.table.speed')}</th>
+                <th scope="col" className="w-40 px-3 py-4 font-medium">{t('uploads.table.status')}</th>
+                <th scope="col" data-column="progress" className="w-24 px-3 py-4 text-right font-medium">{t('uploads.table.progress')}</th>
+              </>
+            )}
+            <th scope="col" data-column="created-at" className="w-36 px-3 py-4 font-medium">{t('uploads.table.created_at')}</th>
+            <th scope="col" className="w-20 px-3 py-4"><span className="sr-only">{t('uploads.table.actions')}</span></th>
           </tr>
         </thead>
         <tbody className="divide-y">{children}</tbody>
@@ -71,5 +66,5 @@ interface ArchivedUploadListProps {
 }
 
 export function ArchivedUploadList({ items }: ArchivedUploadListProps) {
-  return <UploadTable>{items.map(item => <ArchivedUploadItem key={item.id} upload={item} />)}</UploadTable>
+  return <UploadTable archived>{items.map(item => <ArchivedUploadItem key={item.id} upload={item} />)}</UploadTable>
 }
