@@ -35,6 +35,7 @@ pub struct Upload {
     pub encryption_key: Option<String>,
     pub created_at: DateTimeUtc,
     pub status: Status,
+    pub last_status_updated: Option<DateTimeUtc>,
     pub server_id: Uuid,
     pub directory: bool,
 }
@@ -67,6 +68,7 @@ impl Upload {
             encryption_key,
             created_at: chrono::Utc::now(),
             status: Status::Enqueued,
+            last_status_updated: None,
             directory,
         }
     }

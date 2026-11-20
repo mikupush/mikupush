@@ -25,6 +25,8 @@ pub enum Status {
     Compressing,
     InProgress,
     Completed,
+    Expired,
+    Deleted,
     Failed,
     Aborted,
 }
@@ -37,6 +39,8 @@ impl Display for Status {
             Status::Compressing => "compressing".to_string(),
             Status::InProgress => "inProgress".to_string(),
             Status::Completed => "completed".to_string(),
+            Status::Expired => "expired".to_string(),
+            Status::Deleted => "deleted".to_string(),
             Status::Failed => "failed".to_string(),
             Status::Aborted => "aborted".to_string(),
         };
@@ -52,6 +56,8 @@ impl From<String> for Status {
             "compressing" => Status::Compressing,
             "inProgress" => Status::InProgress,
             "completed" => Status::Completed,
+            "expired" => Status::Expired,
+            "deleted" => Status::Deleted,
             "failed" => Status::Failed,
             "aborted" => Status::Aborted,
             _ => Status::Failed,

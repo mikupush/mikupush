@@ -15,3 +15,4 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub const UPLOADS_CHANGED_EVENT: &str = "uploads-changed";
+pub const ARCHIVED_UPLOADS_CHANGED_EVENT: &str = "archived-uploads-changed";

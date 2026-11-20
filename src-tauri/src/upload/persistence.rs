@@ -17,6 +17,7 @@
 use crate::database::{DbError, DbPool};
 use crate::schema::uploads as uploads_table;
 use crate::upload::Upload;
+use crate::upload::status::Status;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use uuid::Uuid;
@@ -36,6 +37,7 @@ pub struct UploadModel {
     pub created_at: NaiveDateTime,
     pub status: String,
     pub directory: bool,
+    pub last_status_updated: Option<NaiveDateTime>,
 }
 
 impl TryFrom<UploadModel> for Upload {
@@ -52,6 +54,7 @@ impl TryFrom<UploadModel> for Upload {
             encryption_key: model.encryption_key,
             created_at: model.created_at.and_utc(),
             status: model.status.into(),
+            last_status_updated: model.last_status_updated.map(|date| date.and_utc()),
             server_id: Uuid::parse_str(model.server_id.as_str())?,
             directory: model.directory,
         })
@@ -70,6 +73,7 @@ impl From<Upload> for UploadModel {
             encryption_key: model.encryption_key,
             created_at: model.created_at.naive_utc(),
             status: model.status.to_string(),
+            last_status_updated: model.last_status_updated.map(|date| date.naive_utc()),
             server_id: model.server_id.to_string(),
             directory: model.directory,
         }
@@ -106,7 +110,7 @@ impl UploadRepository {
         let mut connection = self.connection_pool.get()?;
         let entities = uploads_table::table
             .filter(uploads_table::server_id.eq(server_id))
-            .order(uploads_table::created_at.desc())
+            .order((uploads_table::created_at.desc(), uploads_table::id.desc()))
             .select(UploadModel::as_select())
             .load::<UploadModel>(&mut connection)?;
 
@@ -129,6 +133,55 @@ impl UploadRepository {
         let entity = entity.map(|entity| entity.try_into().ok()).unwrap_or(None);
 
         Ok(entity)
+    }
+
+    pub fn ids_for_status_check(
+        &self,
+        server_id: Uuid,
+        cutoff: Option<NaiveDateTime>,
+    ) -> Result<Vec<Uuid>, DbError> {
+        let mut connection = self.connection_pool.get()?;
+        let mut query = uploads_table::table
+            .filter(uploads_table::server_id.eq(server_id.to_string()))
+            .order((uploads_table::created_at.desc(), uploads_table::id.desc()))
+            .select(uploads_table::id)
+            .into_boxed();
+        if let Some(cutoff) = cutoff {
+            query = query.filter(
+                uploads_table::last_status_updated
+                    .is_null()
+                    .or(uploads_table::last_status_updated.le(cutoff)),
+            );
+        }
+        let ids = query.load::<String>(&mut connection)?;
+
+        ids.into_iter()
+            .map(|id| Uuid::parse_str(&id).map_err(DbError::from))
+            .collect()
+    }
+
+    pub fn update_checked_statuses(
+        &self,
+        server_id: Uuid,
+        statuses: &[(Uuid, Status)],
+        checked_at: NaiveDateTime,
+    ) -> Result<(), DbError> {
+        let mut connection = self.connection_pool.get()?;
+        let server_id = server_id.to_string();
+        connection.transaction(|connection| {
+            for (id, status) in statuses {
+                let upload = uploads_table::table
+                    .filter(uploads_table::id.eq(id.to_string()))
+                    .filter(uploads_table::server_id.eq(&server_id));
+                diesel::update(upload)
+                    .set((
+                        uploads_table::status.eq(status.to_string()),
+                        uploads_table::last_status_updated.eq(checked_at),
+                    ))
+                    .execute(connection)?;
+            }
+            Ok(())
+        })
     }
 
     pub fn save(&self, upload: Upload) -> Result<(), DbError> {
@@ -174,6 +227,7 @@ impl UploadRepository {
 mod tests {
     use super::*;
     use crate::database::{DbPool, tests::test_database_connection};
+    use chrono::{TimeDelta, Utc};
     use serial_test::serial;
     use uuid::Uuid;
 
@@ -237,6 +291,62 @@ mod tests {
 
         assert_eq!(true, existing.is_some());
         assert_eq!(upload, existing.unwrap().try_into().unwrap());
+    }
+
+    #[test]
+    #[serial]
+    fn checks_stale_uploads_in_order_and_updates_only_matching_rows() {
+        let db = test_database_connection();
+        clean(&mut db.get().unwrap());
+        let repository = UploadRepository::new(db);
+        let mut oldest = Upload::test();
+        oldest.status = Status::Completed;
+        let mut newest = Upload::test();
+        newest.server_id = oldest.server_id;
+        newest.created_at = oldest.created_at + TimeDelta::minutes(1);
+        newest.status = Status::Completed;
+        let other_server = Upload::test();
+        repository.save(oldest.clone()).unwrap();
+        repository.save(newest.clone()).unwrap();
+        repository.save(other_server.clone()).unwrap();
+
+        let now = Utc::now().naive_utc();
+        let cutoff = now - TimeDelta::hours(1);
+        let due = repository
+            .ids_for_status_check(oldest.server_id, Some(cutoff))
+            .unwrap();
+        assert_eq!(due, [newest.id, oldest.id]);
+
+        repository
+            .update_checked_statuses(
+                oldest.server_id,
+                &[
+                    (newest.id, Status::Expired),
+                    (other_server.id, Status::Deleted),
+                ],
+                now,
+            )
+            .unwrap();
+
+        let saved = repository.find_by_id(newest.id).unwrap().unwrap();
+        assert_eq!(saved.status, Status::Expired);
+        assert_eq!(saved.last_status_updated, Some(now.and_utc()));
+        assert_eq!(
+            repository.find_by_id(other_server.id).unwrap(),
+            Some(other_server)
+        );
+        assert_eq!(
+            repository
+                .ids_for_status_check(oldest.server_id, Some(cutoff))
+                .unwrap(),
+            [oldest.id],
+        );
+        assert_eq!(
+            repository
+                .ids_for_status_check(oldest.server_id, None)
+                .unwrap(),
+            [newest.id, oldest.id],
+        );
     }
 
     fn insert_test_upload(db: &DbPool) -> Upload {

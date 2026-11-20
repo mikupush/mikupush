@@ -20,6 +20,11 @@
   "uploads": {
     "empty_state": "Parece que aún no has compartido ningún archivo o carpeta.\nNo pasa nada, solo tienes que arrastrar y soltar para compartir. O, si lo prefieres, selecciona algo para empezar.",
     "completed_empty_state": "No hay subidas completadas para este servidor.",
+    "status_sync": {
+      "action": "Comprobar estados",
+      "in_progress": "Ya hay una comprobación de estados en curso.",
+      "error": "No se pudieron comprobar los estados de las subidas."
+    },
     "select_file": "Seleccionar un archivo",
     "select_folder": "Seleccionar carpeta",
     "link_copied": {
@@ -39,6 +44,8 @@
       "pending": "Preparando subida",
       "inProgress": "Subiendo",
       "completed": "Completada",
+      "expired": "Caducada",
+      "deleted": "Eliminada",
       "failed": "Fallida",
       "aborted": "Cancelada"
     },
@@ -63,6 +70,8 @@
       "status": "Estado",
       "progress": "Progreso",
       "created_at": "Creación",
+      "columns": "Columnas",
+      "last_status_updated": "Última comprobación",
       "actions": "Acciones"
     },
     "actions": {

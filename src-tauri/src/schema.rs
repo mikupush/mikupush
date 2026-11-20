@@ -36,6 +36,7 @@ diesel::table! {
         created_at -> Timestamp,
         status -> Text,
         directory -> Bool,
+        last_status_updated -> Nullable<Timestamp>,
     }
 }
 

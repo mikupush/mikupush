@@ -18,13 +18,17 @@ use super::enqueue;
 use super::helpers::copy_upload_link_to_clipboard;
 use super::queue::remove_upload_job;
 use crate::AppContext;
+use crate::client::{Client, FileDeleteError, FileInfoError};
+use crate::events::ARCHIVED_UPLOADS_CHANGED_EVENT;
+use crate::server::ServerRepository;
 use crate::state::{SelectedServerState, UploadsState};
 use crate::upload::UploadRepository;
 use crate::upload::{Upload, UploadRequest};
 use log::{debug, warn};
 use rust_i18n::t;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_dialog::DialogExt;
+use tokio::task::spawn_blocking;
 use uuid::Uuid;
 
 #[tauri::command]
@@ -107,29 +111,59 @@ pub async fn delete_upload(
 
 #[tauri::command]
 pub async fn delete_archived_upload(
+    app_handle: AppHandle,
     app_context: State<'_, AppContext>,
-    server_state: State<'_, SelectedServerState>,
     upload_id: String,
 ) -> Result<Vec<Upload>, String> {
-    debug!("deleting archived upload with id {}", upload_id.clone());
+    debug!("deleting archived upload with id {upload_id}");
 
-    let id = Uuid::parse_str(upload_id.as_str()).map_err(|err| err.to_string())?;
-    let server_id = server_state.current_server().id.to_string();
-    let client = server_state.client();
-    client.delete(id).await.map_err(|err| err.to_string())?;
-
-    let connection_pool = app_context
+    let id = Uuid::parse_str(&upload_id).map_err(|err| err.to_string())?;
+    let pool = app_context
         .db_connection
         .get()
         .cloned()
         .ok_or_else(|| "database connection is not initialized".to_string())?;
-    let repository = UploadRepository::new(connection_pool);
-    repository.delete(id).map_err(|err| err.to_string())?;
 
-    debug!("deleted archived upload with id {}", upload_id.clone());
-    repository
-        .find_by_server_id(server_id)
-        .map_err(|err| err.to_string())
+    let read_pool = pool.clone();
+    let server = spawn_blocking(move || {
+        let upload = UploadRepository::new(read_pool.clone())
+            .find_by_id(id)
+            .map_err(|err| err.to_string())?
+            .ok_or_else(|| t!("errors.upload.not_found").to_string())?;
+        ServerRepository::new(read_pool)
+            .find_by_id(upload.server_id)
+            .map_err(|err| err.to_string())?
+            .ok_or_else(|| format!("server {} not found", upload.server_id))
+    })
+    .await
+    .map_err(|err| err.to_string())??;
+
+    let server_id = server.id;
+    let client = Client::new(server);
+
+    match client.info(id).await {
+        Ok(_) => match client.delete(id).await {
+            Ok(()) | Err(FileDeleteError::NotExists { .. }) => {}
+            Err(error) => return Err(error.to_string()),
+        },
+        Err(FileInfoError::NotExists { .. }) => {
+            debug!("archived upload {id} is already absent from server {server_id}");
+        }
+        Err(error) => return Err(error.to_string()),
+    }
+
+    spawn_blocking(move || {
+        let repository = UploadRepository::new(pool);
+        repository.delete(id)?;
+        if let Err(error) = app_handle.emit(ARCHIVED_UPLOADS_CHANGED_EVENT, &server_id) {
+            warn!("could not notify the upload history about deletion: {error}");
+        }
+        debug!("deleted archived upload with id {upload_id}");
+        repository.find_by_server_id(server_id.to_string())
+    })
+    .await
+    .map_err(|err| err.to_string())?
+    .map_err(|err| err.to_string())
 }
 
 #[tauri::command]

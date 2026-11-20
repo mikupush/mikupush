@@ -11,6 +11,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
   vi.clearAllMocks()
 })
 
@@ -78,9 +79,9 @@ describe('upload tables', () => {
     if (archived) {
       const table = screen.getByRole('table')
       expect(within(table).getAllByRole('columnheader').map(header => header.textContent)).toEqual([
-        'uploads.table.name', 'uploads.table.size', 'uploads.table.created_at', 'uploads.table.actions',
+        'uploads.table.name', 'uploads.table.size', 'uploads.table.status', 'uploads.table.created_at', 'uploads.table.actions',
       ])
-      expect(within(table).getAllByRole('cell')).toHaveLength(4)
+      expect(within(table).getAllByRole('cell')).toHaveLength(5)
     } else {
       expect(screen.getByText('100%')).toBeTruthy()
     }
@@ -90,5 +91,24 @@ describe('upload tables', () => {
     expect(vi.mocked(invoke).mock.calls.filter(([command]) => command.startsWith('delete'))).toHaveLength(0)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'uploads.delete.confirm' }))
     expect(invoke).toHaveBeenCalledWith(archived ? 'delete_archived_upload' : 'delete_upload', { uploadId: 'upload-1' })
+  })
+
+  it('shows the archived status and remembers the optional last checked column', () => {
+    const upload = request().upload
+    upload.status = 'expired'
+    upload.lastStatusUpdated = '2026-11-09T13:00:00Z'
+    const view = render(<ArchivedUploadList items={[upload]} />)
+
+    expect(screen.getByRole('cell', { name: 'uploads.status.expired' })).toBeTruthy()
+    expect(screen.queryByRole('columnheader', { name: 'uploads.table.last_status_updated' })).toBeNull()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'uploads.table.columns' }), { key: 'Enter' })
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'uploads.table.last_status_updated' }))
+    expect(screen.getByRole('columnheader', { name: 'uploads.table.last_status_updated' })).toBeTruthy()
+    expect(view.container.querySelector('time[datetime="2026-11-09T13:00:00Z"]')).toBeTruthy()
+
+    view.unmount()
+    render(<ArchivedUploadList items={[{ ...upload, status: 'deleted' }]} />)
+    expect(screen.getByRole('columnheader', { name: 'uploads.table.last_status_updated' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'uploads.status.deleted' })).toBeTruthy()
   })
 })

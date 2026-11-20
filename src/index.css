@@ -170,6 +170,18 @@ html, body {
   }
 }
 
+@container uploads (width < 710px) {
+  .upload-table[data-show-status-check="true"] [data-column="created-at"] {
+    display: none;
+  }
+}
+
+@container uploads (width < 630px) {
+  .upload-table[data-show-status-check="true"] [data-column="size"] {
+    display: none;
+  }
+}
+
 @theme inline {
   --color-file-image: var(--file-image);
   --color-file-video: var(--file-video);

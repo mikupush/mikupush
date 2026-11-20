@@ -50,10 +50,11 @@ export function UploadItem({ item }: UploadItemProps) {
 
 interface ArchivedUploadItemProps {
   upload: Upload
+  showStatusCheck: boolean
 }
 
-export function ArchivedUploadItem({ upload }: ArchivedUploadItemProps) {
-  return <UploadRow upload={upload} actions={<ArchivedUploadActions upload={upload} />} />
+export function ArchivedUploadItem({ upload, showStatusCheck }: ArchivedUploadItemProps) {
+  return <UploadRow upload={upload} showStatusCheck={showStatusCheck} actions={<ArchivedUploadActions upload={upload} />} />
 }
 
 export function UploadProgressItem({ item }: UploadItemProps) {
@@ -64,9 +65,10 @@ interface UploadRowProps {
   upload: Upload
   item?: UploadRequest
   actions: ReactNode
+  showStatusCheck?: boolean
 }
 
-function UploadRow({ upload, item, actions }: UploadRowProps) {
+function UploadRow({ upload, item, actions, showStatusCheck = false }: UploadRowProps) {
   const { t } = useTranslation()
   const displayName = uploadDisplayName(upload.name, upload.directory)
   const failed = item?.error != null || upload.status === 'failed'
@@ -88,7 +90,7 @@ function UploadRow({ upload, item, actions }: UploadRowProps) {
         </div>
       </td>
       <td data-column="size" className="px-3 py-4 text-right tabular-nums whitespace-nowrap">{formatSizeBytes(upload.size)}</td>
-      {item && (
+      {item ? (
         <>
           <td data-column="speed" className="px-3 py-4 text-right tabular-nums whitespace-nowrap text-muted-foreground">
             {transferring ? formatRate(item.progress.rateBytes) : '—'}
@@ -105,10 +107,19 @@ function UploadRow({ upload, item, actions }: UploadRowProps) {
           </td>
           <td data-column="progress" className="px-3 py-4 text-right font-medium tabular-nums">{percentage}%</td>
         </>
+      ) : (
+        <td className="px-2 py-4">{t(`uploads.status.${status}`)}</td>
       )}
       <td data-column="created-at" className="px-3 py-4 text-xs tabular-nums whitespace-nowrap text-muted-foreground">
         <time dateTime={upload.createdAt}>{formatDate(upload.createdAt)}</time>
       </td>
+      {showStatusCheck && (
+        <td className="px-2 py-4 text-xs tabular-nums whitespace-nowrap text-muted-foreground">
+          {upload.lastStatusUpdated
+            ? <time dateTime={upload.lastStatusUpdated}>{formatDate(upload.lastStatusUpdated)}</time>
+            : '—'}
+        </td>
+      )}
       <td className="px-2 py-4">
         <div className="flex items-center justify-end gap-1">{actions}</div>
       </td>
@@ -182,7 +193,7 @@ function FinishedUploadActions({ item }: UploadItemProps) {
   )
 }
 
-function ArchivedUploadActions({ upload }: ArchivedUploadItemProps) {
+function ArchivedUploadActions({ upload }: { upload: Upload }) {
   const { t } = useTranslation()
 
   return (
@@ -243,17 +254,13 @@ function DeleteAction({ item }: UploadItemProps) {
   )
 }
 
-function DeleteArchivedAction({ upload }: ArchivedUploadItemProps) {
+function DeleteArchivedAction({ upload }: { upload: Upload }) {
   const { t } = useTranslation()
-  const { setArchivedUploads } = useUploadsStore()
   const displayName = uploadDisplayName(upload.name, upload.directory)
 
   const performDelete = () => {
-    invoke<Upload[]>('delete_archived_upload', { uploadId: upload.id })
-      .then((uploads) => {
-        toast.success(t('uploads.delete.success', { fileName: displayName }))
-        setArchivedUploads(uploads)
-      })
+    invoke('delete_archived_upload', { uploadId: upload.id })
+      .then(() => toast.success(t('uploads.delete.success', { fileName: displayName })))
       .catch(() => toast.error(t('uploads.delete.error', { fileName: displayName })))
   }
 

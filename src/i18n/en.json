@@ -20,6 +20,11 @@
   "uploads": {
     "empty_state": "Looks like you haven't shared any files or folders yet!\nNo worries, you're just a drag and drop away from sharing. Or, if you prefer, select something to get started.",
     "completed_empty_state": "There are no completed uploads for this server.",
+    "status_sync": {
+      "action": "Check statuses",
+      "in_progress": "An upload status check is already in progress.",
+      "error": "Could not check upload statuses."
+    },
     "select_file": "Select a file",
     "select_folder": "Select folder",
     "link_copied": {
@@ -39,6 +44,8 @@
       "pending": "Preparing upload",
       "inProgress": "Uploading",
       "completed": "Completed",
+      "expired": "Expired",
+      "deleted": "Deleted",
       "failed": "Failed",
       "aborted": "Canceled"
     },
@@ -63,6 +70,8 @@
       "status": "Status",
       "progress": "Progress",
       "created_at": "Created",
+      "columns": "Columns",
+      "last_status_updated": "Last checked",
       "actions": "Actions"
     },
     "actions": {

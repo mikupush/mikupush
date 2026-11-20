@@ -56,6 +56,25 @@ pub enum FileStatus {
     Uploaded,
 }
 
+#[derive(Deserialize)]
+pub struct FileStatuses {
+    pub files: Vec<FileStatusEntry>,
+}
+
+#[derive(Deserialize)]
+pub struct FileStatusEntry {
+    pub id: Uuid,
+    pub status: FileRegistrationStatus,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FileRegistrationStatus {
+    Active,
+    Expired,
+    NotFound,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
     pub id: Uuid,

@@ -49,7 +49,7 @@ use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuEvent, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, RunEvent, Url, Wry};
+use tauri::{App, AppHandle, Manager, RunEvent, Url, WindowEvent, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::time::sleep;
@@ -119,6 +119,7 @@ pub fn run() {
             db_connection: OnceLock::new(),
         })
         .manage(UploadsState::new())
+        .manage(upload::ArchivedUploadStatusSync::new())
         .manage(SelectedServerState::new())
         .manage(AppState::default())
         .setup(|app| setup_app(app))
@@ -137,6 +138,8 @@ pub fn run() {
             upload::cancel_upload,
             upload::list_active_uploads,
             upload::get_archived_uploads,
+            upload::set_archived_uploads_view,
+            upload::sync_archived_upload_statuses,
             config::get_config_value,
             config::set_config_value,
             language::get_language,
@@ -160,6 +163,14 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| match event {
+            RunEvent::WindowEvent {
+                label,
+                event: WindowEvent::Destroyed,
+                ..
+            } if label == MAIN_WINDOW => {
+                app.state::<upload::ArchivedUploadStatusSync>()
+                    .set_server(None);
+            }
             RunEvent::ExitRequested { api, .. } => {
                 debug!("exit request");
 
@@ -196,12 +207,13 @@ fn setup_app(app: &mut App) -> GenericResult<()> {
     unpack_resources(app.app_handle())?;
     let db = setup_app_database_connection(app);
     let app_context = app.state::<AppContext>();
-    app_context.db_connection.set(db).unwrap();
+    app_context.db_connection.set(db.clone()).unwrap();
     language::configure_current_language(app.app_handle())?;
     setup_app_menu(app.app_handle())?;
     initialize_current_server_state(app.app_handle())?;
     start_upload_progress_sync(app.app_handle().clone());
     start_upload_queue_worker(app.app_handle().clone())?;
+    upload::start_archived_upload_status_sync(app.app_handle().clone(), db);
 
     #[cfg(target_os = "macos")]
     if only_tray {

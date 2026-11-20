@@ -15,13 +15,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::error::{FileDeleteError, FileInfoError, FileUploadError, HealthCheckError};
-use super::response::{ErrorResponse, FileInfo, HealthCheckStatus, ServerInfo};
+use super::response::{ErrorResponse, FileInfo, FileStatuses, HealthCheckStatus, ServerInfo};
 use super::upload::SingleUploadTask;
 use super::{ChunkedUploadTask, UploadContext, UploadTask};
 use crate::server::Server;
 use crate::upload::{Progress, Upload, UploadRequest};
 use log::debug;
 use serde_json::json;
+use std::time::Duration;
 use tokio::sync::watch::Sender;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -89,7 +90,7 @@ impl Client {
         let url = format!("{}/api/file/{}", self.base_url, id);
         let response =
             self.client
-                .delete(&url)
+                .get(&url)
                 .send()
                 .await
                 .map_err(|err| FileInfoError::ClientError {
@@ -150,6 +151,19 @@ impl Client {
         }
 
         Ok(())
+    }
+
+    pub async fn file_statuses(&self, ids: &[Uuid]) -> Result<FileStatuses, reqwest::Error> {
+        let url = format!("{}/api/files/status", self.base_url.trim_end_matches('/'));
+        self.client
+            .post(url)
+            .timeout(Duration::from_secs(30))
+            .json(&json!({ "files": ids }))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await
     }
 
     pub async fn upload(

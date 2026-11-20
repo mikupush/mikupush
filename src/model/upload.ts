@@ -18,7 +18,7 @@
 
 import { type UploadErrorCode } from '@/constants/upload_error'
 
-export type UploadStatus = 'enqueued' | 'pending' | 'compressing' | 'inProgress' | 'completed' | 'failed' | 'aborted'
+export type UploadStatus = 'enqueued' | 'pending' | 'compressing' | 'inProgress' | 'completed' | 'expired' | 'deleted' | 'failed' | 'aborted'
 
 export interface Progress {
   progress: number
@@ -54,6 +54,7 @@ export interface Upload {
   url?: string;
   createdAt: string; // ISO string, matches Rust DateTimeUtc
   status: UploadStatus;
+  lastStatusUpdated?: string | null;
   serverId: string;
   directory: boolean;
 }

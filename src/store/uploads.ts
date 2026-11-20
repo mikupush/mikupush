@@ -16,13 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Upload, UploadRequest } from '@/model/upload'
+import { UploadRequest } from '@/model/upload'
 import { create } from 'zustand'
 
 interface UploadsStoreState {
   preferenceDialogs: { id: number, paths: string[] | null }[]
   inProgressUploads: UploadRequest[]
-  archivedUploads: Upload[]
   activeDropZone: boolean
   isLoading: boolean
 }
@@ -31,7 +30,6 @@ interface UploadsStoreActions {
   queueUploadPreferences(paths?: string[]): void
   closeUploadPreferences(id: number): void
   setInProgressUploads(uploadsRequests: UploadRequest[]): void
-  setArchivedUploads(uploads: Upload[]): void
   showDropZone(show: boolean): void
   setIsLoading(loading: boolean): void
 }
@@ -51,15 +49,11 @@ export const useUploadsStore = create<UploadsStore>((set) => ({
     set(state => ({ preferenceDialogs: state.preferenceDialogs.filter(dialog => dialog.id !== id) }))
   },
   inProgressUploads: [],
-  archivedUploads: [],
   activeDropZone: false,
   isLoading: false,
 
   setInProgressUploads: (inProgressUploads: UploadRequest[]) => {
     set((state) => ({ ...state, inProgressUploads }))
-  },
-  setArchivedUploads: (archivedUploads: Upload[]) => {
-    set((state) => ({ ...state, archivedUploads }))
   },
   showDropZone: (show: boolean) => {
     set((state) => ({ ...state, activeDropZone: show }))
